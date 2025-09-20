@@ -1,0 +1,637 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+  <!-- Header -->
+  <header class="bg-white shadow-lg border-b border-gray-200">
+    <div class="container mx-auto px-6 py-4">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <div
+            class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+              </path>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Protobuf Spec Editor</h1>
+            <p class="text-sm text-gray-500">Create and manage your protocol buffer specifications</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">Auto-save enabled</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container mx-auto px-6 py-8">
+    <!-- Spec Details Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+      <div class="p-6 border-b border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Specification Details</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <label for="specTitle" class="block text-sm font-medium text-gray-700 mb-2">Spec Sheet Title</label>
+            <input type="text" id="specTitle"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+              placeholder="Enter specification title...">
+          </div>
+          <div>
+            <label for="specVersion" class="block text-sm font-medium text-gray-700 mb-2">Version</label>
+            <input type="text" id="specVersion"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+              placeholder="1.0.0">
+          </div>
+        </div>
+        <div class="mt-6">
+          <label for="specDescription" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <textarea id="specDescription" rows="3"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 resize-none"
+            placeholder="Describe your protocol buffer specification..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Editor Layout -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+      <!-- Advanced Protobuf Editor -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <!-- Tab Navigation -->
+        <div class="border-b border-gray-200">
+          <nav class="flex space-x-8 px-6" aria-label="Tabs">
+            <button type="button" (click)="setActiveTab('messages')"
+              [class]="activeTab === 'messages' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200">
+              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                </path>
+              </svg>
+              Messages
+            </button>
+            <button type="button" (click)="setActiveTab('enums')"
+              [class]="activeTab === 'enums' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200">
+              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                </path>
+              </svg>
+              Enums
+            </button>
+            <button type="button" (click)="setActiveTab('services')"
+              [class]="activeTab === 'services' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200">
+              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0">
+                </path>
+              </svg>
+              Services
+            </button>
+            <button type="button" (click)="setActiveTab('settings')"
+              [class]="activeTab === 'settings' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200">
+              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                </path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+              Settings
+            </button>
+          </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="p-6">
+          <!-- Messages Tab -->
+          @if (activeTab === 'messages') {
+          <div class="space-y-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900">Message Definitions</h3>
+              <button type="button" (click)="addMessage()"
+                class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                  </path>
+                </svg>
+                Add Message
+              </button>
+            </div>
+
+            <div class="max-h-96 overflow-y-auto space-y-4">
+              @for (message of protoFile.messages; track trackByIndex($index, message); let i = $index) {
+              <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 p-4">
+                <!-- Message Header -->
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center space-x-3">
+                    <div
+                      class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                      </svg>
+                    </div>
+                    <input type="text" [(ngModel)]="message.name" [name]="'messageName_' + i"
+                      (ngModelChange)="updateProtoPreview()"
+                      class="text-lg font-semibold bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-blue-500 outline-none transition-all duration-200 px-2 py-1">
+                  </div>
+                  <button type="button" (click)="removeMessage(i)"
+                    class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                      </path>
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Fields -->
+                <div class="space-y-3">
+                  @for (field of message.fields; track trackByIndex($index, field); let j = $index) {
+                  <div class="bg-white rounded-lg p-3 border border-gray-200">
+                    <!-- Main Field Row -->
+                    <div class="grid grid-cols-12 gap-3 items-center mb-2">
+                      <!-- Field Type -->
+                      <div class="col-span-4">
+                        <select [(ngModel)]="field.type" [name]="'fieldType_' + i + '_' + j"
+                          (ngModelChange)="updateProtoPreview()"
+                          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                          <option value="string">string</option>
+                          <option value="int32">int32</option>
+                          <option value="int64">int64</option>
+                          <option value="uint32">uint32</option>
+                          <option value="uint64">uint64</option>
+                          <option value="sint32">sint32</option>
+                          <option value="sint64">sint64</option>
+                          <option value="fixed32">fixed32</option>
+                          <option value="fixed64">fixed64</option>
+                          <option value="sfixed32">sfixed32</option>
+                          <option value="sfixed64">sfixed64</option>
+                          <option value="bool">bool</option>
+                          <option value="double">double</option>
+                          <option value="float">float</option>
+                          <option value="bytes">bytes</option>
+                        </select>
+                      </div>
+                      <!-- Field Name -->
+                      <div class="col-span-5">
+                        <input type="text" [(ngModel)]="field.name" [name]="'fieldName_' + i + '_' + j"
+                          (ngModelChange)="updateProtoPreview()"
+                          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="field_name">
+                      </div>
+                      <!-- Field Number -->
+                      <div class="col-span-2">
+                        <input type="number" [(ngModel)]="field.number" [name]="'fieldNumber_' + i + '_' + j"
+                          (ngModelChange)="updateProtoPreview()"
+                          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="1" min="1">
+                      </div>
+                      <!-- Remove Button -->
+                      <div class="col-span-1">
+                        <button type="button" (click)="removeField(message, j)"
+                          class="w-full p-2 text-red-500 hover:bg-red-50 rounded-md transition-all duration-200">
+                          <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Field Modifiers Row -->
+                    <div class="flex space-x-4 pl-1">
+                      <label class="flex items-center">
+                        <input type="checkbox" [(ngModel)]="field.repeated" [name]="'fieldRepeated_' + i + '_' + j"
+                          (ngModelChange)="updateProtoPreview()"
+                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="ml-2 text-xs text-gray-600">repeated</span>
+                      </label>
+                      <label class="flex items-center">
+                        <input type="checkbox" [(ngModel)]="field.optional" [name]="'fieldOptional_' + i + '_' + j"
+                          (ngModelChange)="updateProtoPreview()"
+                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="ml-2 text-xs text-gray-600">optional</span>
+                      </label>
+                    </div>
+                  </div>
+                  }
+                </div>
+
+                <!-- Add Field Button -->
+                <button type="button" (click)="addField(message)"
+                  class="mt-3 w-full py-2 px-4 border-2 border-dashed border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-500 rounded-lg transition-all duration-200 text-sm font-medium">
+                  <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  Add Field
+                </button>
+              </div>
+              }
+            </div>
+
+            <!-- Empty State for Messages -->
+            @if (protoFile.messages.length === 0) {
+            <div class="text-center py-12">
+              <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                  </path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">No messages yet</h3>
+              <p class="text-gray-500 mb-4">Start building your protobuf specification by adding your first message.</p>
+              <button type="button" (click)="addMessage()"
+                class="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors duration-200">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                  </path>
+                </svg>
+                Create First Message
+              </button>
+            </div>
+            }
+          </div>
+          }
+
+          <!-- Enums Tab -->
+          @if (activeTab === 'enums') {
+          <div class="space-y-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900">Enum Definitions</h3>
+              <button type="button" (click)="addEnum()"
+                class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                  </path>
+                </svg>
+                Add Enum
+              </button>
+            </div>
+
+            <div class="max-h-96 overflow-y-auto space-y-4">
+              @for (enumItem of protoFile.enums; track trackByIndex($index, enumItem); let i = $index) {
+              <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4">
+                <!-- Enum Header -->
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center space-x-3">
+                    <div
+                      class="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                        </path>
+                      </svg>
+                    </div>
+                    <input type="text" [(ngModel)]="enumItem.name" [name]="'enumName_' + i"
+                      (ngModelChange)="updateProtoPreview()"
+                      class="text-lg font-semibold bg-transparent border-b-2 border-transparent hover:border-green-300 focus:border-green-500 outline-none transition-all duration-200 px-2 py-1">
+                  </div>
+                  <button type="button" (click)="removeEnum(i)"
+                    class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                      </path>
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Enum Values -->
+                <div class="space-y-3">
+                  @for (value of enumItem.values; track trackByIndex($index, value); let j = $index) {
+                  <div class="grid grid-cols-12 gap-3 items-center bg-white rounded-lg p-3 border border-green-200">
+                    <div class="col-span-8">
+                      <input type="text" [(ngModel)]="value.name" [name]="'enumValueName_' + i + '_' + j"
+                        (ngModelChange)="updateProtoPreview()"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="ENUM_VALUE">
+                    </div>
+                    <div class="col-span-3">
+                      <input type="number" [(ngModel)]="value.number" [name]="'enumValueNumber_' + i + '_' + j"
+                        (ngModelChange)="updateProtoPreview()"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="0" min="0">
+                    </div>
+                    <div class="col-span-1">
+                      <button type="button" (click)="removeEnumValue(enumItem, j)"
+                        class="w-full p-2 text-red-500 hover:bg-red-50 rounded-md transition-all duration-200">
+                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  }
+                </div>
+
+                <!-- Add Enum Value Button -->
+                <button type="button" (click)="addEnumValue(enumItem)"
+                  class="mt-3 w-full py-2 px-4 border-2 border-dashed border-green-300 text-green-600 hover:border-green-400 hover:text-green-700 rounded-lg transition-all duration-200 text-sm font-medium">
+                  <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  Add Enum Value
+                </button>
+              </div>
+              }
+            </div>
+
+            <!-- Empty State for Enums -->
+            @if (protoFile.enums.length === 0) {
+            <div class="text-center py-12">
+              <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                  </path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">No enums yet</h3>
+              <p class="text-gray-500 mb-4">Add enums to define sets of named constants in your protobuf specification.</p>
+              <button type="button" (click)="addEnum()"
+                class="inline-flex items-center px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-colors duration-200">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                  </path>
+                </svg>
+                Create First Enum
+              </button>
+            </div>
+            }
+          </div>
+          }
+
+          <!-- Services Tab -->
+          @if (activeTab === 'services') {
+          <div class="space-y-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900">Service Definitions</h3>
+              <button type="button" (click)="addService()"
+                class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-purple-600 hover:to-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 shadow-sm">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                  </path>
+                </svg>
+                Add Service
+              </button>
+            </div>
+
+            <div class="max-h-96 overflow-y-auto space-y-4">
+              @for (service of protoFile.services; track trackByIndex($index, service); let i = $index) {
+              <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200 p-4">
+                <!-- Service Header -->
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center space-x-3">
+                    <div
+                      class="w-8 h-8 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0">
+                        </path>
+                      </svg>
+                    </div>
+                    <input type="text" [(ngModel)]="service.name" [name]="'serviceName_' + i"
+                      (ngModelChange)="updateProtoPreview()"
+                      class="text-lg font-semibold bg-transparent border-b-2 border-transparent hover:border-purple-300 focus:border-purple-500 outline-none transition-all duration-200 px-2 py-1">
+                  </div>
+                  <button type="button" (click)="removeService(i)"
+                    class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                      </path>
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Service Methods -->
+                <div class="space-y-3">
+                  @for (method of service.methods; track trackByIndex($index, method); let j = $index) {
+                  <div class="bg-white rounded-lg p-3 border border-purple-200">
+                    <div class="grid grid-cols-12 gap-3 items-center">
+                      <div class="col-span-3">
+                        <input type="text" [(ngModel)]="method.name" [name]="'methodName_' + i + '_' + j"
+                          (ngModelChange)="updateProtoPreview()"
+                          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="MethodName">
+                      </div>
+                      <div class="col-span-4">
+                        <input type="text" [(ngModel)]="method.inputType" [name]="'methodInput_' + i + '_' + j"
+                          (ngModelChange)="updateProtoPreview()"
+                          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="InputMessage">
+                      </div>
+                      <div class="col-span-4">
+                        <input type="text" [(ngModel)]="method.outputType" [name]="'methodOutput_' + i + '_' + j"
+                          (ngModelChange)="updateProtoPreview()"
+                          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="OutputMessage">
+                      </div>
+                      <div class="col-span-1">
+                        <button type="button" (click)="removeServiceMethod(service, j)"
+                          class="w-full p-2 text-red-500 hover:bg-red-50 rounded-md transition-all duration-200">
+                          <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  }
+                </div>
+
+                <!-- Add Method Button -->
+                <button type="button" (click)="addServiceMethod(service)"
+                  class="mt-3 w-full py-2 px-4 border-2 border-dashed border-purple-300 text-purple-600 hover:border-purple-400 hover:text-purple-700 rounded-lg transition-all duration-200 text-sm font-medium">
+                  <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  Add Method
+                </button>
+              </div>
+              }
+            </div>
+
+            <!-- Empty State for Services -->
+            @if (protoFile.services.length === 0) {
+            <div class="text-center py-12">
+              <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8.111 16.404a5.5 5.5 0 717.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0">
+                  </path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">No services yet</h3>
+              <p class="text-gray-500 mb-4">Add services to define RPC methods in your protobuf specification.</p>
+              <button type="button" (click)="addService()"
+                class="inline-flex items-center px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-lg hover:bg-purple-600 transition-colors duration-200">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                  </path>
+                </svg>
+                Create First Service
+              </button>
+            </div>
+            }
+          </div>
+          }
+
+          <!-- Settings Tab -->
+          @if (activeTab === 'settings') {
+          <div class="space-y-6">
+            <h3 class="text-lg font-semibold text-gray-900">Protocol Buffer Settings</h3>
+            
+            <div class="space-y-4">
+              <!-- Syntax Version -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Syntax Version</label>
+                <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <option value="proto3">proto3</option>
+                  <option value="proto2">proto2</option>
+                </select>
+              </div>
+
+              <!-- Package Name -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Package Name</label>
+                <input type="text" 
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="com.example.mypackage">
+              </div>
+
+              <!-- Import Options -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Common Imports</label>
+                <div class="space-y-2">
+                  <label class="flex items-center">
+                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span class="ml-2 text-sm text-gray-600">google/protobuf/timestamp.proto</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span class="ml-2 text-sm text-gray-600">google/protobuf/empty.proto</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span class="ml-2 text-sm text-gray-600">google/protobuf/any.proto</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Code Generation Options -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Code Generation</label>
+                <div class="space-y-2">
+                  <label class="flex items-center">
+                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span class="ml-2 text-sm text-gray-600">Generate Java classes</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span class="ml-2 text-sm text-gray-600">Generate Python classes</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span class="ml-2 text-sm text-gray-600">Generate Go structs</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+
+      <!-- Protocol Buffer Preview -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="p-6 border-b border-gray-100">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900">Protocol Buffer Preview</h2>
+            <div class="flex items-center space-x-2">
+              <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">proto3</span>
+              <button class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-all duration-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                  </path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-0">
+          <div class="rounded-b-xl overflow-hidden" style="height: 500px;">
+            <nu-monaco-editor [(ngModel)]="code" name="protoCode" [options]="editorOptions"
+              style="width: 100%; height: 100%; display: block;">
+            </nu-monaco-editor>
+          </div>
+        </div>
+
+        
+      </div>
+
+      <!-- Action Buttons -->
+        <div class="flex justify-end space-x-4 p-6 pt-0 border-t border-gray-100">
+          <button
+            class="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200">
+            Save Draft
+          </button>
+          <div class="relative inline-block">
+            <button type="button" (click)="toggleDownloadMenu()"
+              class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-lg hover:from-purple-600 hover:to-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 shadow-sm">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                </path>
+              </svg>
+              Download
+              <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            <div *ngIf="showDownloadMenu"
+              class="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+              <div class="py-1">
+                <button type="button" (click)="downloadProto()"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                  <svg class="w-4 h-4 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                  </svg>
+                  Download as .proto
+                </button>
+                <button type="button" (click)="downloadJson()"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                  <svg class="w-4 h-4 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+                    </path>
+                  </svg>
+                  Download as JSON
+                </button>
+              </div>
+            </div>
+          </div>
+          <button
+            class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm">
+            Publish Spec
+          </button>
+        </div>
+    </div>
+  </div>
+</div>

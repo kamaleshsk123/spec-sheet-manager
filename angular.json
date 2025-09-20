@@ -22,6 +22,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/monaco-editor/min/vs",
+                "output": "/assets/vs/"
               }
             ],
             "styles": [
@@ -88,5 +93,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": "a0e81bc9-ea37-4563-a3b7-2be57fecd393"
   }
 }
