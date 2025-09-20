@@ -71,6 +71,11 @@ export class EditorComponent implements OnInit {
   };
   code: string = 'syntax = "proto3";';
 
+  // Spec details
+  specTitle: string = '';
+  specVersion: string = '';
+  specDescription: string = '';
+
   protoFile: ProtoFile = {
     syntax: 'proto3',
     package: '',
@@ -277,7 +282,8 @@ export class EditorComponent implements OnInit {
   }
 
   downloadProto() {
-    const filename = 'specification.proto';
+    const baseFilename = this.getFilename();
+    const filename = `${baseFilename}.proto`;
     const content = this.code;
     this.downloadFile(content, filename, 'text/plain');
     this.showDownloadMenu = false;
@@ -286,14 +292,29 @@ export class EditorComponent implements OnInit {
   downloadJson() {
     const jsonData = {
       ...this.protoFile,
-      generatedAt: new Date().toISOString(),
-      version: "1.0.0"
+      title: this.specTitle,
+      version: this.specVersion || "1.0.0",
+      description: this.specDescription,
+      generatedAt: new Date().toISOString()
     };
 
     const content = JSON.stringify(jsonData, null, 2);
-    const filename = 'specification.json';
+    const baseFilename = this.getFilename();
+    const filename = `${baseFilename}.json`;
     this.downloadFile(content, filename, 'application/json');
     this.showDownloadMenu = false;
+  }
+
+  private getFilename(): string {
+    if (this.specTitle && this.specTitle.trim()) {
+      // Replace spaces and special characters with underscores, remove invalid filename characters
+      return this.specTitle.trim()
+        .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename characters
+        .replace(/\s+/g, '_') // Replace spaces with underscores
+        .replace(/[^\w\-_.]/g, '') // Keep only word characters, hyphens, underscores, and dots
+        .substring(0, 100); // Limit length to 100 characters
+    }
+    return 'Spec_Sheet';
   }
 
   private downloadFile(content: string, filename: string, contentType: string) {
