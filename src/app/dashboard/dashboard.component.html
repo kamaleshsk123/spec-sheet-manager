@@ -126,7 +126,8 @@
               <div class="flex-1">
                 <div class="flex items-center space-x-3">
                   <h3 class="text-lg font-semibold text-gray-900">{{ spec.title }}</h3>
-                  <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">v{{ spec.version }}</span>
+                  <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">v{{ spec.version }} (Latest)</span>
+                  <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded">{{ getVersionCount(spec.title) }} version{{ getVersionCount(spec.title) > 1 ? 's' : '' }}</span>
                   <span *ngIf="spec.is_published" class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">Published</span>
                 </div>
                 <p *ngIf="spec.description" class="text-gray-600 mt-1">{{ spec.description }}</p>
@@ -147,6 +148,13 @@
                   </svg>
                   Edit
                 </button>
+                <button (click)="openCompareModal(spec)" 
+                  class="inline-flex items-center px-3 py-2 border border-amber-300 text-amber-700 text-sm font-medium rounded-md hover:bg-amber-50 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-all duration-200">
+                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"></path>
+                  </svg>
+                  Compare
+                </button>
                 <button (click)="deleteSpec(spec)" 
                   class="inline-flex items-center px-3 py-2 border border-red-300 text-red-700 text-sm font-medium rounded-md hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200">
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,4 +169,130 @@
       </div>
     </div>
   </div>
+
+  <!-- Compare Modal -->
+  @if (showCompareModal) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-6 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-semibold text-gray-900">Compare Specifications</h2>
+          <button (click)="closeCompareModal()" 
+            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Content -->
+      <div class="p-6">
+        @if (!selectedCompareSpec) {
+        <!-- Spec Selection -->
+        <div class="text-center py-8">
+          <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium text-gray-900 mb-2">Select a version to compare with</h3>
+          <p class="text-gray-500 mb-6">Choose another version of "{{ baseSpec?.title }}" to compare against v{{ baseSpec?.version }}</p>
+          
+          @if (getComparableSpecs().length === 0) {
+          <div class="text-center py-8">
+            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"></path>
+              </svg>
+            </div>
+            <h4 class="text-lg font-medium text-gray-900 mb-2">No other versions found</h4>
+            <p class="text-gray-500">This specification only has one version ({{ baseSpec?.version }}). Create new versions by editing and saving with a different version number.</p>
+          </div>
+          } @else {
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+            @for (spec of getComparableSpecs(); track spec.id) {
+            <div class="border border-gray-200 rounded-lg p-4 hover:border-amber-300 hover:bg-amber-50 cursor-pointer transition-all duration-200"
+              (click)="selectSpecForComparison(spec)">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center space-x-2">
+                    <h4 class="font-medium text-gray-900">Version {{ spec.version }}</h4>
+                    @if (isNewerVersion(spec.version, baseSpec?.version!)) {
+                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">Newer</span>
+                    } @else {
+                    <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">Older</span>
+                    }
+                  </div>
+                  <p class="text-sm text-gray-500 mt-1">{{ formatDate(spec.created_at!) }}</p>
+                  @if (spec.description && spec.description !== baseSpec?.description) {
+                  <p class="text-sm text-gray-600 mt-1">{{ spec.description }}</p>
+                  }
+                </div>
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+              </div>
+            </div>
+            }
+          </div>
+          }
+        </div>
+        } @else {
+        <!-- Comparison View -->
+        <div class="space-y-4">
+          <!-- Comparison Header -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 class="font-semibold text-blue-900">{{ baseSpec?.title }}</h3>
+              <p class="text-sm text-blue-700">Version {{ baseSpec?.version }}</p>
+              <p class="text-xs text-blue-600">{{ formatDate(baseSpec?.created_at!) }}</p>
+            </div>
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h3 class="font-semibold text-green-900">{{ selectedCompareSpec.title }}</h3>
+              <p class="text-sm text-green-700">Version {{ selectedCompareSpec.version }}</p>
+              <p class="text-xs text-green-600">{{ formatDate(selectedCompareSpec.created_at!) }}</p>
+            </div>
+          </div>
+
+          <!-- Comparison Content -->
+          <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
+              <h4 class="font-medium text-gray-900">Protocol Buffer Comparison</h4>
+            </div>
+            <div class="grid grid-cols-2 divide-x divide-gray-200" style="height: 500px;">
+              <!-- Left Side - Base Spec -->
+              <div class="p-4 overflow-auto">
+                <h5 class="text-sm font-medium text-gray-700 mb-2">{{ baseSpec?.title }}</h5>
+                <pre class="text-xs text-gray-800 whitespace-pre-wrap">{{ generateProtoContent(baseSpec!) }}</pre>
+              </div>
+              <!-- Right Side - Compare Spec -->
+              <div class="p-4 overflow-auto">
+                <h5 class="text-sm font-medium text-gray-700 mb-2">{{ selectedCompareSpec.title }}</h5>
+                <pre class="text-xs text-gray-800 whitespace-pre-wrap">{{ generateProtoContent(selectedCompareSpec) }}</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex justify-between">
+            <button (click)="selectedCompareSpec = null" 
+              class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-all duration-200">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+              </svg>
+              Back to Selection
+            </button>
+            <button (click)="closeCompareModal()" 
+              class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-all duration-200">
+              Close
+            </button>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+  }
 </div>

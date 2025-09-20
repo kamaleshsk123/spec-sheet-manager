@@ -439,11 +439,15 @@ export class EditorComponent implements OnInit {
 
     console.log('Saving spec data:', JSON.stringify(specData, null, 2));
 
-    const saveOperation = this.currentSpecId 
+    // Check if version has changed - if so, create new version instead of updating
+    const versionChanged = this.currentSpecId && this.originalVersion && this.originalVersion !== finalVersion;
+    
+    const saveOperation = (this.currentSpecId && !versionChanged)
       ? this.apiService.updateSpec(this.currentSpecId, specData)
       : this.apiService.createSpec(specData);
 
-    const wasUpdate = this.currentSpecId !== null;
+    const wasUpdate = this.currentSpecId !== null && !versionChanged;
+    const isNewVersion = this.currentSpecId !== null && versionChanged;
     const versionWasIncremented = this.shouldAutoIncrementVersion();
 
     saveOperation.subscribe({
@@ -454,13 +458,23 @@ export class EditorComponent implements OnInit {
           
           // Update original data for future comparisons
           this.originalSpecData = JSON.parse(JSON.stringify(this.protoFile));
+          this.originalVersion = finalVersion;
           
-          const title = wasUpdate ? 'Specification Updated' : 'Specification Saved';
-          let message = `"${this.specTitle}" has been ${wasUpdate ? 'updated' : 'saved'} successfully`;
+          let title: string;
+          let message: string;
           
-          // Show version increment message if applicable
-          if (wasUpdate && versionWasIncremented) {
-            message += ` with version automatically incremented to ${finalVersion}`;
+          if (isNewVersion) {
+            title = 'New Version Created';
+            message = `"${this.specTitle}" v${finalVersion} has been created as a new version`;
+          } else if (wasUpdate) {
+            title = 'Specification Updated';
+            message = `"${this.specTitle}" has been updated successfully`;
+            if (versionWasIncremented) {
+              message += ` with version automatically incremented to ${finalVersion}`;
+            }
+          } else {
+            title = 'Specification Saved';
+            message = `"${this.specTitle}" has been saved successfully`;
           }
           
           this.notificationService.success(title, message);

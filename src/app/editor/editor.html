@@ -135,7 +135,7 @@
               </button>
             </div>
 
-            <div class="max-h-96 overflow-y-auto space-y-4">
+            <div class="space-y-4">
               @for (message of protoFile.messages; track trackByIndex($index, message); let i = $index) {
               <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 p-4">
                 <!-- Message Header -->
@@ -289,7 +289,7 @@
               </button>
             </div>
 
-            <div class="max-h-96 overflow-y-auto space-y-4">
+            <div class="space-y-4">
               @for (enumItem of protoFile.enums; track trackByIndex($index, enumItem); let i = $index) {
               <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4">
                 <!-- Enum Header -->
@@ -400,7 +400,7 @@
               </button>
             </div>
 
-            <div class="max-h-96 overflow-y-auto space-y-4">
+            <div class="space-y-4">
               @for (service of protoFile.services; track trackByIndex($index, service); let i = $index) {
               <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200 p-4">
                 <!-- Service Header -->
