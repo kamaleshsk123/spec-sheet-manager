@@ -170,6 +170,14 @@ export class ApiService {
     );
   }
 
+  publishToGithub(specId: string, data: { repoName: string, description: string, isPrivate: boolean }): Observable<ApiResponse> {
+    return this.http.post<ApiResponse>(
+      `${this.baseUrl}/specs/${specId}/publish-to-github`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
   // Auth endpoints
   login(email: string, password: string): Observable<ApiResponse<{user: any, token: string}>> {
     return this.http.post<ApiResponse<{user: any, token: string}>>(

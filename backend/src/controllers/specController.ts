@@ -1,26 +1,118 @@
 import { Request, Response } from 'express';
 import pool from '../config/database';
-import { 
-  CreateSpecRequest, 
-  UpdateSpecRequest, 
-  ProtobufSpec, 
-  ApiResponse, 
+import {
+  CreateSpecRequest,
+  UpdateSpecRequest,
+  ProtobufSpec,
+  ApiResponse,
   PaginatedResponse,
   SpecQueryParams,
-  SpecVersion
+  SpecVersion,
+  ProtoFileData,
 } from '../models/types';
 import { AuthRequest } from '../middleware/auth';
+import { Octokit } from 'octokit';
+
+// Helper function to generate .proto content from spec data
+const generateProtoContent = (specData: ProtoFileData): string => {
+  if (!specData) {
+    return '// No content available';
+  }
+
+  let protoContent = `syntax = "${specData.syntax || 'proto3'}";\n\n`;
+
+  if (specData.package) {
+    protoContent += `package ${specData.package};\n\n`;
+  }
+
+  if (specData.imports && specData.imports.length > 0) {
+    for (const importPath of specData.imports) {
+      protoContent += `import "${importPath}";\n`;
+    }
+    protoContent += '\n';
+  }
+
+  const generateMessageContent = (message: any, indent: number): string => {
+    const spaces = '  '.repeat(indent);
+    let content = `${spaces}message ${message.name} {\n`;
+
+    if (message.nestedEnums) {
+      for (const nestedEnum of message.nestedEnums) {
+        content += `${spaces}  enum ${nestedEnum.name} {\n`;
+        for (const value of nestedEnum.values) {
+          content += `${spaces}    ${value.name} = ${value.number};\n`;
+        }
+        content += `${spaces}  }\n\n`;
+      }
+    }
+
+    if (message.nestedMessages) {
+      for (const nestedMessage of message.nestedMessages) {
+        content += generateMessageContent(nestedMessage, indent + 1);
+      }
+    }
+
+    if (message.fields) {
+      for (const field of message.fields) {
+        const repeated = field.repeated ? 'repeated ' : '';
+        const optional = field.optional ? 'optional ' : '';
+        content += `${spaces}  ${repeated}${optional}${field.type} ${field.name} = ${field.number};\n`;
+      }
+    }
+
+    content += `${spaces}}\n\n`;
+    return content;
+  };
+
+  if (specData.enums && specData.enums.length > 0) {
+    for (const enumItem of specData.enums) {
+      protoContent += `enum ${enumItem.name} {\n`;
+      if (enumItem.values) {
+        for (const value of enumItem.values) {
+          protoContent += `  ${value.name} = ${value.number};\n`;
+        }
+      }
+      protoContent += '}\n\n';
+    }
+  }
+
+  if (specData.messages && specData.messages.length > 0) {
+    for (const message of specData.messages) {
+      protoContent += generateMessageContent(message, 0);
+    }
+  }
+
+  if (specData.services && specData.services.length > 0) {
+    for (const service of specData.services) {
+      protoContent += `service ${service.name} {\n`;
+      if (service.methods) {
+        for (const method of service.methods) {
+          const inputStream = method.streaming?.input ? 'stream ' : '';
+          const outputStream = method.streaming?.output ? 'stream ' : '';
+          protoContent += `  rpc ${method.name}(${inputStream}${method.inputType}) returns (${outputStream}${method.outputType});\n`;
+        }
+      }
+      protoContent += '}\n\n';
+    }
+  }
+
+  return protoContent;
+};
 
 export class SpecController {
   static async createSpec(req: AuthRequest, res: Response) {
     try {
       const userId = req.user!.id;
-      const { title, version = '1.0.0', description, spec_data, tags = [] }: CreateSpecRequest = req.body;
+      const {
+        title,
+        version = '1.0.0',
+        description,
+        spec_data,
+        tags = [],
+      }: CreateSpecRequest = req.body;
 
       const result = await pool.query(
-        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags) 
-         VALUES ($1, $2, $3, $4, $5, $6) 
-         RETURNING *`,
+        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags) \n         VALUES ($1, $2, $3, $4, $5, $6) \n         RETURNING *`,
         [title, version, description, JSON.stringify(spec_data), userId, tags]
       );
 
@@ -28,96 +120,69 @@ export class SpecController {
 
       // Create initial version
       await pool.query(
-        `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
-         VALUES ($1, $2, $3, $4)`,
-        [spec.id, version, JSON.stringify(spec_data), userId]
+        `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)\n         VALUES ($1, $2, $3, $4)`,
+        [spec.id, version, JSON.stringify(spec.spec_data), userId]
       );
 
       res.status(201).json({
         success: true,
         data: spec,
-        message: 'Specification created successfully'
+        message: 'Specification created successfully',
       } as ApiResponse<ProtobufSpec>);
-
     } catch (error) {
       console.error('Create spec error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error'
+        error: 'Internal server error',
       } as ApiResponse);
     }
   }
 
   static async getSpecs(req: AuthRequest, res: Response) {
     try {
+      const userId = req.user!.id;
       const {
         page = 1,
         limit = 10,
         search,
         tags,
-        created_by,
         is_published,
         sort_by = 'created_at',
-        sort_order = 'desc'
+        sort_order = 'desc',
       }: SpecQueryParams = req.query as any;
 
-      const offset = (page - 1) * limit;
-      let whereConditions: string[] = [];
-      let queryParams: any[] = [];
+      const offset = (page - 1) * Number(limit);
+      const queryParams: any[] = [];
       let paramIndex = 1;
 
-      // Build WHERE conditions
+      // Always filter by the logged-in user
+      queryParams.push(userId);
+      let whereClause = `WHERE ps.created_by = $${paramIndex++}`;
+
       if (search) {
-        whereConditions.push(`to_tsvector('english', title || ' ' || COALESCE(description, '')) @@ plainto_tsquery('english', $${paramIndex})`);
+        whereClause += ` AND to_tsvector('english', ps.title || ' ' || COALESCE(ps.description, '')) @@ plainto_tsquery('english', $${paramIndex++})`;
         queryParams.push(search);
-        paramIndex++;
       }
-
       if (tags && tags.length > 0) {
-        whereConditions.push(`tags && $${paramIndex}`);
+        whereClause += ` AND ps.tags && $${paramIndex++}`;
         queryParams.push(Array.isArray(tags) ? tags : [tags]);
-        paramIndex++;
       }
-
-      if (created_by) {
-        whereConditions.push(`created_by = $${paramIndex}`);
-        queryParams.push(created_by);
-        paramIndex++;
-      }
-
       if (is_published !== undefined) {
-        whereConditions.push(`is_published = $${paramIndex}`);
+        whereClause += ` AND ps.is_published = $${paramIndex++}`;
         queryParams.push(is_published);
-        paramIndex++;
       }
 
-      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-      const orderClause = `ORDER BY ${sort_by} ${sort_order.toUpperCase()}`;
+      const orderClause = `ORDER BY ps.${sort_by} ${sort_order.toUpperCase()}`;
 
       // Get total count
-      const countQuery = `
-        SELECT COUNT(*) as total 
-        FROM protobuf_specs ps
-        LEFT JOIN users u ON ps.created_by = u.id
-        ${whereClause}
-      `;
+      const countQuery = `SELECT COUNT(*) as total FROM protobuf_specs ps ${whereClause}`;
       const countResult = await pool.query(countQuery, queryParams);
       const total = parseInt(countResult.rows[0].total);
 
       // Get specs with pagination
-      const specsQuery = `
-        SELECT 
-          ps.*,
-          u.name as created_by_name,
-          u.email as created_by_email
-        FROM protobuf_specs ps
-        LEFT JOIN users u ON ps.created_by = u.id
-        ${whereClause}
-        ${orderClause}
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-      `;
+      const specsQuery = `\n        SELECT \n          ps.*,\n          u.name as created_by_name,\n          u.email as created_by_email\n        FROM protobuf_specs ps\n        LEFT JOIN users u ON ps.created_by = u.id\n        ${whereClause}\n        ${orderClause}\n        LIMIT $${paramIndex++} OFFSET $${paramIndex++}\n      `;
       
-      queryParams.push(limit, offset);
+      queryParams.push(Number(limit), offset);
       const specsResult = await pool.query(specsQuery, queryParams);
 
       const response: PaginatedResponse<ProtobufSpec> = {
@@ -126,20 +191,20 @@ export class SpecController {
           page: Number(page),
           limit: Number(limit),
           total,
-          totalPages: Math.ceil(total / limit)
-        }
+          totalPages: Math.ceil(total / Number(limit)),
+        },
       };
 
       res.json({
         success: true,
-        data: response
+        data: response,
       } as ApiResponse<PaginatedResponse<ProtobufSpec>>);
 
     } catch (error) {
       console.error('Get specs error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error'
+        error: 'Internal server error',
       } as ApiResponse);
     }
   }
@@ -149,33 +214,26 @@ export class SpecController {
       const { id } = req.params;
 
       const result = await pool.query(
-        `SELECT 
-          ps.*,
-          u.name as created_by_name,
-          u.email as created_by_email
-         FROM protobuf_specs ps
-         LEFT JOIN users u ON ps.created_by = u.id
-         WHERE ps.id = $1`,
+        `SELECT \n          ps.*,\n          u.name as created_by_name,\n          u.email as created_by_email\n         FROM protobuf_specs ps\n         LEFT JOIN users u ON ps.created_by = u.id\n         WHERE ps.id = $1`,
         [id]
       );
 
       if (result.rows.length === 0) {
         return res.status(404).json({
           success: false,
-          error: 'Specification not found'
+          error: 'Specification not found',
         } as ApiResponse);
       }
 
       res.json({
         success: true,
-        data: result.rows[0]
+        data: result.rows[0],
       } as ApiResponse<ProtobufSpec>);
-
     } catch (error) {
       console.error('Get spec error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error'
+        error: 'Internal server error',
       } as ApiResponse);
     }
   }
@@ -195,7 +253,7 @@ export class SpecController {
       if (existingSpec.rows.length === 0) {
         return res.status(404).json({
           success: false,
-          error: 'Specification not found or access denied'
+          error: 'Specification not found or access denied',
         } as ApiResponse);
       }
 
@@ -207,10 +265,10 @@ export class SpecController {
       Object.entries(updateData).forEach(([key, value]) => {
         if (value !== undefined) {
           if (key === 'spec_data') {
-            updateFields.push(`${key} = $${paramIndex}`);
+            updateFields.push(`${key} = ${paramIndex}`);
             queryParams.push(JSON.stringify(value));
           } else {
-            updateFields.push(`${key} = $${paramIndex}`);
+            updateFields.push(`${key} = ${paramIndex}`);
             queryParams.push(value);
           }
           paramIndex++;
@@ -220,12 +278,7 @@ export class SpecController {
       updateFields.push(`updated_at = NOW()`);
       queryParams.push(id);
 
-      const updateQuery = `
-        UPDATE protobuf_specs 
-        SET ${updateFields.join(', ')}
-        WHERE id = $${paramIndex}
-        RETURNING *
-      `;
+      const updateQuery = `\n        UPDATE protobuf_specs \n        SET ${updateFields.join(', ')}\n        WHERE id = ${paramIndex}\n        RETURNING *\n      `;
 
       const result = await pool.query(updateQuery, queryParams);
 
@@ -233,9 +286,7 @@ export class SpecController {
       if (updateData.version || updateData.spec_data) {
         const spec = result.rows[0];
         await pool.query(
-          `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (spec_id, version_number) DO NOTHING`,
+          `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)\n           VALUES ($1, $2, $3, $4)\n           ON CONFLICT (spec_id, version_number) DO NOTHING`,
           [spec.id, spec.version, JSON.stringify(spec.spec_data), userId]
         );
       }
@@ -243,14 +294,13 @@ export class SpecController {
       res.json({
         success: true,
         data: result.rows[0],
-        message: 'Specification updated successfully'
+        message: 'Specification updated successfully',
       } as ApiResponse<ProtobufSpec>);
-
     } catch (error) {
       console.error('Update spec error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error'
+        error: 'Internal server error',
       } as ApiResponse);
     }
   }
@@ -268,20 +318,19 @@ export class SpecController {
       if (result.rows.length === 0) {
         return res.status(404).json({
           success: false,
-          error: 'Specification not found or access denied'
+          error: 'Specification not found or access denied',
         } as ApiResponse);
       }
 
       res.json({
         success: true,
-        message: 'Specification deleted successfully'
+        message: 'Specification deleted successfully',
       } as ApiResponse);
-
     } catch (error) {
       console.error('Delete spec error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error'
+        error: 'Internal server error',
       } as ApiResponse);
     }
   }
@@ -291,26 +340,19 @@ export class SpecController {
       const { id } = req.params;
 
       const result = await pool.query(
-        `SELECT 
-          sv.*,
-          u.name as created_by_name
-         FROM spec_versions sv
-         LEFT JOIN users u ON sv.created_by = u.id
-         WHERE sv.spec_id = $1
-         ORDER BY sv.created_at DESC`,
+        `SELECT \n          sv.*,\n          u.name as created_by_name\n         FROM spec_versions sv\n         LEFT JOIN users u ON sv.created_by = u.id\n         WHERE sv.spec_id = $1\n         ORDER BY sv.created_at DESC`,
         [id]
       );
 
       res.json({
         success: true,
-        data: result.rows
+        data: result.rows,
       } as ApiResponse<SpecVersion[]>);
-
     } catch (error) {
       console.error('Get spec versions error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error'
+        error: 'Internal server error',
       } as ApiResponse);
     }
   }
@@ -326,14 +368,13 @@ export class SpecController {
 
       res.json({
         success: true,
-        message: 'Download count updated'
+        message: 'Download count updated',
       } as ApiResponse);
-
     } catch (error) {
       console.error('Increment download count error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error'
+        error: 'Internal server error',
       } as ApiResponse);
     }
   }
@@ -362,11 +403,7 @@ export class SpecController {
 
       // Get recent specs
       const recentSpecs = await pool.query(
-        `SELECT id, title, version, created_at, download_count, is_published
-         FROM protobuf_specs 
-         WHERE created_by = $1 
-         ORDER BY created_at DESC 
-         LIMIT 5`,
+        `SELECT id, title, version, created_at, download_count, is_published\n         FROM protobuf_specs \n         WHERE created_by = $1 \n         ORDER BY created_at DESC \n         LIMIT 5`,
         [userId]
       );
 
@@ -376,16 +413,83 @@ export class SpecController {
           totalSpecs: parseInt(specsCount.rows[0].total),
           publishedSpecs: parseInt(publishedCount.rows[0].total),
           totalDownloads: parseInt(totalDownloads.rows[0].total || '0'),
-          recentSpecs: recentSpecs.rows
-        }
+          recentSpecs: recentSpecs.rows,
+        },
       } as ApiResponse);
-
     } catch (error) {
       console.error('Get dashboard stats error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error'
+        error: 'Internal server error',
       } as ApiResponse);
+    }
+  }
+
+  static async publishToGithub(req: AuthRequest, res: Response) {
+    try {
+      const { id: specId } = req.params;
+      const userId = req.user!.id;
+      const { repoName, description, isPrivate } = req.body;
+
+      // 1. Fetch user and spec data
+      const userResult = await pool.query(
+        'SELECT github_access_token, github_username FROM users WHERE id = $1',
+        [userId]
+      );
+      const specResult = await pool.query(
+        'SELECT * FROM protobuf_specs WHERE id = $1 AND created_by = $2',
+        [specId, userId]
+      );
+
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      if (specResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Spec not found or access denied' });
+      }
+
+      const user = userResult.rows[0];
+      const spec = specResult.rows[0];
+
+      if (!user.github_access_token) {
+        return res
+          .status(400)
+          .json({ success: false, error: 'GitHub account not connected or access token missing.' });
+      }
+
+      // 2. Initialize Octokit
+      const octokit = new Octokit({ auth: user.github_access_token });
+
+      // 3. Create GitHub repository
+      const repo = await octokit.rest.repos.createForAuthenticatedUser({
+        name: repoName,
+        description: description,
+        private: isPrivate,
+      });
+
+      // 4. Generate .proto file content
+      const protoContent = generateProtoContent(spec.spec_data);
+
+      // 5. Commit the file to the new repository
+      await octokit.rest.repos.createOrUpdateFileContents({
+        owner: user.github_username,
+        repo: repoName,
+        path: `${spec.title.replace(/\s+/g, '_')}.proto`,
+        message: `feat: Initial commit of ${spec.title} v${spec.version}`,
+        content: Buffer.from(protoContent).toString('base64'),
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Successfully published to GitHub!',
+        data: { url: repo.data.html_url },
+      });
+    } catch (error: any) {
+      console.error('GitHub publish error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
     }
   }
 }

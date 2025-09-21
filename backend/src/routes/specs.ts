@@ -16,5 +16,6 @@ router.post('/', authenticateToken, validate(createSpecSchema), SpecController.c
 router.put('/:id', authenticateToken, validate(updateSpecSchema), SpecController.updateSpec);
 router.delete('/:id', authenticateToken, SpecController.deleteSpec);
 router.get('/dashboard/stats', authenticateToken, SpecController.getDashboardStats);
+router.post('/:id/publish-to-github', authenticateToken, SpecController.publishToGithub);
 
 export default router;

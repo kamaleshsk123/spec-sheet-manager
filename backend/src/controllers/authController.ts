@@ -196,7 +196,7 @@ export class AuthController {
   static async githubAuth(req: Request, res: Response) {
     const githubClientId = process.env.GITHUB_CLIENT_ID;
     const redirectUri = `http://localhost:3000/api/auth/github/callback`;
-    const scope = 'read:user user:email';
+    const scope = 'read:user user:email repo';
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${redirectUri}&scope=${scope}`;
     res.redirect(githubAuthUrl);
   }
