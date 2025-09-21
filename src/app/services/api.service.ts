@@ -44,6 +44,15 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  created_at: Date;
+  github_id?: string;
+  github_username?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -85,6 +94,13 @@ export class ApiService {
 
   isAuthenticated(): boolean {
     return this.authToken.value !== null;
+  }
+
+  getProfile(): Observable<ApiResponse<User>> {
+    return this.http.get<ApiResponse<User>>(
+      `${this.baseUrl}/auth/profile`,
+      { headers: this.getHeaders() }
+    );
   }
 
   // Spec CRUD operations

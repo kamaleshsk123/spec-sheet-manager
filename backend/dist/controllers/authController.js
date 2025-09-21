@@ -28,9 +28,19 @@ class AuthController {
          RETURNING id, email, name, created_at`, [email, name, password_hash]);
             const user = result.rows[0];
             // Generate JWT token
-            const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, name: user.name }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-            res.status(201).json({
-                success: true,
+            const jwtSecret = process.env.JWT_SECRET;
+            if (!jwtSecret) {
+                throw new Error('JWT_SECRET is not defined');
+            }
+            const options = {
+                expiresIn: (process.env.JWT_EXPIRES_IN || '7d'),
+            };
+            const token = jsonwebtoken_1.default.sign({
+                id: user.id,
+                email: user.email,
+                name: user.name
+            }, jwtSecret, options);
+            res.status(201).json({ success: true,
                 data: {
                     user: {
                         id: user.id,
@@ -72,7 +82,18 @@ class AuthController {
                 });
             }
             // Generate JWT token
-            const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, name: user.name }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
+            const jwtSecret = process.env.JWT_SECRET;
+            if (!jwtSecret) {
+                throw new Error('JWT_SECRET is not defined');
+            }
+            const options = {
+                expiresIn: (process.env.JWT_EXPIRES_IN || '7d'),
+            };
+            const token = jsonwebtoken_1.default.sign({
+                id: user.id,
+                email: user.email,
+                name: user.name
+            }, jwtSecret, options);
             res.json({
                 success: true,
                 data: {

@@ -52,11 +52,11 @@ const messageSchema = joi_1.default.object({
 }).id('messageSchema');
 const protoFileDataSchema = joi_1.default.object({
     syntax: joi_1.default.string().valid('proto2', 'proto3').required(),
-    package: joi_1.default.string().optional(),
-    imports: joi_1.default.array().items(joi_1.default.string()).required(),
-    messages: joi_1.default.array().items(messageSchema).required(),
-    enums: joi_1.default.array().items(enumSchema).required(),
-    services: joi_1.default.array().items(serviceSchema).required()
+    package: joi_1.default.string().allow('').optional(),
+    imports: joi_1.default.array().items(joi_1.default.string()).default([]),
+    messages: joi_1.default.array().items(messageSchema).default([]),
+    enums: joi_1.default.array().items(enumSchema).default([]),
+    services: joi_1.default.array().items(serviceSchema).default([])
 });
 exports.createSpecSchema = joi_1.default.object({
     title: joi_1.default.string().min(1).max(255).required(),
@@ -76,14 +76,18 @@ exports.updateSpecSchema = joi_1.default.object({
 // Validation middleware factory
 const validate = (schema) => {
     return (req, res, next) => {
-        const { error } = schema.validate(req.body);
+        const { error, value } = schema.validate(req.body, { allowUnknown: false, stripUnknown: true });
         if (error) {
+            console.error('Validation error:', error.details);
+            console.error('Request body:', JSON.stringify(req.body, null, 2));
             return res.status(400).json({
                 success: false,
                 error: 'Validation error',
                 details: error.details.map(detail => detail.message)
             });
         }
+        // Use the validated and cleaned value
+        req.body = value;
         next();
     };
 };
