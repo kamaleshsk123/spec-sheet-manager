@@ -4,6 +4,12 @@ import { Router } from '@angular/router';
 import { ApiService, ProtobufSpec } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 
+interface DiffLine {
+  content: string;
+  type: 'added' | 'removed' | 'modified' | 'unchanged' | 'empty';
+  lineNumber: number;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -19,8 +25,9 @@ export class DashboardComponent implements OnInit {
   
   // Comparison modal properties
   showCompareModal: boolean = false;
-  baseSpec: ProtobufSpec | null = null;
-  selectedCompareSpec: ProtobufSpec | null = null;
+  baseSpec: ProtobufSpec | null = null; // The spec family we're comparing within
+  leftSideSpec: ProtobufSpec | null = null; // User selected left side
+  rightSideSpec: ProtobufSpec | null = null; // User selected right side
 
   constructor(
     private apiService: ApiService,
@@ -123,15 +130,29 @@ export class DashboardComponent implements OnInit {
 
   // Comparison methods
   openCompareModal(spec: ProtobufSpec) {
-    this.baseSpec = spec;
-    this.selectedCompareSpec = null;
+    this.baseSpec = spec; // This determines which spec family to show versions for
+    this.leftSideSpec = null;
+    this.rightSideSpec = null;
     this.showCompareModal = true;
   }
 
   closeCompareModal() {
     this.showCompareModal = false;
     this.baseSpec = null;
-    this.selectedCompareSpec = null;
+    this.leftSideSpec = null;
+    this.rightSideSpec = null;
+  }
+
+  selectLeftSideSpec(spec: ProtobufSpec) {
+    this.leftSideSpec = spec;
+  }
+
+  selectRightSideSpec(spec: ProtobufSpec) {
+    this.rightSideSpec = spec;
+  }
+
+  canShowComparison(): boolean {
+    return this.leftSideSpec !== null && this.rightSideSpec !== null;
   }
 
   // Group specs by title and return only the latest version of each
@@ -179,16 +200,13 @@ export class DashboardComponent implements OnInit {
   getComparableSpecs(): ProtobufSpec[] {
     if (!this.baseSpec) return [];
     
-    // Use allSpecs (not just displayed specs) to find all versions of the same title
+    // Return ALL versions of the same title (including the base spec itself)
     return this.allSpecs.filter(spec => 
-      spec.id !== this.baseSpec?.id && 
       spec.title === this.baseSpec?.title
     );
   }
 
-  selectSpecForComparison(spec: ProtobufSpec) {
-    this.selectedCompareSpec = spec;
-  }
+
 
   // Generate protobuf text from spec data
   generateProtoContent(spec: ProtobufSpec): string {
@@ -293,5 +311,234 @@ export class DashboardComponent implements OnInit {
   // Helper method to compare version numbers
   isNewerVersion(version1: string, version2: string): boolean {
     return this.compareVersions(version1, version2) > 0;
+  }
+
+  // Enhanced diff calculation for line-by-line comparison
+  calculateDiff(leftContent: string, rightContent: string): { leftLines: DiffLine[], rightLines: DiffLine[] } {
+    const leftLines = leftContent.split('\n');
+    const rightLines = rightContent.split('\n');
+    
+    const result = {
+      leftLines: [] as DiffLine[],
+      rightLines: [] as DiffLine[]
+    };
+
+    // Create a simple LCS-based diff algorithm
+    const lcs = this.longestCommonSubsequence(leftLines, rightLines);
+    
+    let leftIndex = 0;
+    let rightIndex = 0;
+    let leftLineNum = 1;
+    let rightLineNum = 1;
+
+    for (const commonLine of lcs) {
+      // Add removed lines (in left but not in common)
+      while (leftIndex < leftLines.length && leftLines[leftIndex] !== commonLine) {
+        result.leftLines.push({ 
+          content: leftLines[leftIndex], 
+          type: 'removed', 
+          lineNumber: leftLineNum 
+        });
+        result.rightLines.push({ 
+          content: '', 
+          type: 'empty', 
+          lineNumber: rightLineNum 
+        });
+        leftIndex++;
+        leftLineNum++;
+      }
+
+      // Add added lines (in right but not in common)
+      while (rightIndex < rightLines.length && rightLines[rightIndex] !== commonLine) {
+        result.leftLines.push({ 
+          content: '', 
+          type: 'empty', 
+          lineNumber: leftLineNum 
+        });
+        result.rightLines.push({ 
+          content: rightLines[rightIndex], 
+          type: 'added', 
+          lineNumber: rightLineNum 
+        });
+        rightIndex++;
+        rightLineNum++;
+      }
+
+      // Add the common line
+      if (leftIndex < leftLines.length && rightIndex < rightLines.length) {
+        result.leftLines.push({ 
+          content: leftLines[leftIndex], 
+          type: 'unchanged', 
+          lineNumber: leftLineNum 
+        });
+        result.rightLines.push({ 
+          content: rightLines[rightIndex], 
+          type: 'unchanged', 
+          lineNumber: rightLineNum 
+        });
+        leftIndex++;
+        rightIndex++;
+        leftLineNum++;
+        rightLineNum++;
+      }
+    }
+
+    // Add remaining removed lines
+    while (leftIndex < leftLines.length) {
+      result.leftLines.push({ 
+        content: leftLines[leftIndex], 
+        type: 'removed', 
+        lineNumber: leftLineNum 
+      });
+      result.rightLines.push({ 
+        content: '', 
+        type: 'empty', 
+        lineNumber: rightLineNum 
+      });
+      leftIndex++;
+      leftLineNum++;
+    }
+
+    // Add remaining added lines
+    while (rightIndex < rightLines.length) {
+      result.leftLines.push({ 
+        content: '', 
+        type: 'empty', 
+        lineNumber: leftLineNum 
+      });
+      result.rightLines.push({ 
+        content: rightLines[rightIndex], 
+        type: 'added', 
+        lineNumber: rightLineNum 
+      });
+      rightIndex++;
+      rightLineNum++;
+    }
+
+    return result;
+  }
+
+  // Longest Common Subsequence algorithm for better diff
+  private longestCommonSubsequence(left: string[], right: string[]): string[] {
+    const m = left.length;
+    const n = right.length;
+    const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+    // Build LCS table
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (left[i - 1] === right[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
+    }
+
+    // Reconstruct LCS
+    const lcs: string[] = [];
+    let i = m, j = n;
+    while (i > 0 && j > 0) {
+      if (left[i - 1] === right[j - 1]) {
+        lcs.unshift(left[i - 1]);
+        i--;
+        j--;
+      } else if (dp[i - 1][j] > dp[i][j - 1]) {
+        i--;
+      } else {
+        j--;
+      }
+    }
+
+    return lcs;
+  }
+
+  // Get diff data for comparison
+  getDiffData(): { leftLines: DiffLine[], rightLines: DiffLine[] } | null {
+    if (!this.leftSideSpec || !this.rightSideSpec) return null;
+    
+    const leftContent = this.generateProtoContent(this.leftSideSpec);
+    const rightContent = this.generateProtoContent(this.rightSideSpec);
+    
+    return this.calculateDiff(leftContent, rightContent);
+  }
+
+  // Get CSS class for diff line (VS Code style)
+  getDiffLineClass(type: string): string {
+    switch (type) {
+      case 'added': return 'bg-green-50 border-l-2 border-green-400';
+      case 'removed': return 'bg-red-50 border-l-2 border-red-400';
+      case 'modified': return 'bg-yellow-50 border-l-2 border-yellow-400';
+      case 'empty': return 'bg-gray-25';
+      default: return 'hover:bg-gray-25';
+    }
+  }
+
+  // Get text color for diff line (VS Code style)
+  getDiffTextClass(type: string): string {
+    switch (type) {
+      case 'added': return 'text-green-900';
+      case 'removed': return 'text-red-900';
+      case 'modified': return 'text-yellow-900';
+      case 'empty': return 'text-gray-300';
+      default: return 'text-gray-800';
+    }
+  }
+
+  // Smart version selection logic
+  selectVersion(spec: ProtobufSpec) {
+    if (!this.leftSideSpec) {
+      this.selectLeftSideSpec(spec);
+    } else if (!this.rightSideSpec && spec.id !== this.leftSideSpec.id) {
+      this.selectRightSideSpec(spec);
+    } else if (spec.id === this.leftSideSpec.id) {
+      // Deselect left side
+      this.leftSideSpec = null;
+    } else if (spec.id === this.rightSideSpec?.id) {
+      // Deselect right side
+      this.rightSideSpec = null;
+    }
+  }
+
+  // Get CSS classes for version selection
+  getVersionSelectionClass(spec: ProtobufSpec): string {
+    if (this.leftSideSpec?.id === spec.id) {
+      return 'border-blue-500 bg-blue-50';
+    } else if (this.rightSideSpec?.id === spec.id) {
+      return 'border-green-500 bg-green-50';
+    } else {
+      return 'border-gray-200 hover:border-gray-300 hover:bg-gray-50';
+    }
+  }
+
+  // Get diff statistics
+  getDiffStats(): { added: number, removed: number, modified: number } | null {
+    const diffData = this.getDiffData();
+    if (!diffData) return null;
+
+    const stats = {
+      added: 0,
+      removed: 0,
+      modified: 0
+    };
+
+    diffData.leftLines.forEach(line => {
+      if (line.type === 'added') stats.added++;
+      else if (line.type === 'removed') stats.removed++;
+      else if (line.type === 'modified') stats.modified++;
+    });
+
+    diffData.rightLines.forEach(line => {
+      if (line.type === 'added') stats.added++;
+      else if (line.type === 'removed') stats.removed++;
+      else if (line.type === 'modified') stats.modified++;
+    });
+
+    // Avoid double counting - modified lines appear on both sides
+    stats.added = diffData.rightLines.filter(line => line.type === 'added').length;
+    stats.removed = diffData.leftLines.filter(line => line.type === 'removed').length;
+    stats.modified = diffData.leftLines.filter(line => line.type === 'modified').length;
+
+    return stats;
   }
 }
