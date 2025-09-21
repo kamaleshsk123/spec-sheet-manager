@@ -2,6 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NuMonacoEditorModule } from '@ng-util/monaco-editor';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ApiService, ProtobufSpec } from '../services/api.service';
+import { NotificationService } from '../services/notification.service';
 
 interface Field {
   type: string;
@@ -71,6 +74,23 @@ export class EditorComponent implements OnInit {
   };
   code: string = 'syntax = "proto3";';
 
+  // Spec details
+  specTitle: string = '';
+  specVersion: string = '';
+  specDescription: string = '';
+  specTags: string = '';
+
+  // Current spec ID (for updates)
+  currentSpecId: string | null = null;
+  
+  // Original spec data for comparison
+  originalSpecData: ProtoFile | null = null;
+  originalVersion: string | null = null;
+
+  // UI state
+  isSaving: boolean = false;
+  isLoading: boolean = false;
+
   protoFile: ProtoFile = {
     syntax: 'proto3',
     package: '',
@@ -82,8 +102,74 @@ export class EditorComponent implements OnInit {
   showDownloadMenu: boolean = false;
   activeTab: 'messages' | 'enums' | 'services' | 'settings' = 'messages';
 
+  constructor(
+    private apiService: ApiService,
+    private route: ActivatedRoute,
+    private router: Router,
+    private notificationService: NotificationService
+  ) {}
+
   ngOnInit() {
     this.updateProtoPreview();
+    
+    // Check if we need to load a specific spec
+    this.route.queryParams.subscribe(params => {
+      if (params['id']) {
+        this.loadSpec(params['id']);
+      }
+    });
+  }
+
+  loadSpec(specId: string) {
+    this.isLoading = true;
+    
+    this.apiService.getSpec(specId).subscribe({
+      next: (response) => {
+        this.isLoading = false;
+        if (response.success && response.data) {
+          const spec = response.data;
+          
+          // Load spec details
+          this.specTitle = spec.title;
+          this.specVersion = spec.version;
+          this.specDescription = spec.description || '';
+          this.specTags = spec.tags?.join(', ') || '';
+          this.currentSpecId = spec.id!;
+          
+          // Load proto data
+          this.protoFile = spec.spec_data;
+          
+          // Store original data for comparison
+          this.originalSpecData = JSON.parse(JSON.stringify(spec.spec_data));
+          this.originalVersion = spec.version;
+          
+          // Update preview
+          this.updateProtoPreview();
+          
+          this.notificationService.success(
+            'Specification Loaded',
+            `Successfully loaded "${spec.title}" v${spec.version}`
+          );
+        } else {
+          this.notificationService.error(
+            'Load Failed',
+            response.error || 'Failed to load specification'
+          );
+        }
+      },
+      error: (error) => {
+        this.isLoading = false;
+        console.error('Load error:', error);
+        this.notificationService.error(
+          'Load Error',
+          'Failed to load specification. Please check your connection and try again.'
+        );
+      }
+    });
+  }
+
+  goToDashboard() {
+    this.router.navigate(['/']);
   }
 
   // Message methods
@@ -277,7 +363,8 @@ export class EditorComponent implements OnInit {
   }
 
   downloadProto() {
-    const filename = 'specification.proto';
+    const baseFilename = this.getFilename();
+    const filename = `${baseFilename}.proto`;
     const content = this.code;
     this.downloadFile(content, filename, 'text/plain');
     this.showDownloadMenu = false;
@@ -286,14 +373,29 @@ export class EditorComponent implements OnInit {
   downloadJson() {
     const jsonData = {
       ...this.protoFile,
-      generatedAt: new Date().toISOString(),
-      version: "1.0.0"
+      title: this.specTitle,
+      version: this.specVersion || "1.0.0",
+      description: this.specDescription,
+      generatedAt: new Date().toISOString()
     };
 
     const content = JSON.stringify(jsonData, null, 2);
-    const filename = 'specification.json';
+    const baseFilename = this.getFilename();
+    const filename = `${baseFilename}.json`;
     this.downloadFile(content, filename, 'application/json');
     this.showDownloadMenu = false;
+  }
+
+  private getFilename(): string {
+    if (this.specTitle && this.specTitle.trim()) {
+      // Replace spaces and special characters with underscores, remove invalid filename characters
+      return this.specTitle.trim()
+        .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename characters
+        .replace(/\s+/g, '_') // Replace spaces with underscores
+        .replace(/[^\w\-_.]/g, '') // Keep only word characters, hyphens, underscores, and dots
+        .substring(0, 100); // Limit length to 100 characters
+    }
+    return 'Spec_Sheet';
   }
 
   private downloadFile(content: string, filename: string, contentType: string) {
@@ -306,5 +408,139 @@ export class EditorComponent implements OnInit {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
+  }
+
+  // Save functionality
+  saveSpec() {
+    if (!this.specTitle.trim()) {
+      this.notificationService.warning(
+        'Title Required',
+        'Please enter a specification title before saving'
+      );
+      return;
+    }
+
+    this.isSaving = true;
+
+    // Auto-increment version if spec data has changed
+    let finalVersion = this.specVersion || '1.0.0';
+    if (this.shouldAutoIncrementVersion()) {
+      finalVersion = this.incrementVersion(finalVersion);
+      this.specVersion = finalVersion; // Update the UI
+    }
+
+    const specData: Omit<ProtobufSpec, 'id'> = {
+      title: this.specTitle.trim(),
+      version: finalVersion,
+      description: this.specDescription || '',
+      spec_data: this.protoFile,
+      tags: this.specTags ? this.specTags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+    };
+
+    console.log('Saving spec data:', JSON.stringify(specData, null, 2));
+
+    // Check if version has changed - if so, create new version instead of updating
+    const versionChanged = this.currentSpecId && this.originalVersion && this.originalVersion !== finalVersion;
+    
+    const saveOperation = (this.currentSpecId && !versionChanged)
+      ? this.apiService.updateSpec(this.currentSpecId, specData)
+      : this.apiService.createSpec(specData);
+
+    const wasUpdate = this.currentSpecId !== null && !versionChanged;
+    const isNewVersion = this.currentSpecId !== null && versionChanged;
+    const versionWasIncremented = this.shouldAutoIncrementVersion();
+
+    saveOperation.subscribe({
+      next: (response) => {
+        this.isSaving = false;
+        if (response.success && response.data) {
+          this.currentSpecId = response.data.id!;
+          
+          // Update original data for future comparisons
+          this.originalSpecData = JSON.parse(JSON.stringify(this.protoFile));
+          this.originalVersion = finalVersion;
+          
+          let title: string;
+          let message: string;
+          
+          if (isNewVersion) {
+            title = 'New Version Created';
+            message = `"${this.specTitle}" v${finalVersion} has been created as a new version`;
+          } else if (wasUpdate) {
+            title = 'Specification Updated';
+            message = `"${this.specTitle}" has been updated successfully`;
+            if (versionWasIncremented) {
+              message += ` with version automatically incremented to ${finalVersion}`;
+            }
+          } else {
+            title = 'Specification Saved';
+            message = `"${this.specTitle}" has been saved successfully`;
+          }
+          
+          this.notificationService.success(title, message);
+        } else {
+          this.notificationService.error(
+            'Save Failed',
+            response.error || 'Failed to save specification'
+          );
+        }
+      },
+      error: (error) => {
+        this.isSaving = false;
+        console.error('Save error:', error);
+        this.notificationService.error(
+          'Save Error',
+          'Failed to save specification. Please check your connection and try again.'
+        );
+      }
+    });
+  }
+
+  // Version management methods
+  hasSpecDataChanged(): boolean {
+    if (!this.originalSpecData) {
+      return false; // New spec, no comparison needed
+    }
+    
+    return JSON.stringify(this.originalSpecData) !== JSON.stringify(this.protoFile);
+  }
+
+  private incrementVersion(version: string): string {
+    // Parse version (supports formats like "1.0.0", "1.0", "1")
+    const parts = version.split('.').map(part => parseInt(part) || 0);
+    
+    // Ensure we have at least 3 parts (major.minor.patch)
+    while (parts.length < 3) {
+      parts.push(0);
+    }
+    
+    // Increment patch version (last part)
+    parts[parts.length - 1]++;
+    
+    return parts.join('.');
+  }
+
+  shouldAutoIncrementVersion(): boolean {
+    // Only auto-increment if:
+    // 1. This is an existing spec (not new)
+    // 2. The spec data has changed
+    // 3. The user hasn't manually changed the version
+    return this.currentSpecId !== null && 
+           this.hasSpecDataChanged() && 
+           this.hasVersionNotChanged();
+  }
+
+  private hasVersionNotChanged(): boolean {
+    // Check if user kept the same version as original
+    const currentVersion = this.specVersion || '1.0.0';
+    const originalVersion = this.originalVersion || '1.0.0';
+    return currentVersion === originalVersion;
+  }
+
+  getNextVersion(): string {
+    if (this.shouldAutoIncrementVersion()) {
+      return this.incrementVersion(this.specVersion || '1.0.0');
+    }
+    return this.specVersion || '1.0.0';
   }
 }

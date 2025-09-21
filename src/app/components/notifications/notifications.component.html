@@ -1,0 +1,92 @@
+<!-- Notifications Container -->
+<div class="fixed top-4 right-4 z-50 space-y-4 max-w-sm w-full">
+  <div *ngFor="let notification of notifications; trackBy: trackByNotificationId"
+    [class]="'transform transition-all duration-300 ease-in-out rounded-lg border p-4 shadow-lg ' + getNotificationColors(notification.type)"
+    style="animation: slideInRight 0.3s ease-out;">
+    
+    <div class="flex items-start">
+      <div class="flex-shrink-0">
+        <svg [class]="'w-5 h-5 ' + getIconColors(notification.type)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="getNotificationIcon(notification.type)"></path>
+        </svg>
+      </div>
+      
+      <div class="ml-3 flex-1">
+        <h3 class="text-sm font-medium">{{ notification.title }}</h3>
+        <p *ngIf="notification.message" class="mt-1 text-sm opacity-90">{{ notification.message }}</p>
+        
+        <!-- Actions -->
+        <div *ngIf="notification.actions && notification.actions.length > 0" class="mt-3 flex space-x-2">
+          <button *ngFor="let action of notification.actions"
+            (click)="action.action()"
+            [class]="'text-xs px-3 py-1 rounded-md font-medium transition-colors duration-200 ' + 
+                     (action.style === 'primary' ? 'bg-white bg-opacity-20 hover:bg-opacity-30' : 
+                      action.style === 'danger' ? 'bg-red-600 text-white hover:bg-red-700' : 
+                      'bg-white bg-opacity-10 hover:bg-opacity-20')">
+            {{ action.label }}
+          </button>
+        </div>
+      </div>
+      
+      <div class="ml-4 flex-shrink-0">
+        <button (click)="removeNotification(notification.id)"
+          class="inline-flex text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors duration-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation Dialogs -->
+<div *ngFor="let dialog of confirmDialogs; trackBy: trackByDialogId">
+  <!-- Backdrop -->
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+    style="animation: fadeIn 0.2s ease-out;">
+    
+    <!-- Dialog -->
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all duration-200"
+      style="animation: scaleIn 0.2s ease-out;">
+      
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center">
+          <div [class]="'w-10 h-10 rounded-full flex items-center justify-center mr-3 ' + 
+                       (dialog.type === 'danger' ? 'bg-red-100' : 
+                        dialog.type === 'warning' ? 'bg-yellow-100' : 'bg-blue-100')">
+            <svg [class]="'w-5 h-5 ' + 
+                         (dialog.type === 'danger' ? 'text-red-600' : 
+                          dialog.type === 'warning' ? 'text-yellow-600' : 'text-blue-600')" 
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                [attr.d]="dialog.type === 'danger' ? 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z' : 
+                          dialog.type === 'warning' ? 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z' : 
+                          'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'">
+              </path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900">{{ dialog.title }}</h3>
+        </div>
+      </div>
+      
+      <!-- Content -->
+      <div class="px-6 py-4">
+        <p class="text-gray-600 leading-relaxed">{{ dialog.message }}</p>
+      </div>
+      
+      <!-- Actions -->
+      <div class="px-6 py-4 bg-gray-50 rounded-b-xl flex justify-end space-x-3">
+        <button (click)="dialog.onCancel && dialog.onCancel()"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200">
+          {{ dialog.cancelText }}
+        </button>
+        <button (click)="dialog.onConfirm()"
+          [class]="'px-4 py-2 text-sm font-medium text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 ' + getConfirmButtonColors(dialog.type || 'info')">
+          {{ dialog.confirmText }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
