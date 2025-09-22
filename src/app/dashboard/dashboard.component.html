@@ -323,19 +323,13 @@
                     </svg>
                     Compare
                   </button>
-                  <button
-                    (click)="openPublishModal(spec)"
-                    class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                      ></path>
-                    </svg>
+                  <button *ngIf="!spec.github_repo_url" (click)="openPublishModal(spec)" class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                     Publish to GitHub
+                  </button>
+                  <button *ngIf="spec.github_repo_url" (click)="openPushToBranchModal(spec)" class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    Push to Branch
                   </button>
                   <div class="border-t border-gray-100 my-1"></div>
                   <button
@@ -718,6 +712,12 @@
   *ngIf="showPublishModal"
   [spec]="specToPublish"
   (close)="closePublishModal()"
-  (publish)="handlePublish($event)"
->
+  (publish)="handlePublish($event)">
 </app-publish-modal>
+
+<app-push-to-branch-modal 
+  *ngIf="showPushToBranchModal" 
+  [spec]="specToPublish" 
+  (close)="closePushToBranchModal()" 
+  (push)="handlePushToBranch($event)">
+</app-push-to-branch-modal>

@@ -25,6 +25,8 @@ export interface ProtobufSpec {
   is_published?: boolean;
   tags?: string[];
   download_count?: number;
+  github_repo_url?: string;
+  github_repo_name?: string;
 }
 
 export interface ApiResponse<T = any> {
@@ -174,6 +176,14 @@ export class ApiService {
     return this.http.post<ApiResponse>(
       `${this.baseUrl}/specs/${specId}/publish-to-github`,
       data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  pushToBranch(specId: string, commitMessage: string): Observable<ApiResponse> {
+    return this.http.post<ApiResponse>(
+      `${this.baseUrl}/specs/${specId}/push-to-branch`,
+      { commitMessage },
       { headers: this.getHeaders() }
     );
   }

@@ -59,7 +59,7 @@ interface ProtoFile {
   selector: 'app-editor',
   imports: [CommonModule, FormsModule, NuMonacoEditorModule],
   templateUrl: './editor.html',
-  styleUrl: './editor.css'
+  styleUrl: './editor.css',
 })
 export class EditorComponent implements OnInit {
   editorOptions = {
@@ -70,7 +70,7 @@ export class EditorComponent implements OnInit {
     minimap: { enabled: false },
     fontSize: 14,
     lineNumbers: 'on' as const,
-    wordWrap: 'on' as const
+    wordWrap: 'on' as const,
   };
   code: string = 'syntax = "proto3";';
 
@@ -82,10 +82,14 @@ export class EditorComponent implements OnInit {
 
   // Current spec ID (for updates)
   currentSpecId: string | null = null;
-  
+
   // Original spec data for comparison
   originalSpecData: ProtoFile | null = null;
   originalVersion: string | null = null;
+
+  // GitHub repository information (preserved during updates)
+  githubRepoUrl: string | null = null;
+  githubRepoName: string | null = null;
 
   // UI state
   isSaving: boolean = false;
@@ -97,7 +101,7 @@ export class EditorComponent implements OnInit {
     imports: [],
     messages: [],
     enums: [],
-    services: []
+    services: [],
   };
   showDownloadMenu: boolean = false;
   activeTab: 'messages' | 'enums' | 'services' | 'settings' = 'messages';
@@ -111,9 +115,9 @@ export class EditorComponent implements OnInit {
 
   ngOnInit() {
     this.updateProtoPreview();
-    
+
     // Check if we need to load a specific spec
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe((params) => {
       if (params['id']) {
         this.loadSpec(params['id']);
       }
@@ -122,30 +126,34 @@ export class EditorComponent implements OnInit {
 
   loadSpec(specId: string) {
     this.isLoading = true;
-    
+
     this.apiService.getSpec(specId).subscribe({
       next: (response) => {
         this.isLoading = false;
         if (response.success && response.data) {
           const spec = response.data;
-          
+
           // Load spec details
           this.specTitle = spec.title;
           this.specVersion = spec.version;
           this.specDescription = spec.description || '';
           this.specTags = spec.tags?.join(', ') || '';
           this.currentSpecId = spec.id!;
-          
+
+          // Load GitHub repository information
+          this.githubRepoUrl = spec.github_repo_url || null;
+          this.githubRepoName = spec.github_repo_name || null;
+
           // Load proto data
           this.protoFile = spec.spec_data;
-          
+
           // Store original data for comparison
           this.originalSpecData = JSON.parse(JSON.stringify(spec.spec_data));
           this.originalVersion = spec.version;
-          
+
           // Update preview
           this.updateProtoPreview();
-          
+
           this.notificationService.success(
             'Specification Loaded',
             `Successfully loaded "${spec.title}" v${spec.version}`
@@ -164,7 +172,7 @@ export class EditorComponent implements OnInit {
           'Load Error',
           'Failed to load specification. Please check your connection and try again.'
         );
-      }
+      },
     });
   }
 
@@ -174,11 +182,11 @@ export class EditorComponent implements OnInit {
 
   // Message methods
   addMessage() {
-    this.protoFile.messages.push({ 
-      name: 'NewMessage', 
+    this.protoFile.messages.push({
+      name: 'NewMessage',
       fields: [],
       nestedMessages: [],
-      nestedEnums: []
+      nestedEnums: [],
     });
     this.updateProtoPreview();
   }
@@ -189,12 +197,12 @@ export class EditorComponent implements OnInit {
   }
 
   addField(message: Message) {
-    message.fields.push({ 
-      type: 'string', 
-      name: 'new_field', 
+    message.fields.push({
+      type: 'string',
+      name: 'new_field',
       number: message.fields.length + 1,
       repeated: false,
-      optional: false
+      optional: false,
     });
     this.updateProtoPreview();
   }
@@ -208,7 +216,7 @@ export class EditorComponent implements OnInit {
   addEnum() {
     this.protoFile.enums.push({
       name: 'NewEnum',
-      values: [{ name: 'UNKNOWN', number: 0 }]
+      values: [{ name: 'UNKNOWN', number: 0 }],
     });
     this.updateProtoPreview();
   }
@@ -219,10 +227,10 @@ export class EditorComponent implements OnInit {
   }
 
   addEnumValue(enumItem: Enum) {
-    const nextNumber = Math.max(...enumItem.values.map(v => v.number), -1) + 1;
+    const nextNumber = Math.max(...enumItem.values.map((v) => v.number), -1) + 1;
     enumItem.values.push({
       name: 'NEW_VALUE',
-      number: nextNumber
+      number: nextNumber,
     });
     this.updateProtoPreview();
   }
@@ -236,7 +244,7 @@ export class EditorComponent implements OnInit {
   addService() {
     this.protoFile.services.push({
       name: 'NewService',
-      methods: []
+      methods: [],
     });
     this.updateProtoPreview();
   }
@@ -251,7 +259,7 @@ export class EditorComponent implements OnInit {
       name: 'NewMethod',
       inputType: 'google.protobuf.Empty',
       outputType: 'google.protobuf.Empty',
-      streaming: { input: false, output: false }
+      streaming: { input: false, output: false },
     });
     this.updateProtoPreview();
   }
@@ -279,12 +287,12 @@ export class EditorComponent implements OnInit {
 
   updateProtoPreview() {
     let protoContent = `syntax = "${this.protoFile.syntax}";\n\n`;
-    
+
     // Add package
     if (this.protoFile.package) {
       protoContent += `package ${this.protoFile.package};\n\n`;
     }
-    
+
     // Add imports
     for (const importPath of this.protoFile.imports) {
       protoContent += `import "${importPath}";\n`;
@@ -292,7 +300,7 @@ export class EditorComponent implements OnInit {
     if (this.protoFile.imports.length > 0) {
       protoContent += '\n';
     }
-    
+
     // Add enums
     for (const enumItem of this.protoFile.enums) {
       protoContent += `enum ${enumItem.name} {\n`;
@@ -301,12 +309,12 @@ export class EditorComponent implements OnInit {
       }
       protoContent += '}\n\n';
     }
-    
+
     // Add messages
     for (const message of this.protoFile.messages) {
       protoContent += this.generateMessageContent(message, 0);
     }
-    
+
     // Add services
     for (const service of this.protoFile.services) {
       protoContent += `service ${service.name} {\n`;
@@ -317,14 +325,14 @@ export class EditorComponent implements OnInit {
       }
       protoContent += '}\n\n';
     }
-    
+
     this.code = protoContent;
   }
 
   private generateMessageContent(message: Message, indent: number): string {
     const spaces = '  '.repeat(indent);
     let content = `${spaces}message ${message.name} {\n`;
-    
+
     // Add nested enums
     if (message.nestedEnums) {
       for (const nestedEnum of message.nestedEnums) {
@@ -335,21 +343,21 @@ export class EditorComponent implements OnInit {
         content += `${spaces}  }\n\n`;
       }
     }
-    
+
     // Add nested messages
     if (message.nestedMessages) {
       for (const nestedMessage of message.nestedMessages) {
         content += this.generateMessageContent(nestedMessage, indent + 1);
       }
     }
-    
+
     // Add fields
     for (const field of message.fields) {
       const repeated = field.repeated ? 'repeated ' : '';
       const optional = field.optional ? 'optional ' : '';
       content += `${spaces}  ${repeated}${optional}${field.type} ${field.name} = ${field.number};\n`;
     }
-    
+
     content += `${spaces}}\n\n`;
     return content;
   }
@@ -374,9 +382,9 @@ export class EditorComponent implements OnInit {
     const jsonData = {
       ...this.protoFile,
       title: this.specTitle,
-      version: this.specVersion || "1.0.0",
+      version: this.specVersion || '1.0.0',
       description: this.specDescription,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
     };
 
     const content = JSON.stringify(jsonData, null, 2);
@@ -389,7 +397,8 @@ export class EditorComponent implements OnInit {
   private getFilename(): string {
     if (this.specTitle && this.specTitle.trim()) {
       // Replace spaces and special characters with underscores, remove invalid filename characters
-      return this.specTitle.trim()
+      return this.specTitle
+        .trim()
         .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename characters
         .replace(/\s+/g, '_') // Replace spaces with underscores
         .replace(/[^\w\-_.]/g, '') // Keep only word characters, hyphens, underscores, and dots
@@ -429,22 +438,32 @@ export class EditorComponent implements OnInit {
       this.specVersion = finalVersion; // Update the UI
     }
 
-    const specData: Omit<ProtobufSpec, 'id'> = {
+    const specData: any = {
       title: this.specTitle.trim(),
       version: finalVersion,
       description: this.specDescription || '',
       spec_data: this.protoFile,
-      tags: this.specTags ? this.specTags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+      tags: this.specTags
+        ? this.specTags
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter((tag) => tag)
+        : [],
+      // Always include GitHub fields to preserve them during updates
+      github_repo_url: this.githubRepoUrl,
+      github_repo_name: this.githubRepoName,
     };
 
     console.log('Saving spec data:', JSON.stringify(specData, null, 2));
 
     // Check if version has changed - if so, create new version instead of updating
-    const versionChanged = this.currentSpecId && this.originalVersion && this.originalVersion !== finalVersion;
-    
-    const saveOperation = (this.currentSpecId && !versionChanged)
-      ? this.apiService.updateSpec(this.currentSpecId, specData)
-      : this.apiService.createSpec(specData);
+    const versionChanged =
+      this.currentSpecId && this.originalVersion && this.originalVersion !== finalVersion;
+
+    const saveOperation =
+      this.currentSpecId && !versionChanged
+        ? this.apiService.updateSpec(this.currentSpecId, specData)
+        : this.apiService.createSpec(specData);
 
     const wasUpdate = this.currentSpecId !== null && !versionChanged;
     const isNewVersion = this.currentSpecId !== null && versionChanged;
@@ -455,14 +474,14 @@ export class EditorComponent implements OnInit {
         this.isSaving = false;
         if (response.success && response.data) {
           this.currentSpecId = response.data.id!;
-          
+
           // Update original data for future comparisons
           this.originalSpecData = JSON.parse(JSON.stringify(this.protoFile));
           this.originalVersion = finalVersion;
-          
+
           let title: string;
           let message: string;
-          
+
           if (isNewVersion) {
             title = 'New Version Created';
             message = `"${this.specTitle}" v${finalVersion} has been created as a new version`;
@@ -476,7 +495,7 @@ export class EditorComponent implements OnInit {
             title = 'Specification Saved';
             message = `"${this.specTitle}" has been saved successfully`;
           }
-          
+
           this.notificationService.success(title, message);
         } else {
           this.notificationService.error(
@@ -492,7 +511,7 @@ export class EditorComponent implements OnInit {
           'Save Error',
           'Failed to save specification. Please check your connection and try again.'
         );
-      }
+      },
     });
   }
 
@@ -501,22 +520,22 @@ export class EditorComponent implements OnInit {
     if (!this.originalSpecData) {
       return false; // New spec, no comparison needed
     }
-    
+
     return JSON.stringify(this.originalSpecData) !== JSON.stringify(this.protoFile);
   }
 
   private incrementVersion(version: string): string {
     // Parse version (supports formats like "1.0.0", "1.0", "1")
-    const parts = version.split('.').map(part => parseInt(part) || 0);
-    
+    const parts = version.split('.').map((part) => parseInt(part) || 0);
+
     // Ensure we have at least 3 parts (major.minor.patch)
     while (parts.length < 3) {
       parts.push(0);
     }
-    
+
     // Increment patch version (last part)
     parts[parts.length - 1]++;
-    
+
     return parts.join('.');
   }
 
@@ -525,9 +544,7 @@ export class EditorComponent implements OnInit {
     // 1. This is an existing spec (not new)
     // 2. The spec data has changed
     // 3. The user hasn't manually changed the version
-    return this.currentSpecId !== null && 
-           this.hasSpecDataChanged() && 
-           this.hasVersionNotChanged();
+    return this.currentSpecId !== null && this.hasSpecDataChanged() && this.hasVersionNotChanged();
   }
 
   private hasVersionNotChanged(): boolean {

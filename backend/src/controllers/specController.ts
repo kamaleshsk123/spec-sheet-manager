@@ -140,7 +140,7 @@ export class SpecController {
 
   static async getSpecs(req: AuthRequest, res: Response) {
     try {
-      const userId = req.user!.id;
+      const userId = req.user?.id;
       const {
         page = 1,
         limit = 10,
@@ -155,9 +155,16 @@ export class SpecController {
       const queryParams: any[] = [];
       let paramIndex = 1;
 
-      // Always filter by the logged-in user
-      queryParams.push(userId);
-      let whereClause = `WHERE ps.created_by = $${paramIndex++}`;
+      // Build where clause based on authentication status
+      let whereClause = '';
+      if (userId) {
+        // If authenticated, filter by the logged-in user
+        queryParams.push(userId);
+        whereClause = `WHERE ps.created_by = $${paramIndex++}`;
+      } else {
+        // If not authenticated, only show published specs
+        whereClause = 'WHERE ps.is_published = true';
+      }
 
       if (search) {
         whereClause += ` AND to_tsvector('english', ps.title || ' ' || COALESCE(ps.description, '')) @@ plainto_tsquery('english', $${paramIndex++})`;
@@ -167,7 +174,8 @@ export class SpecController {
         whereClause += ` AND ps.tags && $${paramIndex++}`;
         queryParams.push(Array.isArray(tags) ? tags : [tags]);
       }
-      if (is_published !== undefined) {
+      if (is_published !== undefined && userId) {
+        // Only allow filtering by published status if user is authenticated
         whereClause += ` AND ps.is_published = $${paramIndex++}`;
         queryParams.push(is_published);
       }
@@ -181,7 +189,7 @@ export class SpecController {
 
       // Get specs with pagination
       const specsQuery = `\n        SELECT \n          ps.*,\n          u.name as created_by_name,\n          u.email as created_by_email\n        FROM protobuf_specs ps\n        LEFT JOIN users u ON ps.created_by = u.id\n        ${whereClause}\n        ${orderClause}\n        LIMIT $${paramIndex++} OFFSET $${paramIndex++}\n      `;
-      
+
       queryParams.push(Number(limit), offset);
       const specsResult = await pool.query(specsQuery, queryParams);
 
@@ -199,7 +207,6 @@ export class SpecController {
         success: true,
         data: response,
       } as ApiResponse<PaginatedResponse<ProtobufSpec>>);
-
     } catch (error) {
       console.error('Get specs error:', error);
       res.status(500).json({
@@ -263,7 +270,9 @@ export class SpecController {
       let paramIndex = 1;
 
       Object.entries(updateData).forEach(([key, value]) => {
-        if (value !== undefined) {
+        // Include field if it's not undefined, or if it's a GitHub field (to preserve null values)
+        if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name') {
+          console.log(`Including field ${key} with value:`, value);
           if (key === 'spec_data') {
             updateFields.push(`${key} = ${paramIndex}`);
             queryParams.push(JSON.stringify(value));
@@ -272,13 +281,17 @@ export class SpecController {
             queryParams.push(value);
           }
           paramIndex++;
+        } else {
+          console.log(`Skipping field ${key} with value:`, value);
         }
       });
 
       updateFields.push(`updated_at = NOW()`);
       queryParams.push(id);
 
-      const updateQuery = `\n        UPDATE protobuf_specs \n        SET ${updateFields.join(', ')}\n        WHERE id = ${paramIndex}\n        RETURNING *\n      `;
+      const updateQuery = `\n        UPDATE protobuf_specs \n        SET ${updateFields.join(
+        ', '
+      )}\n        WHERE id = ${paramIndex}\n        RETURNING *\n      `;
 
       const result = await pool.query(updateQuery, queryParams);
 
@@ -479,6 +492,12 @@ export class SpecController {
         content: Buffer.from(protoContent).toString('base64'),
       });
 
+      // 6. Update the spec with GitHub repository information
+      await pool.query(
+        'UPDATE protobuf_specs SET github_repo_url = $1, github_repo_name = $2, updated_at = NOW() WHERE id = $3',
+        [repo.data.html_url, repoName, specId]
+      );
+
       res.status(201).json({
         success: true,
         message: 'Successfully published to GitHub!',
@@ -486,6 +505,99 @@ export class SpecController {
       });
     } catch (error: any) {
       console.error('GitHub publish error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+
+  static async pushToBranch(req: AuthRequest, res: Response) {
+    try {
+      const { id: specId } = req.params;
+      const userId = req.user!.id;
+      const { branch = 'main', commitMessage } = req.body;
+
+      // 1. Fetch user and spec data
+      const userResult = await pool.query(
+        'SELECT github_access_token, github_username FROM users WHERE id = $1',
+        [userId]
+      );
+      const specResult = await pool.query(
+        'SELECT * FROM protobuf_specs WHERE id = $1 AND created_by = $2',
+        [specId, userId]
+      );
+
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      if (specResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Spec not found or access denied' });
+      }
+
+      const user = userResult.rows[0];
+      const spec = specResult.rows[0];
+
+      // Check if spec has been published to GitHub
+      if (!spec.github_repo_url || !spec.github_repo_name) {
+        return res.status(400).json({
+          success: false,
+          error: 'Spec must be published to GitHub first before pushing to branch.',
+        });
+      }
+
+      if (!user.github_access_token) {
+        return res
+          .status(400)
+          .json({ success: false, error: 'GitHub account not connected or access token missing.' });
+      }
+
+      // 2. Initialize Octokit
+      const octokit = new Octokit({ auth: user.github_access_token });
+
+      // 3. Generate .proto file content
+      const protoContent = generateProtoContent(spec.spec_data);
+
+      // 4. Get the current file content to check if it exists
+      let currentFile;
+      try {
+        currentFile = await octokit.rest.repos.getContent({
+          owner: user.github_username,
+          repo: spec.github_repo_name,
+          path: `${spec.title.replace(/\s+/g, '_')}.proto`,
+          ref: branch,
+        });
+      } catch (error: any) {
+        // File doesn't exist, that's okay
+        currentFile = null;
+      }
+
+      // 5. Create or update the file
+      const message = commitMessage || `feat: Update ${spec.title} v${spec.version}`;
+      const sha = currentFile?.data?.sha;
+
+      await octokit.rest.repos.createOrUpdateFileContents({
+        owner: user.github_username,
+        repo: spec.github_repo_name,
+        path: `${spec.title.replace(/\s+/g, '_')}.proto`,
+        message: message,
+        content: Buffer.from(protoContent).toString('base64'),
+        sha: sha, // Include SHA if updating existing file
+        branch: branch,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Successfully pushed to GitHub branch!',
+        data: {
+          repo: spec.github_repo_name,
+          branch: branch,
+          owner: user.github_username,
+          url: spec.github_repo_url,
+        },
+      });
+    } catch (error: any) {
+      console.error('GitHub push to branch error:', error);
       res.status(500).json({
         success: false,
         error: 'Internal server error',

@@ -84,6 +84,8 @@ export interface ProtobufSpec {
   is_published: boolean;
   tags: string[];
   download_count: number;
+  github_repo_url?: string;
+  github_repo_name?: string;
 }
 
 export interface CreateSpecRequest {
@@ -101,6 +103,8 @@ export interface UpdateSpecRequest {
   spec_data?: ProtoFileData;
   tags?: string[];
   is_published?: boolean;
+  github_repo_url?: string;
+  github_repo_name?: string;
 }
 
 export interface SpecVersion {

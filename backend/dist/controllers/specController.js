@@ -84,13 +84,10 @@ class SpecController {
         try {
             const userId = req.user.id;
             const { title, version = '1.0.0', description, spec_data, tags = [], } = req.body;
-            const result = await database_1.default.query(`INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags) 
-         VALUES ($1, $2, $3, $4, $5, $6) 
-         RETURNING *`, [title, version, description, JSON.stringify(spec_data), userId, tags]);
+            const result = await database_1.default.query(`INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags) \n         VALUES ($1, $2, $3, $4, $5, $6) \n         RETURNING *`, [title, version, description, JSON.stringify(spec_data), userId, tags]);
             const spec = result.rows[0];
             // Create initial version
-            await database_1.default.query(`INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
-         VALUES ($1, $2, $3, $4)`, [spec.id, version, JSON.stringify(spec_data), userId]);
+            await database_1.default.query(`INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)\n         VALUES ($1, $2, $3, $4)`, [spec.id, version, JSON.stringify(spec.spec_data), userId]);
             res.status(201).json({
                 success: true,
                 data: spec,
@@ -107,56 +104,34 @@ class SpecController {
     }
     static async getSpecs(req, res) {
         try {
-            const { page = 1, limit = 10, search, tags, created_by, is_published, sort_by = 'created_at', sort_order = 'desc', } = req.query;
-            const offset = (page - 1) * limit;
-            let whereConditions = [];
-            let queryParams = [];
+            const userId = req.user.id;
+            const { page = 1, limit = 10, search, tags, is_published, sort_by = 'created_at', sort_order = 'desc', } = req.query;
+            const offset = (page - 1) * Number(limit);
+            const queryParams = [];
             let paramIndex = 1;
-            // Build WHERE conditions
+            // Always filter by the logged-in user
+            queryParams.push(userId);
+            let whereClause = `WHERE ps.created_by = $${paramIndex++}`;
             if (search) {
-                whereConditions.push(`to_tsvector('english', title || ' ' || COALESCE(description, '')) @@ plainto_tsquery('english', ${paramIndex})`);
+                whereClause += ` AND to_tsvector('english', ps.title || ' ' || COALESCE(ps.description, '')) @@ plainto_tsquery('english', $${paramIndex++})`;
                 queryParams.push(search);
-                paramIndex++;
             }
             if (tags && tags.length > 0) {
-                whereConditions.push(`tags && ${paramIndex}`);
+                whereClause += ` AND ps.tags && $${paramIndex++}`;
                 queryParams.push(Array.isArray(tags) ? tags : [tags]);
-                paramIndex++;
-            }
-            if (created_by) {
-                whereConditions.push(`created_by = ${paramIndex}`);
-                queryParams.push(created_by);
-                paramIndex++;
             }
             if (is_published !== undefined) {
-                whereConditions.push(`is_published = ${paramIndex}`);
+                whereClause += ` AND ps.is_published = $${paramIndex++}`;
                 queryParams.push(is_published);
-                paramIndex++;
             }
-            const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-            const orderClause = `ORDER BY ${sort_by} ${sort_order.toUpperCase()}`;
+            const orderClause = `ORDER BY ps.${sort_by} ${sort_order.toUpperCase()}`;
             // Get total count
-            const countQuery = `
-        SELECT COUNT(*) as total 
-        FROM protobuf_specs ps
-        LEFT JOIN users u ON ps.created_by = u.id
-        ${whereClause}
-      `;
+            const countQuery = `SELECT COUNT(*) as total FROM protobuf_specs ps ${whereClause}`;
             const countResult = await database_1.default.query(countQuery, queryParams);
             const total = parseInt(countResult.rows[0].total);
             // Get specs with pagination
-            const specsQuery = `
-  SELECT 
-    ps.*,
-    u.name as created_by_name,
-    u.email as created_by_email
-  FROM protobuf_specs ps
-  LEFT JOIN users u ON ps.created_by = u.id
-  ${whereClause}
-  ${orderClause}
-  LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-`;
-            queryParams.push(limit, offset);
+            const specsQuery = `\n        SELECT \n          ps.*,\n          u.name as created_by_name,\n          u.email as created_by_email\n        FROM protobuf_specs ps\n        LEFT JOIN users u ON ps.created_by = u.id\n        ${whereClause}\n        ${orderClause}\n        LIMIT $${paramIndex++} OFFSET $${paramIndex++}\n      `;
+            queryParams.push(Number(limit), offset);
             const specsResult = await database_1.default.query(specsQuery, queryParams);
             const response = {
                 data: specsResult.rows,
@@ -164,7 +139,7 @@ class SpecController {
                     page: Number(page),
                     limit: Number(limit),
                     total,
-                    totalPages: Math.ceil(total / limit),
+                    totalPages: Math.ceil(total / Number(limit)),
                 },
             };
             res.json({
@@ -183,13 +158,7 @@ class SpecController {
     static async getSpec(req, res) {
         try {
             const { id } = req.params;
-            const result = await database_1.default.query(`SELECT 
-          ps.*,
-          u.name as created_by_name,
-          u.email as created_by_email
-         FROM protobuf_specs ps
-         LEFT JOIN users u ON ps.created_by = u.id
-         WHERE ps.id = $1`, [id]);
+            const result = await database_1.default.query(`SELECT \n          ps.*,\n          u.name as created_by_name,\n          u.email as created_by_email\n         FROM protobuf_specs ps\n         LEFT JOIN users u ON ps.created_by = u.id\n         WHERE ps.id = $1`, [id]);
             if (result.rows.length === 0) {
                 return res.status(404).json({
                     success: false,
@@ -241,19 +210,12 @@ class SpecController {
             });
             updateFields.push(`updated_at = NOW()`);
             queryParams.push(id);
-            const updateQuery = `
-        UPDATE protobuf_specs 
-        SET ${updateFields.join(', ')}
-        WHERE id = ${paramIndex}
-        RETURNING *
-      `;
+            const updateQuery = `\n        UPDATE protobuf_specs \n        SET ${updateFields.join(', ')}\n        WHERE id = ${paramIndex}\n        RETURNING *\n      `;
             const result = await database_1.default.query(updateQuery, queryParams);
             // If version or spec_data changed, create new version
             if (updateData.version || updateData.spec_data) {
                 const spec = result.rows[0];
-                await database_1.default.query(`INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (spec_id, version_number) DO NOTHING`, [spec.id, spec.version, JSON.stringify(spec.spec_data), userId]);
+                await database_1.default.query(`INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)\n           VALUES ($1, $2, $3, $4)\n           ON CONFLICT (spec_id, version_number) DO NOTHING`, [spec.id, spec.version, JSON.stringify(spec.spec_data), userId]);
             }
             res.json({
                 success: true,
@@ -296,13 +258,7 @@ class SpecController {
     static async getSpecVersions(req, res) {
         try {
             const { id } = req.params;
-            const result = await database_1.default.query(`SELECT 
-          sv.*,
-          u.name as created_by_name
-         FROM spec_versions sv
-         LEFT JOIN users u ON sv.created_by = u.id
-         WHERE sv.spec_id = $1
-         ORDER BY sv.created_at DESC`, [id]);
+            const result = await database_1.default.query(`SELECT \n          sv.*,\n          u.name as created_by_name\n         FROM spec_versions sv\n         LEFT JOIN users u ON sv.created_by = u.id\n         WHERE sv.spec_id = $1\n         ORDER BY sv.created_at DESC`, [id]);
             res.json({
                 success: true,
                 data: result.rows,
@@ -343,11 +299,7 @@ class SpecController {
             // Get total downloads
             const totalDownloads = await database_1.default.query('SELECT SUM(download_count) as total FROM protobuf_specs WHERE created_by = $1', [userId]);
             // Get recent specs
-            const recentSpecs = await database_1.default.query(`SELECT id, title, version, created_at, download_count, is_published
-         FROM protobuf_specs 
-         WHERE created_by = $1 
-         ORDER BY created_at DESC 
-         LIMIT 5`, [userId]);
+            const recentSpecs = await database_1.default.query(`SELECT id, title, version, created_at, download_count, is_published\n         FROM protobuf_specs \n         WHERE created_by = $1 \n         ORDER BY created_at DESC \n         LIMIT 5`, [userId]);
             res.json({
                 success: true,
                 data: {
@@ -415,7 +367,7 @@ class SpecController {
             console.error('GitHub publish error:', error);
             res.status(500).json({
                 success: false,
-                error: error.message || 'Failed to publish to GitHub.',
+                error: 'Internal server error',
             });
         }
     }

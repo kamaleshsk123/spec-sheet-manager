@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { ApiService, ProtobufSpec, User } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
+import { PushToBranchModalComponent } from '../components/push-to-branch-modal/push-to-branch-modal.component';
 
 interface DiffLine {
   content: string;
@@ -14,7 +15,7 @@ interface DiffLine {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, PublishModalComponent],
+  imports: [CommonModule, PublishModalComponent, PushToBranchModalComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -28,6 +29,7 @@ export class DashboardComponent implements OnInit {
   openSpecDropdown: string | null = null;
   showPublishModal: boolean = false;
   specToPublish: ProtobufSpec | null = null;
+  showPushToBranchModal: boolean = false;
   
   // Comparison modal properties
   showCompareModal: boolean = false;
@@ -86,12 +88,43 @@ export class DashboardComponent implements OnInit {
         if (response.success) {
           this.notificationService.success('Published to GitHub!', `Successfully created repository: ${response.data.url}`);
           this.closePublishModal();
+          this.loadSpecs(); // Reload specs to update UI with github_repo_url
         } else {
           this.notificationService.error('Publish Failed', response.error || 'Could not publish to GitHub.');
         }
       },
       error: (error) => {
         this.notificationService.error('Publish Error', error.error.error || 'An unknown error occurred.');
+      }
+    });
+  }
+
+  openPushToBranchModal(spec: ProtobufSpec) {
+    this.specToPublish = spec;
+    this.showPushToBranchModal = true;
+    this.openSpecDropdown = null; // Close the dropdown
+  }
+
+  closePushToBranchModal() {
+    this.showPushToBranchModal = false;
+    this.specToPublish = null;
+  }
+
+  handlePushToBranch(event: any) {
+    if (!this.specToPublish) return;
+
+    this.apiService.pushToBranch(this.specToPublish.id!, event.commitMessage).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success('Pushed to GitHub!', `Successfully pushed updates to ${this.specToPublish?.github_repo_name}.`);
+          this.closePushToBranchModal();
+          this.loadSpecs(); // Reload specs to update UI
+        } else {
+          this.notificationService.error('Push Failed', response.error || 'Could not push to GitHub.');
+        }
+      },
+      error: (error) => {
+        this.notificationService.error('Push Error', error.error.error || 'An unknown error occurred.');
       }
     });
   }
