@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NuMonacoEditorModule } from '@ng-util/monaco-editor';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, ProtobufSpec } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
+import { parse } from 'proto-parser';
 
 interface Field {
   type: string;
@@ -62,6 +63,8 @@ interface ProtoFile {
   styleUrl: './editor.css',
 })
 export class EditorComponent implements OnInit {
+  @ViewChild('fileInput') fileInput!: ElementRef;
+
   editorOptions = {
     theme: 'vs-dark',
     language: 'plaintext',
@@ -211,6 +214,124 @@ export class EditorComponent implements OnInit {
   removeField(message: Message, index: number) {
     message.fields.splice(index, 1);
     this.updateProtoPreview();
+  }
+
+  uploadSpec() {
+    this.fileInput.nativeElement.click();
+  }
+
+  handleFileSelect(event: any) {
+    const file = event.target.files[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      const content = e.target.result;
+      try {
+        const ast = parse(content) as any;
+        this.fromAst(ast);
+        this.notificationService.success('Spec Uploaded', 'Successfully parsed .proto file.');
+        this.updateProtoPreview();
+      } catch (error: any) {
+        this.notificationService.error('Parse Error', `Failed to parse .proto file: ${error.message}`);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  fromAst(ast: any) {
+    if (ast.syntax) {
+      this.protoFile.syntax = ast.syntax;
+    }
+
+    if (ast.package) {
+      this.protoFile.package = ast.package;
+    }
+
+    this.protoFile.imports = ast.imports || [];
+    this.protoFile.messages = [];
+    this.protoFile.enums = [];
+    this.protoFile.services = [];
+
+    if (ast.root && ast.root.nested) {
+      for (const key in ast.root.nested) {
+        const nested = ast.root.nested[key];
+        if (nested.fields) {
+          this.protoFile.messages.push(this.messageFromAst(nested));
+        } else if (nested.values) {
+          this.protoFile.enums.push(this.enumFromAst(nested));
+        } else if (nested.methods) {
+          this.protoFile.services.push(this.serviceFromAst(nested));
+        }
+      }
+    }
+  }
+
+  messageFromAst(ast: any): Message {
+    const message: Message = {
+      name: ast.name,
+      fields: [],
+    };
+
+    if (ast.fields) {
+      for (const key in ast.fields) {
+        const field = ast.fields[key];
+        message.fields.push({
+          type: field.type,
+          name: field.name,
+          number: field.id,
+          repeated: field.repeated,
+          optional: field.optional,
+        });
+      }
+    }
+
+    return message;
+  }
+
+  enumFromAst(ast: any): Enum {
+    const enumDef: Enum = {
+      name: ast.name,
+      values: [],
+    };
+
+    if (ast.values) {
+      for (const key in ast.values) {
+        const value = ast.values[key];
+        enumDef.values.push({
+          name: key,
+          number: value,
+        });
+      }
+    }
+
+    return enumDef;
+  }
+
+  serviceFromAst(ast: any): Service {
+    const service: Service = {
+      name: ast.name,
+      methods: [],
+    };
+
+    if (ast.methods) {
+      for (const key in ast.methods) {
+        const method = ast.methods[key];
+        service.methods.push({
+          name: method.name,
+          inputType: method.requestType,
+          outputType: method.responseType,
+          streaming: {
+            input: method.requestStream || false,
+            output: method.responseStream || false,
+          },
+        });
+      }
+    }
+
+    return service;
   }
 
   // Enum methods
