@@ -134,7 +134,9 @@ export class SpecController {
       console.log('Final GitHub info before insert:', { url: final_github_repo_url, name: final_github_repo_name }); // <--- ADDED THIS LINE
 
       const result = await pool.query(
-        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags, github_repo_url, github_repo_name) \n         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) \n         RETURNING *`,
+        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags, github_repo_url, github_repo_name) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+         RETURNING *`,
         [title, version, description, JSON.stringify(spec_data), userId, tags, final_github_repo_url, final_github_repo_name]
       );
 
@@ -142,7 +144,8 @@ export class SpecController {
 
       // Create initial version
       await pool.query(
-        `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)\n         VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
+         VALUES ($1, $2, $3, $4)`,
         [spec.id, version, JSON.stringify(spec.spec_data), userId]
       );
 
@@ -181,8 +184,8 @@ export class SpecController {
       let whereClause = '';
       if (userId) {
         // If authenticated, filter by the logged-in user
-        queryParams.push(userId);
-        whereClause = `WHERE ps.created_by = $${paramIndex++}`;
+        queryParams.push(String(userId));
+        whereClause = `WHERE ps.created_by::text = $${paramIndex++}`;
       } else {
         // If not authenticated, only show published specs
         whereClause = 'WHERE ps.is_published = true';
@@ -210,7 +213,17 @@ export class SpecController {
       const total = parseInt(countResult.rows[0].total);
 
       // Get specs with pagination
-      const specsQuery = `\n        SELECT \n          ps.*,\n          u.name as created_by_name,\n          u.email as created_by_email\n        FROM protobuf_specs ps\n        LEFT JOIN users u ON ps.created_by = u.id\n        ${whereClause}\n        ${orderClause}\n        LIMIT $${paramIndex++} OFFSET $${paramIndex++}\n      `;
+      const specsQuery = `
+        SELECT 
+          ps.*,
+          u.name as created_by_name,
+          u.email as created_by_email
+        FROM protobuf_specs ps
+        LEFT JOIN users u ON ps.created_by = u.id
+        ${whereClause}
+        ${orderClause}
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
 
       queryParams.push(Number(limit), offset);
       const specsResult = await pool.query(specsQuery, queryParams);
@@ -243,7 +256,13 @@ export class SpecController {
       const { id } = req.params;
 
       const result = await pool.query(
-        `SELECT \n          ps.*,\n          u.name as created_by_name,\n          u.email as created_by_email\n         FROM protobuf_specs ps\n         LEFT JOIN users u ON ps.created_by = u.id\n         WHERE ps.id = $1`,
+        `SELECT 
+          ps.*,
+          u.name as created_by_name,
+          u.email as created_by_email
+         FROM protobuf_specs ps
+         LEFT JOIN users u ON ps.created_by = u.id
+         WHERE ps.id = $1`,
         [id]
       );
 
@@ -298,13 +317,12 @@ export class SpecController {
         if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name') {
           console.log(`Including field ${key} with value:`, value);
           if (key === 'spec_data') {
-            updateFields.push(`${key} = ${paramIndex}`);
+            updateFields.push(`${key} = $${paramIndex++}`);
             queryParams.push(JSON.stringify(value));
           } else {
-            updateFields.push(`${key} = ${paramIndex}`);
+            updateFields.push(`${key} = $${paramIndex++}`);
             queryParams.push(value);
           }
-          paramIndex++;
         } else {
           console.log(`Skipping field ${key} with value:`, value);
         }
@@ -313,9 +331,14 @@ export class SpecController {
       updateFields.push(`updated_at = NOW()`);
       queryParams.push(id);
 
-      const updateQuery = `\n        UPDATE protobuf_specs \n        SET ${updateFields.join(
+      const updateQuery = `
+        UPDATE protobuf_specs 
+        SET ${updateFields.join(
         ', '
-      )}\n        WHERE id = ${paramIndex}\n        RETURNING *\n      `;
+      )}
+        WHERE id = $${paramIndex++}
+        RETURNING *
+      `;
 
       const result = await pool.query(updateQuery, queryParams);
 
@@ -323,7 +346,9 @@ export class SpecController {
       if (updateData.version || updateData.spec_data) {
         const spec = result.rows[0];
         await pool.query(
-          `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)\n           VALUES ($1, $2, $3, $4)\n           ON CONFLICT (spec_id, version_number) DO NOTHING`,
+          `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (spec_id, version_number) DO NOTHING`,
           [spec.id, spec.version, JSON.stringify(spec.spec_data), userId]
         );
       }
@@ -372,12 +397,66 @@ export class SpecController {
     }
   }
 
+  static async deleteSpecAndAllVersions(req: AuthRequest, res: Response) {
+    try {
+      const { title } = req.params;
+      const userId = req.user!.id;
+
+      // First, verify the user owns at least one spec with this title
+      const ownerCheck = await pool.query(
+        'SELECT id FROM protobuf_specs WHERE title = $1 AND created_by = $2 LIMIT 1',
+        [title, userId]
+      );
+
+      if (ownerCheck.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You do not own any specs with this title.',
+        } as ApiResponse);
+      }
+
+      // Proceed with deletion
+      const result = await pool.query(
+        'DELETE FROM protobuf_specs WHERE title = $1 AND created_by = $2 RETURNING id',
+        [title, userId]
+      );
+
+      if (result.rows.length === 0) {
+        // This case should ideally not be hit if the ownerCheck passes, but it's good for safety
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found or access denied',
+        } as ApiResponse);
+      }
+
+      res.json({
+        success: true,
+        message: `All versions of specification '${title}' deleted successfully.`,
+        data: {
+          deleted_count: result.rows.length
+        }
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Delete all spec versions error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
   static async getSpecVersions(req: Request, res: Response) {
     try {
       const { id } = req.params;
 
       const result = await pool.query(
-        `SELECT \n          sv.*,\n          u.name as created_by_name\n         FROM spec_versions sv\n         LEFT JOIN users u ON sv.created_by = u.id\n         WHERE sv.spec_id = $1\n         ORDER BY sv.created_at DESC`,
+        `SELECT 
+          sv.*,
+          u.name as created_by_name
+         FROM spec_versions sv
+         LEFT JOIN users u ON sv.created_by = u.id
+         WHERE sv.spec_id = $1
+         ORDER BY sv.created_at DESC`,
         [id]
       );
 
@@ -440,7 +519,10 @@ export class SpecController {
 
       // Get recent specs
       const recentSpecs = await pool.query(
-        `SELECT id, title, version, created_at, download_count, is_published\n         FROM protobuf_specs \n         WHERE created_by = $1 \n         ORDER BY created_at DESC \n         LIMIT 5`,
+        `SELECT id, title, version, created_at, download_count, is_published\n         FROM protobuf_specs 
+         WHERE created_by = $1 
+         ORDER BY created_at DESC 
+         LIMIT 5`,
         [userId]
       );
 

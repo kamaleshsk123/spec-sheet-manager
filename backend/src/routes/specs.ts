@@ -15,6 +15,7 @@ router.post('/:id/download', SpecController.incrementDownloadCount);
 router.post('/', authenticateToken, validate(createSpecSchema), SpecController.createSpec);
 router.put('/:id', authenticateToken, validate(updateSpecSchema), SpecController.updateSpec);
 router.delete('/:id', authenticateToken, SpecController.deleteSpec);
+router.delete('/by-title/:title', authenticateToken, SpecController.deleteSpecAndAllVersions);
 router.get('/dashboard/stats', authenticateToken, SpecController.getDashboardStats);
 router.post('/:id/publish-to-github', authenticateToken, SpecController.publishToGithub);
 router.post('/:id/push-to-branch', authenticateToken, SpecController.pushToBranch);

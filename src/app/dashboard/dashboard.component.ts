@@ -197,11 +197,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.apiService.deleteSpec(spec.id!).subscribe({
         next: (response) => {
           if (response.success) {
-            this.specs = this.specs.filter(s => s.id !== spec.id);
             this.notificationService.success(
               'Specification Deleted',
               `"${spec.title}" has been deleted successfully`
             );
+            this.loadSpecs(); // Refresh the spec list
           } else {
             this.notificationService.error(
               'Delete Failed',
@@ -214,6 +214,44 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.notificationService.error(
             'Delete Error',
             'Failed to delete specification. Please try again.'
+          );
+        }
+      });
+    }
+  }
+
+  async deleteSpecAndAllVersions(spec: ProtobufSpec) {
+    const confirmed = await this.notificationService.confirm(
+      'Delete Entire Specification',
+      `Are you sure you want to delete the entire spec "${spec.title}" and all its versions? This action is permanent and cannot be undone.`,
+      {
+        confirmText: 'Delete All Versions',
+        cancelText: 'Cancel',
+        type: 'danger'
+      }
+    );
+
+    if (confirmed) {
+      this.apiService.deleteSpecAndAllVersions(spec.title).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.notificationService.success(
+              'Specification Deleted',
+              `The entire spec "${spec.title}" has been deleted successfully`
+            );
+            this.loadSpecs(); // Refresh the spec list
+          } else {
+            this.notificationService.error(
+              'Delete Failed',
+              response.error || 'Failed to delete the entire specification'
+            );
+          }
+        },
+        error: (error) => {
+          console.error('Delete all versions error:', error);
+          this.notificationService.error(
+            'Delete Error',
+            'Failed to delete the entire specification. Please try again.'
           );
         }
       });

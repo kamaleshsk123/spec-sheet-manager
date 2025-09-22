@@ -164,6 +164,13 @@ export class ApiService {
     );
   }
 
+  deleteSpecAndAllVersions(title: string): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(
+      `${this.baseUrl}/specs/by-title/${title}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
   incrementDownloadCount(id: string): Observable<ApiResponse> {
     return this.http.post<ApiResponse>(
       `${this.baseUrl}/specs/${id}/download`,
