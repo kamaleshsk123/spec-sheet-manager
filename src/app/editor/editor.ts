@@ -143,6 +143,7 @@ export class EditorComponent implements OnInit {
           // Load GitHub repository information
           this.githubRepoUrl = spec.github_repo_url || null;
           this.githubRepoName = spec.github_repo_name || null;
+          console.log('Loaded GitHub info:', { url: this.githubRepoUrl, name: this.githubRepoName }); // <--- ADDED THIS LINE
 
           // Load proto data
           this.protoFile = spec.spec_data;
@@ -459,6 +460,8 @@ export class EditorComponent implements OnInit {
     // Check if version has changed - if so, create new version instead of updating
     const versionChanged =
       this.currentSpecId && this.originalVersion && this.originalVersion !== finalVersion;
+
+    console.log('SpecData being sent to backend:', specData); // <--- ADDED THIS LINE
 
     const saveOperation =
       this.currentSpecId && !versionChanged

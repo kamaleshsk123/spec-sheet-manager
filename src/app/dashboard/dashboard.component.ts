@@ -1,10 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
 import { ApiService, ProtobufSpec, User } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
 import { PushToBranchModalComponent } from '../components/push-to-branch-modal/push-to-branch-modal.component';
+import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 interface DiffLine {
   content: string;
@@ -19,7 +21,7 @@ interface DiffLine {
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   specs: ProtobufSpec[] = []; // Only latest versions for display
   allSpecs: ProtobufSpec[] = []; // All versions for comparison
   isLoading: boolean = true;
@@ -37,15 +39,31 @@ export class DashboardComponent implements OnInit {
   leftSideSpec: ProtobufSpec | null = null; // User selected left side
   rightSideSpec: ProtobufSpec | null = null; // User selected right side
 
+  private routerSubscription: Subscription; // Declare subscription
+
   constructor(
     private apiService: ApiService,
     private router: Router,
     private notificationService: NotificationService
-  ) {}
+  ) {
+    // Subscribe to router events to reload specs when navigating to the dashboard
+    this.routerSubscription = this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd && event.url === '/')
+    ).subscribe(() => {
+      this.loadSpecs();
+    });
+  }
 
   ngOnInit() {
     this.loadSpecs();
     this.loadUserProfile();
+  }
+
+  ngOnDestroy() {
+    // Unsubscribe to prevent memory leaks
+    if (this.routerSubscription) {
+      this.routerSubscription.unsubscribe();
+    }
   }
 
   loadUserProfile() {
@@ -137,6 +155,7 @@ export class DashboardComponent implements OnInit {
       next: (response) => {
         this.isLoading = false;
         if (response.success && response.data) {
+          console.log('Specs loaded:', response.data.data); // <--- ADDED THIS LINE
           // Store all specs for comparison
           this.allSpecs = response.data.data;
           // Group specs by title and show only the latest version of each

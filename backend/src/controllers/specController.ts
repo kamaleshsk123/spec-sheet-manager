@@ -109,11 +109,33 @@ export class SpecController {
         description,
         spec_data,
         tags = [],
+        github_repo_url: incoming_github_repo_url = null,
+        github_repo_name: incoming_github_repo_name = null,
       }: CreateSpecRequest = req.body;
 
+      let final_github_repo_url = incoming_github_repo_url;
+      let final_github_repo_name = incoming_github_repo_name;
+
+      // If GitHub info is not provided in the request, try to inherit from an existing published spec with the same title
+      if (!final_github_repo_url || !final_github_repo_name) {
+        const existingPublishedSpec = await pool.query(
+          `SELECT github_repo_url, github_repo_name FROM protobuf_specs WHERE title = $1 AND github_repo_url IS NOT NULL LIMIT 1`,
+          [title]
+        );
+
+        console.log('Existing published spec query result:', existingPublishedSpec.rows); // <--- ADDED THIS LINE
+
+        if (existingPublishedSpec.rows.length > 0) {
+          final_github_repo_url = existingPublishedSpec.rows[0].github_repo_url;
+          final_github_repo_name = existingPublishedSpec.rows[0].github_repo_name;
+        }
+      }
+
+      console.log('Final GitHub info before insert:', { url: final_github_repo_url, name: final_github_repo_name }); // <--- ADDED THIS LINE
+
       const result = await pool.query(
-        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags) \n         VALUES ($1, $2, $3, $4, $5, $6) \n         RETURNING *`,
-        [title, version, description, JSON.stringify(spec_data), userId, tags]
+        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags, github_repo_url, github_repo_name) \n         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) \n         RETURNING *`,
+        [title, version, description, JSON.stringify(spec_data), userId, tags, final_github_repo_url, final_github_repo_name]
       );
 
       const spec = result.rows[0];
@@ -231,6 +253,8 @@ export class SpecController {
           error: 'Specification not found',
         } as ApiResponse);
       }
+
+      console.log('Backend getSpec result:', result.rows[0]); // <--- ADDED THIS LINE
 
       res.json({
         success: true,
