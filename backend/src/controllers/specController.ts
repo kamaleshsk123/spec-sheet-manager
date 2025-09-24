@@ -13,6 +13,24 @@ import {
 import { AuthRequest } from '../middleware/auth';
 import { Octokit } from 'octokit';
 
+// Helper to check if a user has access to a spec (is owner or team member)
+async function checkSpecAccess(specId: string, userId: string): Promise<boolean> {
+  const specResult = await pool.query('SELECT created_by, team_id FROM protobuf_specs WHERE id = $1', [specId]);
+  if (specResult.rowCount === 0) {
+    return false; // Spec not found
+  }
+  const spec = specResult.rows[0];
+
+  // It's a personal spec, check ownership
+  if (spec.team_id === null) {
+    return spec.created_by === userId;
+  }
+
+  // It's a team spec, check membership
+  const memberResult = await pool.query('SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2', [spec.team_id, userId]);
+  return !!memberResult?.rowCount;
+}
+
 // Helper function to generate .proto content from spec data
 const generateProtoContent = (specData: ProtoFileData): string => {
   if (!specData) {
@@ -111,7 +129,22 @@ export class SpecController {
         tags = [],
         github_repo_url: incoming_github_repo_url = null,
         github_repo_name: incoming_github_repo_name = null,
+        team_id = null,
       }: CreateSpecRequest = req.body;
+
+      // If team_id is provided, verify user is a member of that team
+      if (team_id) {
+        const memberCheck = await pool.query(
+          'SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2',
+          [team_id, userId]
+        );
+        if (memberCheck.rowCount === 0) {
+          return res.status(403).json({
+            success: false,
+            error: 'You are not a member of the specified team.',
+          });
+        }
+      }
 
       let final_github_repo_url = incoming_github_repo_url;
       let final_github_repo_name = incoming_github_repo_name;
@@ -134,10 +167,10 @@ export class SpecController {
       console.log('Final GitHub info before insert:', { url: final_github_repo_url, name: final_github_repo_name }); // <--- ADDED THIS LINE
 
       const result = await pool.query(
-        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags, github_repo_url, github_repo_name) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags, github_repo_url, github_repo_name, team_id) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
          RETURNING *`,
-        [title, version, description, JSON.stringify(spec_data), userId, tags, final_github_repo_url, final_github_repo_name]
+        [title, version, description, JSON.stringify(spec_data), userId, tags, final_github_repo_url, final_github_repo_name, team_id]
       );
 
       const spec = result.rows[0];
@@ -180,14 +213,22 @@ export class SpecController {
       const queryParams: any[] = [];
       let paramIndex = 1;
 
-      // Build where clause based on authentication status
       let whereClause = '';
       if (userId) {
-        // If authenticated, filter by the logged-in user
+        const userTeams = await pool.query('SELECT team_id FROM team_members WHERE user_id = $1', [userId]);
+        const teamIds = userTeams.rows.map(row => row.team_id);
+
+        const personalSpecClause = `(ps.created_by::text = $${paramIndex++} AND ps.team_id IS NULL)`;
         queryParams.push(String(userId));
-        whereClause = `WHERE ps.created_by::text = $${paramIndex++}`;
+
+        let teamSpecClause = '';
+        if (teamIds.length > 0) {
+          teamSpecClause = `ps.team_id = ANY($${paramIndex++}::uuid[])`;
+          queryParams.push(teamIds);
+        }
+
+        whereClause = `WHERE (${personalSpecClause}${teamSpecClause ? ` OR ${teamSpecClause}` : ''})`;
       } else {
-        // If not authenticated, only show published specs
         whereClause = 'WHERE ps.is_published = true';
       }
 
@@ -200,19 +241,16 @@ export class SpecController {
         queryParams.push(Array.isArray(tags) ? tags : [tags]);
       }
       if (is_published !== undefined && userId) {
-        // Only allow filtering by published status if user is authenticated
         whereClause += ` AND ps.is_published = $${paramIndex++}`;
         queryParams.push(is_published);
       }
 
       const orderClause = `ORDER BY ps.${sort_by} ${sort_order.toUpperCase()}`;
 
-      // Get total count
       const countQuery = `SELECT COUNT(*) as total FROM protobuf_specs ps ${whereClause}`;
       const countResult = await pool.query(countQuery, queryParams);
       const total = parseInt(countResult.rows[0].total);
 
-      // Get specs with pagination
       const specsQuery = `
         SELECT 
           ps.*,
@@ -251,12 +289,12 @@ export class SpecController {
     }
   }
 
-  static async getSpec(req: Request, res: Response) {
+  static async getSpec(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const { version } = req.query;
+      const userId = req.user?.id;
 
-      // First, get the main spec details
       const mainSpecResult = await pool.query(
         `SELECT 
           ps.*,
@@ -277,6 +315,17 @@ export class SpecController {
 
       let spec = mainSpecResult.rows[0];
 
+      // Check access for non-published specs
+      if (!spec.is_published) {
+        if (!userId) {
+          return res.status(404).json({ success: false, error: 'Specification not found or access denied' });
+        }
+        const hasAccess = await checkSpecAccess(id, userId);
+        if (!hasAccess) {
+          return res.status(404).json({ success: false, error: 'Specification not found or access denied' });
+        }
+      }
+
       // If a version is specified, get that version's data
       if (version) {
         const versionResult = await pool.query(
@@ -288,8 +337,6 @@ export class SpecController {
           spec.spec_data = versionResult.rows[0].spec_data;
           spec.version = versionResult.rows[0].version_number;
         } else {
-          // If the specific version is not found, you might want to return a 404.
-          // For now, it falls back to the latest version, which might be confusing.
           return res.status(404).json({
             success: false,
             error: `Version '${version}' not found for this specification`,
@@ -318,13 +365,8 @@ export class SpecController {
       const userId = req.user!.id;
       const updateData: UpdateSpecRequest = req.body;
 
-      // Check if spec exists and user owns it
-      const existingSpec = await pool.query(
-        'SELECT * FROM protobuf_specs WHERE id = $1 AND created_by = $2',
-        [id, userId]
-      );
-
-      if (existingSpec.rows.length === 0) {
+      const hasAccess = await checkSpecAccess(id, userId);
+      if (!hasAccess) {
         return res.status(404).json({
           success: false,
           error: 'Specification not found or access denied',
@@ -338,7 +380,7 @@ export class SpecController {
 
       Object.entries(updateData).forEach(([key, value]) => {
         // Include field if it's not undefined, or if it's a GitHub field (to preserve null values)
-        if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name') {
+        if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id') {
           console.log(`Including field ${key} with value:`, value);
           if (key === 'spec_data') {
             updateFields.push(`${key} = $${paramIndex++}`);
@@ -396,15 +438,23 @@ export class SpecController {
       const { id } = req.params;
       const userId = req.user!.id;
 
-      const result = await pool.query(
-        'DELETE FROM protobuf_specs WHERE id = $1 AND created_by = $2 RETURNING id',
-        [id, userId]
-      );
-
-      if (result.rows.length === 0) {
+      const hasAccess = await checkSpecAccess(id, userId);
+      if (!hasAccess) {
         return res.status(404).json({
           success: false,
           error: 'Specification not found or access denied',
+        } as ApiResponse);
+      }
+
+      const result = await pool.query(
+        'DELETE FROM protobuf_specs WHERE id = $1 RETURNING id',
+        [id]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found',
         } as ApiResponse);
       }
 

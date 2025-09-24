@@ -9,27 +9,27 @@ const joi_1 = __importDefault(require("joi"));
 exports.createUserSchema = joi_1.default.object({
     email: joi_1.default.string().email().required(),
     name: joi_1.default.string().min(2).max(100).required(),
-    password: joi_1.default.string().min(6).required()
+    password: joi_1.default.string().min(6).required(),
 });
 exports.loginSchema = joi_1.default.object({
     email: joi_1.default.string().email().required(),
-    password: joi_1.default.string().required()
+    password: joi_1.default.string().required(),
 });
 // Protobuf spec validation schemas
 const fieldSchema = joi_1.default.object({
-    type: joi_1.default.string().required(),
+    type: joi_1.default.alternatives().try(joi_1.default.string(), joi_1.default.object()).required(),
     name: joi_1.default.string().required(),
     number: joi_1.default.number().integer().min(1).required(),
     repeated: joi_1.default.boolean().optional(),
-    optional: joi_1.default.boolean().optional()
+    optional: joi_1.default.boolean().optional(),
 });
 const enumValueSchema = joi_1.default.object({
     name: joi_1.default.string().required(),
-    number: joi_1.default.number().integer().min(0).required()
+    number: joi_1.default.number().integer().min(0).required(),
 });
 const enumSchema = joi_1.default.object({
     name: joi_1.default.string().required(),
-    values: joi_1.default.array().items(enumValueSchema).min(1).required()
+    values: joi_1.default.array().items(enumValueSchema).min(1).required(),
 });
 const serviceMethodSchema = joi_1.default.object({
     name: joi_1.default.string().required(),
@@ -37,18 +37,18 @@ const serviceMethodSchema = joi_1.default.object({
     outputType: joi_1.default.string().required(),
     streaming: joi_1.default.object({
         input: joi_1.default.boolean().optional(),
-        output: joi_1.default.boolean().optional()
-    }).optional()
+        output: joi_1.default.boolean().optional(),
+    }).optional(),
 });
 const serviceSchema = joi_1.default.object({
     name: joi_1.default.string().required(),
-    methods: joi_1.default.array().items(serviceMethodSchema).required()
+    methods: joi_1.default.array().items(serviceMethodSchema).required(),
 });
 const messageSchema = joi_1.default.object({
     name: joi_1.default.string().required(),
     fields: joi_1.default.array().items(fieldSchema).required(),
     nestedMessages: joi_1.default.array().items(joi_1.default.link('#messageSchema')).optional(),
-    nestedEnums: joi_1.default.array().items(enumSchema).optional()
+    nestedEnums: joi_1.default.array().items(enumSchema).optional(),
 }).id('messageSchema');
 const protoFileDataSchema = joi_1.default.object({
     syntax: joi_1.default.string().valid('proto2', 'proto3').required(),
@@ -56,14 +56,14 @@ const protoFileDataSchema = joi_1.default.object({
     imports: joi_1.default.array().items(joi_1.default.string()).default([]),
     messages: joi_1.default.array().items(messageSchema).default([]),
     enums: joi_1.default.array().items(enumSchema).default([]),
-    services: joi_1.default.array().items(serviceSchema).default([])
+    services: joi_1.default.array().items(serviceSchema).default([]),
 });
 exports.createSpecSchema = joi_1.default.object({
     title: joi_1.default.string().min(1).max(255).required(),
     version: joi_1.default.string().max(50).optional(),
     description: joi_1.default.string().max(1000).optional(),
     spec_data: protoFileDataSchema.required(),
-    tags: joi_1.default.array().items(joi_1.default.string().max(50)).max(10).optional()
+    tags: joi_1.default.array().items(joi_1.default.string().max(50)).max(10).optional(),
 });
 exports.updateSpecSchema = joi_1.default.object({
     title: joi_1.default.string().min(1).max(255).optional(),
@@ -71,7 +71,9 @@ exports.updateSpecSchema = joi_1.default.object({
     description: joi_1.default.string().max(1000).optional(),
     spec_data: protoFileDataSchema.optional(),
     tags: joi_1.default.array().items(joi_1.default.string().max(50)).max(10).optional(),
-    is_published: joi_1.default.boolean().optional()
+    is_published: joi_1.default.boolean().optional(),
+    github_repo_url: joi_1.default.string().uri().allow(null).optional(),
+    github_repo_name: joi_1.default.string().max(255).allow(null).optional(),
 });
 // Validation middleware factory
 const validate = (schema) => {
@@ -83,7 +85,7 @@ const validate = (schema) => {
             return res.status(400).json({
                 success: false,
                 error: 'Validation error',
-                details: error.details.map(detail => detail.message)
+                details: error.details.map((detail) => detail.message),
             });
         }
         // Use the validated and cleaned value

@@ -27,6 +27,15 @@ export interface ProtobufSpec {
   download_count?: number;
   github_repo_url?: string;
   github_repo_name?: string;
+  team_id?: string | null;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  owner_id: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface SpecVersion {
@@ -111,6 +120,36 @@ export class ApiService {
   getProfile(): Observable<ApiResponse<User>> {
     return this.http.get<ApiResponse<User>>(
       `${this.baseUrl}/auth/profile`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getTeams(): Observable<ApiResponse<Team[]>> {
+    return this.http.get<ApiResponse<Team[]>>(
+      `${this.baseUrl}/teams`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  createTeam(name: string): Observable<ApiResponse<Team>> {
+    return this.http.post<ApiResponse<Team>>(
+      `${this.baseUrl}/teams`,
+      { name },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getTeamMembers(teamId: string): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(
+      `${this.baseUrl}/teams/${teamId}/members`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  inviteMember(teamId: string, email: string): Observable<ApiResponse> {
+    return this.http.post<ApiResponse>(
+      `${this.baseUrl}/teams/${teamId}/members`,
+      { email },
       { headers: this.getHeaders() }
     );
   }

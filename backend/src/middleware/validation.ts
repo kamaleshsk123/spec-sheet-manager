@@ -69,6 +69,10 @@ export const createSpecSchema = Joi.object({
   description: Joi.string().max(1000).optional(),
   spec_data: protoFileDataSchema.required(),
   tags: Joi.array().items(Joi.string().max(50)).max(10).optional(),
+  team_id: Joi.string()
+    .guid({ version: ['uuidv4', 'uuidv5'] })
+    .allow(null)
+    .optional(),
 });
 
 export const updateSpecSchema = Joi.object({
@@ -80,6 +84,10 @@ export const updateSpecSchema = Joi.object({
   is_published: Joi.boolean().optional(),
   github_repo_url: Joi.string().uri().allow(null).optional(),
   github_repo_name: Joi.string().max(255).allow(null).optional(),
+  team_id: Joi.string()
+    .guid({ version: ['uuidv4', 'uuidv5'] })
+    .allow(null)
+    .optional(),
 });
 
 // Validation middleware factory

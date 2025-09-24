@@ -7,14 +7,16 @@ const validation_1 = require("../middleware/validation");
 const router = (0, express_1.Router)();
 // Public routes (with optional auth for filtering)
 router.get('/', auth_1.optionalAuth, specController_1.SpecController.getSpecs);
-router.get('/:id', specController_1.SpecController.getSpec);
+router.get('/:id', auth_1.optionalAuth, specController_1.SpecController.getSpec);
 router.get('/:id/versions', specController_1.SpecController.getSpecVersions);
 router.post('/:id/download', specController_1.SpecController.incrementDownloadCount);
 // Protected routes
 router.post('/', auth_1.authenticateToken, (0, validation_1.validate)(validation_1.createSpecSchema), specController_1.SpecController.createSpec);
 router.put('/:id', auth_1.authenticateToken, (0, validation_1.validate)(validation_1.updateSpecSchema), specController_1.SpecController.updateSpec);
 router.delete('/:id', auth_1.authenticateToken, specController_1.SpecController.deleteSpec);
+router.delete('/by-title/:title', auth_1.authenticateToken, specController_1.SpecController.deleteSpecAndAllVersions);
 router.get('/dashboard/stats', auth_1.authenticateToken, specController_1.SpecController.getDashboardStats);
 router.post('/:id/publish-to-github', auth_1.authenticateToken, specController_1.SpecController.publishToGithub);
+router.post('/:id/push-to-branch', auth_1.authenticateToken, specController_1.SpecController.pushToBranch);
 exports.default = router;
 //# sourceMappingURL=specs.js.map
