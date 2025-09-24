@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NuMonacoEditorModule } from '@ng-util/monaco-editor';
@@ -65,6 +65,8 @@ interface ProtoFile {
 })
 export class EditorComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef;
+  @ViewChild('downloadButton') downloadButton!: ElementRef;
+  @ViewChild('downloadMenu') downloadMenu!: ElementRef;
 
   editorOptions = { // Removed explicit type
     theme: 'vs-dark',
@@ -109,6 +111,17 @@ export class EditorComponent implements OnInit {
   };
   showDownloadMenu: boolean = false;
   activeTab: 'messages' | 'enums' | 'services' | 'settings';
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    if (this.showDownloadMenu) {
+      const clickedInsideButton = this.downloadButton.nativeElement.contains(event.target);
+      const clickedInsideMenu = this.downloadMenu && this.downloadMenu.nativeElement.contains(event.target);
+      if (!clickedInsideButton && !clickedInsideMenu) {
+        this.showDownloadMenu = false;
+      }
+    }
+  }
 
   constructor(
     private apiService: ApiService,
