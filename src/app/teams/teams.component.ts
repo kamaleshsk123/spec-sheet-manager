@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule, Router } from '@angular/router';
 import { ApiService, Team } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 
@@ -12,9 +13,9 @@ interface TeamWithMembers extends Team {
 @Component({
   selector: 'app-teams',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './teams.component.html',
-  styleUrl: './teams.component.css'
+  styleUrl: './teams.component.css',
 })
 export class TeamsComponent implements OnInit {
   teams: TeamWithMembers[] = [];
@@ -23,8 +24,9 @@ export class TeamsComponent implements OnInit {
 
   constructor(
     private apiService: ApiService,
-    private notificationService: NotificationService
-  ) { }
+    private notificationService: NotificationService,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
     this.loadTeams();
@@ -35,15 +37,15 @@ export class TeamsComponent implements OnInit {
     this.apiService.getTeams().subscribe({
       next: (response) => {
         if (response.success && response.data) {
-          this.teams = response.data.map(team => ({ ...team, members: [] }));
-          this.teams.forEach(team => this.loadMembersFor(team));
+          this.teams = response.data.map((team) => ({ ...team, members: [] }));
+          this.teams.forEach((team) => this.loadMembersFor(team));
         }
         this.isLoading = false;
       },
       error: (err) => {
         this.isLoading = false;
         this.notificationService.error('Failed to load teams.', err.message);
-      }
+      },
     });
   }
 
@@ -56,7 +58,7 @@ export class TeamsComponent implements OnInit {
       },
       error: (err) => {
         this.notificationService.error(`Failed to load members for ${team.name}.`, err.message);
-      }
+      },
     });
   }
 
@@ -76,10 +78,13 @@ export class TeamsComponent implements OnInit {
       },
       error: (err) => {
         this.notificationService.error('Failed to create team.', err.error?.error || err.message);
-      }
+      },
     });
   }
 
+  goToDashboard() {
+    this.router.navigate(['/']);
+  }
   inviteMember(team: TeamWithMembers): void {
     const email = team.inviteEmail;
     if (!email || !email.trim()) {
@@ -96,8 +101,11 @@ export class TeamsComponent implements OnInit {
         }
       },
       error: (err) => {
-        this.notificationService.error('Failed to send invitation.', err.error?.error || err.message);
-      }
+        this.notificationService.error(
+          'Failed to send invitation.',
+          err.error?.error || err.message
+        );
+      },
     });
   }
 }

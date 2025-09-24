@@ -250,7 +250,7 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <!-- <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div class="flex items-center">
             <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <svg
@@ -272,7 +272,7 @@
               <p class="text-2xl font-bold text-gray-900">{{ getTotalDownloads() }}</p>
             </div>
           </div>
-        </div>
+        </div> -->
       </div>
 
       <!-- Specs List -->
@@ -329,9 +329,12 @@
                     </div>
                   </div>
                 </div>
-                <div class="relative">
+                <div
+                  class="relative"
+                  [class]="dropdownPlacement[spec.id!] === 'up' ? 'pb-2' : 'pt-2'"
+                >
                   <button
-                    (click)="toggleSpecDropdown(spec.id!)"
+                    (click)="toggleSpecDropdown(spec.id!, $event)"
                     data-dropdown-toggle
                     class="p-2 text-gray-500 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -347,7 +350,10 @@
                   <div
                     *ngIf="openSpecDropdown === spec.id"
                     data-dropdown-menu
-                    class="absolute right-0 mt-2 w-52 bg-white rounded-md shadow-lg py-1 z-20"
+                    class="absolute right-0 w-52 bg-white rounded-md shadow-lg py-1 z-20"
+                    [ngStyle]="
+                      dropdownPlacement[spec.id!] === 'up' ? { bottom: '100%' } : { top: '100%' }
+                    "
                   >
                     <button
                       (click)="openEditor(spec.id)"
@@ -541,9 +547,12 @@
                     </div>
                   </div>
                 </div>
-                <div class="relative">
+                <div
+                  class="relative"
+                  [class]="dropdownPlacement[spec.id!] === 'up' ? 'pb-2' : 'pt-2'"
+                >
                   <button
-                    (click)="toggleSpecDropdown(spec.id!)"
+                    (click)="toggleSpecDropdown(spec.id!, $event)"
                     data-dropdown-toggle
                     class="p-2 text-gray-500 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -559,7 +568,10 @@
                   <div
                     *ngIf="openSpecDropdown === spec.id"
                     data-dropdown-menu
-                    class="absolute right-0 mt-2 w-52 bg-white rounded-md shadow-lg py-1 z-20"
+                    class="absolute right-0 w-52 bg-white rounded-md shadow-lg py-1 z-20"
+                    [ngStyle]="
+                      dropdownPlacement[spec.id!] === 'up' ? { bottom: '100%' } : { top: '100%' }
+                    "
                   >
                     <button
                       (click)="openEditor(spec.id)"

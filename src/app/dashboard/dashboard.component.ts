@@ -39,6 +39,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   error: string = '';
   isDropdownOpen: boolean = false;
   openSpecDropdown: string | null = null;
+  dropdownPlacement: { [specId: string]: 'up' | 'down' } = {};
   canShowComparison: boolean = false; // Added missing property
 
   // User
@@ -254,17 +255,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return personalPublished + teamPublished;
   }
 
-  getTotalDownloads(): number {
-    const personalDownloads = this.personalSpecs.reduce(
-      (sum, spec) => sum + (spec.download_count || 0),
-      0
-    );
-    const teamDownloads = this.teamWorkspaces.reduce(
-      (sum, ws) => sum + ws.specs.reduce((s, spec) => s + (spec.download_count || 0), 0),
-      0
-    );
-    return personalDownloads + teamDownloads;
-  }
+  // getTotalDownloads(): number {
+  //   const personalDownloads = this.personalSpecs.reduce(
+  //     (sum, spec) => sum + (spec.download_count || 0),
+  //     0
+  //   );
+  //   const teamDownloads = this.teamWorkspaces.reduce(
+  //     (sum, ws) => sum + ws.specs.reduce((s, spec) => s + (spec.download_count || 0), 0),
+  //     0
+  //   );
+  //   return personalDownloads + teamDownloads;
+  // }
 
   // --- Event Handlers & UI Methods ---
   @HostListener('document:click', ['$event'])
@@ -294,8 +295,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
-  toggleSpecDropdown(specId: string) {
-    this.openSpecDropdown = this.openSpecDropdown === specId ? null : specId;
+  toggleSpecDropdown(specId: string, event?: Event) {
+    const willOpen = this.openSpecDropdown !== specId;
+    this.openSpecDropdown = willOpen ? specId : null;
+    if (willOpen && event) {
+      const target = event.currentTarget as HTMLElement | null;
+      const rect = target?.getBoundingClientRect();
+      const spaceBelow = rect ? window.innerHeight - rect.bottom : Number.MAX_SAFE_INTEGER;
+      const estimatedMenuHeight = 240; // px
+      this.dropdownPlacement[specId] = spaceBelow < estimatedMenuHeight ? 'up' : 'down';
+    }
   }
 
   openEditor(specId?: string, version?: string) {

@@ -1,9 +1,30 @@
 <div class="min-h-screen bg-gray-50 p-8">
   <div class="max-w-7xl mx-auto">
     <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900">Team Management</h1>
-      <p class="text-gray-600 mt-1">Create teams and invite colleagues to collaborate on specifications.</p>
+    <div class="mb-8 flex justify-between items-center">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">Team Management</h1>
+        <p class="text-gray-600 mt-1">Create teams and invite colleagues to collaborate on specifications.</p>
+      </div>
+      <div class="flex items-center space-x-2">
+          <button
+            (click)="goToDashboard()"
+            class="inline-flex items-center px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              ></path>
+            </svg>
+            Dashboard
+          </button>
+          <!-- <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full"
+            >Auto-save enabled</span
+          > -->
+        </div>
     </div>
 
     <!-- Create New Team Card -->
