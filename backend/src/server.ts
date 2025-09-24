@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 // Import routes
 import authRoutes from './routes/auth';
 import specRoutes from './routes/specs';
+import teamRoutes from './routes/teams';
 
 // Load environment variables
 dotenv.config();
@@ -45,6 +46,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/specs', specRoutes);
+app.use('/api/teams', teamRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

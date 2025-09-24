@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NuMonacoEditorModule } from '@ng-util/monaco-editor';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiService, ProtobufSpec } from '../services/api.service';
+import { ApiService, ProtobufSpec, Team } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { parse } from 'proto-parser';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
@@ -61,7 +61,13 @@ interface ProtoFile {
 
 @Component({
   selector: 'app-editor',
-  imports: [CommonModule, FormsModule, NuMonacoEditorModule, PublishModalComponent, PushToBranchModalComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    NuMonacoEditorModule,
+    PublishModalComponent,
+    PushToBranchModalComponent,
+  ],
   templateUrl: './editor.html',
   styleUrl: './editor.css',
 })
@@ -70,7 +76,8 @@ export class EditorComponent implements OnInit {
   @ViewChild('downloadButton') downloadButton!: ElementRef;
   @ViewChild('downloadMenu') downloadMenu!: ElementRef;
 
-  editorOptions = { // Removed explicit type
+  editorOptions = {
+    // Removed explicit type
     theme: 'vs-dark',
     language: 'plaintext', // Reverted to plaintext
     automaticLayout: true,
@@ -107,6 +114,10 @@ export class EditorComponent implements OnInit {
   showPublishModal: boolean = false;
   showPushToBranchModal: boolean = false;
 
+  // Team properties
+  myTeams: Team[] = [];
+  selectedTeamId: string | 'personal' = 'personal';
+
   protoFile: ProtoFile = {
     syntax: 'proto3',
     package: '',
@@ -122,7 +133,8 @@ export class EditorComponent implements OnInit {
   onDocumentClick(event: MouseEvent) {
     if (this.showDownloadMenu) {
       const clickedInsideButton = this.downloadButton.nativeElement.contains(event.target);
-      const clickedInsideMenu = this.downloadMenu && this.downloadMenu.nativeElement.contains(event.target);
+      const clickedInsideMenu =
+        this.downloadMenu && this.downloadMenu.nativeElement.contains(event.target);
       if (!clickedInsideButton && !clickedInsideMenu) {
         this.showDownloadMenu = false;
       }
@@ -140,12 +152,27 @@ export class EditorComponent implements OnInit {
 
   ngOnInit() {
     this.updateProtoPreview();
+    this.loadMyTeams();
 
     // Check if we need to load a specific spec
     this.route.queryParams.subscribe((params) => {
       if (params['id']) {
         this.loadSpec(params['id'], params['version']);
       }
+    });
+  }
+
+  loadMyTeams() {
+    this.apiService.getTeams().subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.myTeams = response.data;
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load teams', err);
+        // Do not show a notification for this, as it's not critical for the editor to function
+      },
     });
   }
 
@@ -170,7 +197,10 @@ export class EditorComponent implements OnInit {
           // Load GitHub repository information
           this.githubRepoUrl = spec.github_repo_url || null;
           this.githubRepoName = spec.github_repo_name || null;
-          console.log('Loaded GitHub info:', { url: this.githubRepoUrl, name: this.githubRepoName }); // <--- ADDED THIS LINE
+          console.log('Loaded GitHub info:', {
+            url: this.githubRepoUrl,
+            name: this.githubRepoName,
+          }); // <--- ADDED THIS LINE
 
           // Load proto data
           this.protoFile = spec.spec_data;
@@ -259,7 +289,10 @@ export class EditorComponent implements OnInit {
         this.notificationService.success('Spec Uploaded', 'Successfully parsed .proto file.');
         this.updateProtoPreview();
       } catch (error: any) {
-        this.notificationService.error('Parse Error', `Failed to parse .proto file: ${error.message}`);
+        this.notificationService.error(
+          'Parse Error',
+          `Failed to parse .proto file: ${error.message}`
+        );
       }
     };
     reader.readAsText(file);
@@ -691,6 +724,12 @@ export class EditorComponent implements OnInit {
       this.specVersion = finalVersion; // Update the UI
     }
 
+    // Determine team_id to send
+    const teamIdToSend =
+      !this.currentSpecId && this.selectedTeamId !== 'personal'
+        ? this.selectedTeamId
+        : this.currentSpec?.team_id ?? undefined;
+
     const specData: any = {
       title: this.specTitle.trim(),
       version: finalVersion,
@@ -702,6 +741,8 @@ export class EditorComponent implements OnInit {
             .map((tag) => tag.trim())
             .filter((tag) => tag)
         : [],
+      // Preserve team_id for new versions or when creating under a team
+      team_id: teamIdToSend,
       // Always include GitHub fields to preserve them during updates
       github_repo_url: this.githubRepoUrl,
       github_repo_name: this.githubRepoName,
@@ -839,17 +880,26 @@ export class EditorComponent implements OnInit {
     this.apiService.publishToGithub(this.currentSpecId, event).subscribe({
       next: (response) => {
         if (response.success) {
-          this.notificationService.success('Published to GitHub!', `Successfully created repository: ${response.data.url}`);
+          this.notificationService.success(
+            'Published to GitHub!',
+            `Successfully created repository: ${response.data.url}`
+          );
           this.closePublishModal();
           // Reload the spec to get the updated published status and repo URL
           this.loadSpec(this.currentSpecId!);
         } else {
-          this.notificationService.error('Publish Failed', response.error || 'Could not publish to GitHub.');
+          this.notificationService.error(
+            'Publish Failed',
+            response.error || 'Could not publish to GitHub.'
+          );
         }
       },
       error: (error) => {
-        this.notificationService.error('Publish Error', error.error.error || 'An unknown error occurred.');
-      }
+        this.notificationService.error(
+          'Publish Error',
+          error.error.error || 'An unknown error occurred.'
+        );
+      },
     });
   }
 
@@ -867,15 +917,24 @@ export class EditorComponent implements OnInit {
     this.apiService.pushToBranch(this.currentSpecId, event.commitMessage).subscribe({
       next: (response) => {
         if (response.success) {
-          this.notificationService.success('Pushed to GitHub!', `Successfully pushed updates to ${this.currentSpec?.github_repo_name}.`);
+          this.notificationService.success(
+            'Pushed to GitHub!',
+            `Successfully pushed updates to ${this.currentSpec?.github_repo_name}.`
+          );
           this.closePushToBranchModal();
         } else {
-          this.notificationService.error('Push Failed', response.error || 'Could not push to GitHub.');
+          this.notificationService.error(
+            'Push Failed',
+            response.error || 'Could not push to GitHub.'
+          );
         }
       },
       error: (error) => {
-        this.notificationService.error('Push Error', error.error.error || 'An unknown error occurred.');
-      }
+        this.notificationService.error(
+          'Push Error',
+          error.error.error || 'An unknown error occurred.'
+        );
+      },
     });
   }
 }

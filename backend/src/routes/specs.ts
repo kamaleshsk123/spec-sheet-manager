@@ -7,7 +7,7 @@ const router = Router();
 
 // Public routes (with optional auth for filtering)
 router.get('/', optionalAuth, SpecController.getSpecs);
-router.get('/:id', SpecController.getSpec);
+router.get('/:id', optionalAuth, SpecController.getSpec);
 router.get('/:id/versions', SpecController.getSpecVersions);
 router.post('/:id/download', SpecController.incrementDownloadCount);
 

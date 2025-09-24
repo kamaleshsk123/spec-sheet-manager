@@ -6,6 +6,21 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpecController = void 0;
 const database_1 = __importDefault(require("../config/database"));
 const octokit_1 = require("octokit");
+// Helper to check if a user has access to a spec (is owner or team member)
+async function checkSpecAccess(specId, userId) {
+    const specResult = await database_1.default.query('SELECT created_by, team_id FROM protobuf_specs WHERE id = $1', [specId]);
+    if (specResult.rowCount === 0) {
+        return false; // Spec not found
+    }
+    const spec = specResult.rows[0];
+    // It's a personal spec, check ownership
+    if (spec.team_id === null) {
+        return spec.created_by === userId;
+    }
+    // It's a team spec, check membership
+    const memberResult = await database_1.default.query('SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2', [spec.team_id, userId]);
+    return !!memberResult?.rowCount;
+}
 // Helper function to generate .proto content from spec data
 const generateProtoContent = (specData) => {
     if (!specData) {
@@ -83,11 +98,36 @@ class SpecController {
     static async createSpec(req, res) {
         try {
             const userId = req.user.id;
-            const { title, version = '1.0.0', description, spec_data, tags = [], } = req.body;
-            const result = await database_1.default.query(`INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags) \n         VALUES ($1, $2, $3, $4, $5, $6) \n         RETURNING *`, [title, version, description, JSON.stringify(spec_data), userId, tags]);
+            const { title, version = '1.0.0', description, spec_data, tags = [], github_repo_url: incoming_github_repo_url = null, github_repo_name: incoming_github_repo_name = null, team_id = null, } = req.body;
+            // If team_id is provided, verify user is a member of that team
+            if (team_id) {
+                const memberCheck = await database_1.default.query('SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2', [team_id, userId]);
+                if (memberCheck.rowCount === 0) {
+                    return res.status(403).json({
+                        success: false,
+                        error: 'You are not a member of the specified team.',
+                    });
+                }
+            }
+            let final_github_repo_url = incoming_github_repo_url;
+            let final_github_repo_name = incoming_github_repo_name;
+            // If GitHub info is not provided in the request, try to inherit from an existing published spec with the same title
+            if (!final_github_repo_url || !final_github_repo_name) {
+                const existingPublishedSpec = await database_1.default.query(`SELECT github_repo_url, github_repo_name FROM protobuf_specs WHERE title = $1 AND github_repo_url IS NOT NULL LIMIT 1`, [title]);
+                console.log('Existing published spec query result:', existingPublishedSpec.rows); // <--- ADDED THIS LINE
+                if (existingPublishedSpec.rows.length > 0) {
+                    final_github_repo_url = existingPublishedSpec.rows[0].github_repo_url;
+                    final_github_repo_name = existingPublishedSpec.rows[0].github_repo_name;
+                }
+            }
+            console.log('Final GitHub info before insert:', { url: final_github_repo_url, name: final_github_repo_name }); // <--- ADDED THIS LINE
+            const result = await database_1.default.query(`INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags, github_repo_url, github_repo_name, team_id) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+         RETURNING *`, [title, version, description, JSON.stringify(spec_data), userId, tags, final_github_repo_url, final_github_repo_name, team_id]);
             const spec = result.rows[0];
             // Create initial version
-            await database_1.default.query(`INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)\n         VALUES ($1, $2, $3, $4)`, [spec.id, version, JSON.stringify(spec.spec_data), userId]);
+            await database_1.default.query(`INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
+         VALUES ($1, $2, $3, $4)`, [spec.id, version, JSON.stringify(spec.spec_data), userId]);
             res.status(201).json({
                 success: true,
                 data: spec,
@@ -104,14 +144,27 @@ class SpecController {
     }
     static async getSpecs(req, res) {
         try {
-            const userId = req.user.id;
+            const userId = req.user?.id;
             const { page = 1, limit = 10, search, tags, is_published, sort_by = 'created_at', sort_order = 'desc', } = req.query;
             const offset = (page - 1) * Number(limit);
             const queryParams = [];
             let paramIndex = 1;
-            // Always filter by the logged-in user
-            queryParams.push(userId);
-            let whereClause = `WHERE ps.created_by = $${paramIndex++}`;
+            let whereClause = '';
+            if (userId) {
+                const userTeams = await database_1.default.query('SELECT team_id FROM team_members WHERE user_id = $1', [userId]);
+                const teamIds = userTeams.rows.map(row => row.team_id);
+                const personalSpecClause = `(ps.created_by::text = $${paramIndex++} AND ps.team_id IS NULL)`;
+                queryParams.push(String(userId));
+                let teamSpecClause = '';
+                if (teamIds.length > 0) {
+                    teamSpecClause = `ps.team_id = ANY($${paramIndex++}::uuid[])`;
+                    queryParams.push(teamIds);
+                }
+                whereClause = `WHERE (${personalSpecClause}${teamSpecClause ? ` OR ${teamSpecClause}` : ''})`;
+            }
+            else {
+                whereClause = 'WHERE ps.is_published = true';
+            }
             if (search) {
                 whereClause += ` AND to_tsvector('english', ps.title || ' ' || COALESCE(ps.description, '')) @@ plainto_tsquery('english', $${paramIndex++})`;
                 queryParams.push(search);
@@ -120,17 +173,25 @@ class SpecController {
                 whereClause += ` AND ps.tags && $${paramIndex++}`;
                 queryParams.push(Array.isArray(tags) ? tags : [tags]);
             }
-            if (is_published !== undefined) {
+            if (is_published !== undefined && userId) {
                 whereClause += ` AND ps.is_published = $${paramIndex++}`;
                 queryParams.push(is_published);
             }
             const orderClause = `ORDER BY ps.${sort_by} ${sort_order.toUpperCase()}`;
-            // Get total count
             const countQuery = `SELECT COUNT(*) as total FROM protobuf_specs ps ${whereClause}`;
             const countResult = await database_1.default.query(countQuery, queryParams);
             const total = parseInt(countResult.rows[0].total);
-            // Get specs with pagination
-            const specsQuery = `\n        SELECT \n          ps.*,\n          u.name as created_by_name,\n          u.email as created_by_email\n        FROM protobuf_specs ps\n        LEFT JOIN users u ON ps.created_by = u.id\n        ${whereClause}\n        ${orderClause}\n        LIMIT $${paramIndex++} OFFSET $${paramIndex++}\n      `;
+            const specsQuery = `
+        SELECT 
+          ps.*,
+          u.name as created_by_name,
+          u.email as created_by_email
+        FROM protobuf_specs ps
+        LEFT JOIN users u ON ps.created_by = u.id
+        ${whereClause}
+        ${orderClause}
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
             queryParams.push(Number(limit), offset);
             const specsResult = await database_1.default.query(specsQuery, queryParams);
             const response = {
@@ -158,16 +219,50 @@ class SpecController {
     static async getSpec(req, res) {
         try {
             const { id } = req.params;
-            const result = await database_1.default.query(`SELECT \n          ps.*,\n          u.name as created_by_name,\n          u.email as created_by_email\n         FROM protobuf_specs ps\n         LEFT JOIN users u ON ps.created_by = u.id\n         WHERE ps.id = $1`, [id]);
-            if (result.rows.length === 0) {
+            const { version } = req.query;
+            const userId = req.user?.id;
+            const mainSpecResult = await database_1.default.query(`SELECT 
+          ps.*,
+          u.name as created_by_name,
+          u.email as created_by_email
+         FROM protobuf_specs ps
+         LEFT JOIN users u ON ps.created_by = u.id
+         WHERE ps.id = $1`, [id]);
+            if (mainSpecResult.rows.length === 0) {
                 return res.status(404).json({
                     success: false,
                     error: 'Specification not found',
                 });
             }
+            let spec = mainSpecResult.rows[0];
+            // Check access for non-published specs
+            if (!spec.is_published) {
+                if (!userId) {
+                    return res.status(404).json({ success: false, error: 'Specification not found or access denied' });
+                }
+                const hasAccess = await checkSpecAccess(id, userId);
+                if (!hasAccess) {
+                    return res.status(404).json({ success: false, error: 'Specification not found or access denied' });
+                }
+            }
+            // If a version is specified, get that version's data
+            if (version) {
+                const versionResult = await database_1.default.query(`SELECT spec_data, version_number FROM spec_versions WHERE spec_id = $1 AND version_number = $2`, [id, version]);
+                if (versionResult.rows.length > 0) {
+                    spec.spec_data = versionResult.rows[0].spec_data;
+                    spec.version = versionResult.rows[0].version_number;
+                }
+                else {
+                    return res.status(404).json({
+                        success: false,
+                        error: `Version '${version}' not found for this specification`,
+                    });
+                }
+            }
+            console.log('Backend getSpec result:', spec); // <--- ADDED THIS LINE
             res.json({
                 success: true,
-                data: result.rows[0],
+                data: spec,
             });
         }
         catch (error) {
@@ -183,9 +278,8 @@ class SpecController {
             const { id } = req.params;
             const userId = req.user.id;
             const updateData = req.body;
-            // Check if spec exists and user owns it
-            const existingSpec = await database_1.default.query('SELECT * FROM protobuf_specs WHERE id = $1 AND created_by = $2', [id, userId]);
-            if (existingSpec.rows.length === 0) {
+            const hasAccess = await checkSpecAccess(id, userId);
+            if (!hasAccess) {
                 return res.status(404).json({
                     success: false,
                     error: 'Specification not found or access denied',
@@ -196,26 +290,37 @@ class SpecController {
             const queryParams = [];
             let paramIndex = 1;
             Object.entries(updateData).forEach(([key, value]) => {
-                if (value !== undefined) {
+                // Include field if it's not undefined, or if it's a GitHub field (to preserve null values)
+                if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id') {
+                    console.log(`Including field ${key} with value:`, value);
                     if (key === 'spec_data') {
-                        updateFields.push(`${key} = ${paramIndex}`);
+                        updateFields.push(`${key} = $${paramIndex++}`);
                         queryParams.push(JSON.stringify(value));
                     }
                     else {
-                        updateFields.push(`${key} = ${paramIndex}`);
+                        updateFields.push(`${key} = $${paramIndex++}`);
                         queryParams.push(value);
                     }
-                    paramIndex++;
+                }
+                else {
+                    console.log(`Skipping field ${key} with value:`, value);
                 }
             });
             updateFields.push(`updated_at = NOW()`);
             queryParams.push(id);
-            const updateQuery = `\n        UPDATE protobuf_specs \n        SET ${updateFields.join(', ')}\n        WHERE id = ${paramIndex}\n        RETURNING *\n      `;
+            const updateQuery = `
+        UPDATE protobuf_specs 
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex++}
+        RETURNING *
+      `;
             const result = await database_1.default.query(updateQuery, queryParams);
             // If version or spec_data changed, create new version
             if (updateData.version || updateData.spec_data) {
                 const spec = result.rows[0];
-                await database_1.default.query(`INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)\n           VALUES ($1, $2, $3, $4)\n           ON CONFLICT (spec_id, version_number) DO NOTHING`, [spec.id, spec.version, JSON.stringify(spec.spec_data), userId]);
+                await database_1.default.query(`INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (spec_id, version_number) DO NOTHING`, [spec.id, spec.version, JSON.stringify(spec.spec_data), userId]);
             }
             res.json({
                 success: true,
@@ -235,11 +340,18 @@ class SpecController {
         try {
             const { id } = req.params;
             const userId = req.user.id;
-            const result = await database_1.default.query('DELETE FROM protobuf_specs WHERE id = $1 AND created_by = $2 RETURNING id', [id, userId]);
-            if (result.rows.length === 0) {
+            const hasAccess = await checkSpecAccess(id, userId);
+            if (!hasAccess) {
                 return res.status(404).json({
                     success: false,
                     error: 'Specification not found or access denied',
+                });
+            }
+            const result = await database_1.default.query('DELETE FROM protobuf_specs WHERE id = $1 RETURNING id', [id]);
+            if (result.rowCount === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Specification not found',
                 });
             }
             res.json({
@@ -255,10 +367,65 @@ class SpecController {
             });
         }
     }
+    static async deleteSpecAndAllVersions(req, res) {
+        try {
+            const { title } = req.params;
+            const userId = req.user.id;
+            // First, verify the user owns at least one spec with this title
+            const ownerCheck = await database_1.default.query('SELECT id FROM protobuf_specs WHERE title = $1 AND created_by = $2 LIMIT 1', [title, userId]);
+            if (ownerCheck.rows.length === 0) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Access denied. You do not own any specs with this title.',
+                });
+            }
+            // Proceed with deletion
+            const result = await database_1.default.query('DELETE FROM protobuf_specs WHERE title = $1 AND created_by = $2 RETURNING id', [title, userId]);
+            if (result.rows.length === 0) {
+                // This case should ideally not be hit if the ownerCheck passes, but it's good for safety
+                return res.status(404).json({
+                    success: false,
+                    error: 'Specification not found or access denied',
+                });
+            }
+            res.json({
+                success: true,
+                message: `All versions of specification '${title}' deleted successfully.`,
+                data: {
+                    deleted_count: result.rows.length
+                }
+            });
+        }
+        catch (error) {
+            console.error('Delete all spec versions error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error',
+            });
+        }
+    }
     static async getSpecVersions(req, res) {
         try {
             const { id } = req.params;
-            const result = await database_1.default.query(`SELECT \n          sv.*,\n          u.name as created_by_name\n         FROM spec_versions sv\n         LEFT JOIN users u ON sv.created_by = u.id\n         WHERE sv.spec_id = $1\n         ORDER BY sv.created_at DESC`, [id]);
+            // 1. Get the title of the spec from the given id
+            const titleResult = await database_1.default.query('SELECT title FROM protobuf_specs WHERE id = $1', [id]);
+            if (titleResult.rows.length === 0) {
+                return res.status(404).json({ success: false, error: 'Specification not found' });
+            }
+            const { title } = titleResult.rows[0];
+            // 2. Get all versions of the spec with the same title
+            const result = await database_1.default.query(`SELECT 
+          ps.id,
+          ps.id as spec_id,
+          ps.version as version_number,
+          ps.spec_data,
+          ps.created_at,
+          ps.created_by,
+          u.name as created_by_name
+         FROM protobuf_specs ps
+         LEFT JOIN users u ON ps.created_by = u.id
+         WHERE ps.title = $1
+         ORDER BY ps.created_at DESC`, [title]);
             res.json({
                 success: true,
                 data: result.rows,
@@ -299,7 +466,10 @@ class SpecController {
             // Get total downloads
             const totalDownloads = await database_1.default.query('SELECT SUM(download_count) as total FROM protobuf_specs WHERE created_by = $1', [userId]);
             // Get recent specs
-            const recentSpecs = await database_1.default.query(`SELECT id, title, version, created_at, download_count, is_published\n         FROM protobuf_specs \n         WHERE created_by = $1 \n         ORDER BY created_at DESC \n         LIMIT 5`, [userId]);
+            const recentSpecs = await database_1.default.query(`SELECT id, title, version, created_at, download_count, is_published\n         FROM protobuf_specs 
+         WHERE created_by = $1 
+         ORDER BY created_at DESC 
+         LIMIT 5`, [userId]);
             res.json({
                 success: true,
                 data: {
@@ -357,6 +527,8 @@ class SpecController {
                 message: `feat: Initial commit of ${spec.title} v${spec.version}`,
                 content: Buffer.from(protoContent).toString('base64'),
             });
+            // 6. Update the spec with GitHub repository information
+            await database_1.default.query('UPDATE protobuf_specs SET github_repo_url = $1, github_repo_name = $2, updated_at = NOW() WHERE id = $3', [repo.data.html_url, repoName, specId]);
             res.status(201).json({
                 success: true,
                 message: 'Successfully published to GitHub!',
@@ -365,6 +537,83 @@ class SpecController {
         }
         catch (error) {
             console.error('GitHub publish error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error',
+            });
+        }
+    }
+    static async pushToBranch(req, res) {
+        try {
+            const { id: specId } = req.params;
+            const userId = req.user.id;
+            const { branch = 'main', commitMessage } = req.body;
+            // 1. Fetch user and spec data
+            const userResult = await database_1.default.query('SELECT github_access_token, github_username FROM users WHERE id = $1', [userId]);
+            const specResult = await database_1.default.query('SELECT * FROM protobuf_specs WHERE id = $1 AND created_by = $2', [specId, userId]);
+            if (userResult.rows.length === 0) {
+                return res.status(404).json({ success: false, error: 'User not found' });
+            }
+            if (specResult.rows.length === 0) {
+                return res.status(404).json({ success: false, error: 'Spec not found or access denied' });
+            }
+            const user = userResult.rows[0];
+            const spec = specResult.rows[0];
+            // Check if spec has been published to GitHub
+            if (!spec.github_repo_url || !spec.github_repo_name) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Spec must be published to GitHub first before pushing to branch.',
+                });
+            }
+            if (!user.github_access_token) {
+                return res
+                    .status(400)
+                    .json({ success: false, error: 'GitHub account not connected or access token missing.' });
+            }
+            // 2. Initialize Octokit
+            const octokit = new octokit_1.Octokit({ auth: user.github_access_token });
+            // 3. Generate .proto file content
+            const protoContent = generateProtoContent(spec.spec_data);
+            // 4. Get the current file content to check if it exists
+            let currentFile;
+            try {
+                currentFile = await octokit.rest.repos.getContent({
+                    owner: user.github_username,
+                    repo: spec.github_repo_name,
+                    path: `${spec.title.replace(/\s+/g, '_')}.proto`,
+                    ref: branch,
+                });
+            }
+            catch (error) {
+                // File doesn't exist, that's okay
+                currentFile = null;
+            }
+            // 5. Create or update the file
+            const message = commitMessage || `feat: Update ${spec.title} v${spec.version}`;
+            const sha = currentFile?.data?.sha;
+            await octokit.rest.repos.createOrUpdateFileContents({
+                owner: user.github_username,
+                repo: spec.github_repo_name,
+                path: `${spec.title.replace(/\s+/g, '_')}.proto`,
+                message: message,
+                content: Buffer.from(protoContent).toString('base64'),
+                sha: sha, // Include SHA if updating existing file
+                branch: branch,
+            });
+            res.status(200).json({
+                success: true,
+                message: 'Successfully pushed to GitHub branch!',
+                data: {
+                    repo: spec.github_repo_name,
+                    branch: branch,
+                    owner: user.github_username,
+                    url: spec.github_repo_url,
+                },
+            });
+        }
+        catch (error) {
+            console.error('GitHub push to branch error:', error);
             res.status(500).json({
                 success: false,
                 error: 'Internal server error',
