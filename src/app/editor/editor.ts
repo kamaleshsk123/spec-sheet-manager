@@ -6,6 +6,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, ProtobufSpec } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { parse } from 'proto-parser';
+// import * as monaco from 'monaco-editor'; // Temporarily comment out
 
 interface Field {
   type: string;
@@ -65,9 +66,9 @@ interface ProtoFile {
 export class EditorComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef;
 
-  editorOptions = {
+  editorOptions = { // Removed explicit type
     theme: 'vs-dark',
-    language: 'plaintext',
+    language: 'plaintext', // Reverted to plaintext
     automaticLayout: true,
     scrollBeyondLastLine: false,
     minimap: { enabled: false },
@@ -107,14 +108,16 @@ export class EditorComponent implements OnInit {
     services: [],
   };
   showDownloadMenu: boolean = false;
-  activeTab: 'messages' | 'enums' | 'services' | 'settings' = 'messages';
+  activeTab: 'messages' | 'enums' | 'services' | 'settings';
 
   constructor(
     private apiService: ApiService,
     private route: ActivatedRoute,
     private router: Router,
     private notificationService: NotificationService
-  ) {}
+  ) {
+    this.activeTab = 'messages';
+  }
 
   ngOnInit() {
     this.updateProtoPreview();
@@ -449,6 +452,113 @@ export class EditorComponent implements OnInit {
     }
 
     this.code = protoContent;
+    this.validateProto();
+  }
+
+  validateProto() {
+    const diagnostics: any[] = []; // Changed type to any[]
+
+    // Basic validation: Check for duplicate message names
+    const messageNames = new Set<string>();
+    this.protoFile.messages.forEach((message, index) => {
+      if (messageNames.has(message.name)) {
+        diagnostics.push({
+          severity: 8, // monaco.MarkerSeverity.Error
+          message: `Duplicate message name: '${message.name}'`,
+          startLineNumber: 1, // Placeholder, actual line number would require AST traversal with line info
+          endLineNumber: 1,
+          startColumn: 1,
+          endColumn: 1,
+        });
+      }
+      messageNames.add(message.name);
+
+      // Check for duplicate field numbers within a message
+      const fieldNumbers = new Set<number>();
+      message.fields.forEach((field) => {
+        if (fieldNumbers.has(field.number)) {
+          diagnostics.push({
+            severity: 8, // monaco.MarkerSeverity.Error
+            message: `Duplicate field number '${field.number}' in message '${message.name}'`,
+            startLineNumber: 1, // Placeholder
+            endLineNumber: 1,
+            startColumn: 1,
+            endColumn: 1,
+          });
+        }
+        fieldNumbers.add(field.number);
+      });
+    });
+
+    // Basic validation: Check for duplicate enum names
+    const enumNames = new Set<string>();
+    this.protoFile.enums.forEach((enumItem) => {
+      if (enumNames.has(enumItem.name)) {
+        diagnostics.push({
+          severity: 8, // monaco.MarkerSeverity.Error
+          message: `Duplicate enum name: '${enumItem.name}'`,
+          startLineNumber: 1, // Placeholder
+          endLineNumber: 1,
+          startColumn: 1,
+          endColumn: 1,
+        });
+      }
+      enumNames.add(enumItem.name);
+
+      // Check for duplicate enum value numbers within an enum
+      const enumValueNumbers = new Set<number>();
+      enumItem.values.forEach((value) => {
+        if (enumValueNumbers.has(value.number)) {
+          diagnostics.push({
+            severity: 8, // monaco.MarkerSeverity.Error
+            message: `Duplicate enum value number '${value.number}' in enum '${enumItem.name}'`,
+            startLineNumber: 1, // Placeholder
+            endLineNumber: 1,
+            startColumn: 1,
+            endColumn: 1,
+          });
+        }
+        enumValueNumbers.add(value.number);
+      });
+    });
+
+    // Basic validation: Check for duplicate service names
+    const serviceNames = new Set<string>();
+    this.protoFile.services.forEach((service) => {
+      if (serviceNames.has(service.name)) {
+        diagnostics.push({
+          severity: 8, // monaco.MarkerSeverity.Error
+          message: `Duplicate service name: '${service.name}'`,
+          startLineNumber: 1, // Placeholder
+          endLineNumber: 1,
+          startColumn: 1,
+          endColumn: 1,
+        });
+      }
+      serviceNames.add(service.name);
+
+      // Check for duplicate method names within a service
+      const methodNames = new Set<string>();
+      service.methods.forEach((method) => {
+        if (methodNames.has(method.name)) {
+          diagnostics.push({
+            severity: 8, // monaco.MarkerSeverity.Error
+            message: `Duplicate method name '${method.name}' in service '${service.name}'`,
+            startLineNumber: 1, // Placeholder
+            endLineNumber: 1,
+            startColumn: 1,
+            endColumn: 1,
+          });
+        }
+        methodNames.add(method.name);
+      });
+    });
+
+    // Set markers in Monaco Editor (Temporarily commented out)
+    // const model = monaco.editor.getModels()[0]; // Assuming only one model is open
+    // if (model) {
+    //   monaco.editor.setModelMarkers(model, 'owner', diagnostics);
+    // }
   }
 
   private generateMessageContent(message: Message, indent: number): string {
@@ -524,7 +634,7 @@ export class EditorComponent implements OnInit {
         .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename characters
         .replace(/\s+/g, '_') // Replace spaces with underscores
         .replace(/[^\w\-_.]/g, '') // Keep only word characters, hyphens, underscores, and dots
-        .substring(0, 100); // Limit length to 100 characters
+        .substring(0, 100);
     }
     return 'Spec_Sheet';
   }
@@ -603,8 +713,8 @@ export class EditorComponent implements OnInit {
           this.originalSpecData = JSON.parse(JSON.stringify(this.protoFile));
           this.originalVersion = finalVersion;
 
-          let title: string;
-          let message: string;
+          let title: string = '';
+          let message: string = '';
 
           if (isNewVersion) {
             title = 'New Version Created';

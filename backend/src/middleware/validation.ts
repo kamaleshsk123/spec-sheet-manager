@@ -15,7 +15,7 @@ export const loginSchema = Joi.object({
 
 // Protobuf spec validation schemas
 const fieldSchema = Joi.object({
-  type: Joi.string().required(),
+  type: Joi.alternatives().try(Joi.string(), Joi.object()).required(),
   name: Joi.string().required(),
   number: Joi.number().integer().min(1).required(),
   repeated: Joi.boolean().optional(),
