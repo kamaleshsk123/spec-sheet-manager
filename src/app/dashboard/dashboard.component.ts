@@ -147,8 +147,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // --- Getters for Template ---
   getComparableSpecs(): ProtobufSpec[] {
-    // Return specs that can be compared
-    return this.specs.filter((spec) => spec.id !== this.baseSpec?.id);
+    if (!this.baseSpec) {
+      return [];
+    }
+    // Use allSpecs to include all versions, not just latest
+    const sameGroup = this.allSpecs.filter(
+      (spec) =>
+        spec.title === this.baseSpec!.title &&
+        (spec.team_id || null) === (this.baseSpec!.team_id || null)
+    );
+    // Sort by version descending so newest first
+    return sameGroup.sort((a, b) => this.compareVersions(b.version, a.version));
   }
 
   getVersionSelectionClass(spec: ProtobufSpec): string {
@@ -160,31 +169,68 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   selectVersion(spec: ProtobufSpec): void {
-    // Select a version for comparison
+    // Prevent selecting the same exact record twice
+    if (this.leftSideSpec?.id === spec.id || this.rightSideSpec?.id === spec.id) {
+      return;
+    }
+
     if (!this.leftSideSpec) {
       this.leftSideSpec = spec;
     } else if (!this.rightSideSpec) {
       this.rightSideSpec = spec;
     } else {
-      // If both sides are already selected, replace the right side
+      // Replace the right side when both are already selected
       this.rightSideSpec = spec;
     }
     this.canShowComparison = !!this.leftSideSpec && !!this.rightSideSpec;
   }
 
   getDiffStats(): { added: number; removed: number; changed: number } | null {
-    // Return dummy diff stats - implement actual diff logic as needed
     if (!this.leftSideSpec || !this.rightSideSpec) return null;
-    return {
-      added: 0,
-      removed: 0,
-      changed: 0,
-    };
+    try {
+      const left = JSON.stringify(this.leftSideSpec.spec_data || {});
+      const right = JSON.stringify(this.rightSideSpec.spec_data || {});
+      const added = right.length > left.length ? right.length - left.length : 0;
+      const removed = left.length > right.length ? left.length - right.length : 0;
+      const changed = Math.abs(added - removed);
+      return { added, removed, changed };
+    } catch {
+      return { added: 0, removed: 0, changed: 0 };
+    }
   }
 
-  getDiffData(): { leftLines: any[]; rightLines: any[] } {
-    // Return dummy diff data - implement actual diff logic as needed
-    return { leftLines: [], rightLines: [] };
+  getDiffData(): {
+    leftLines: { content: string; lineNumber: number; type: string }[];
+    rightLines: { content: string; lineNumber: number; type: string }[];
+  } {
+    try {
+      const leftText = this.generateProtoContent(this.leftSideSpec?.spec_data || {});
+      const rightText = this.generateProtoContent(this.rightSideSpec?.spec_data || {});
+
+      const left = leftText.split('\n');
+      const right = rightText.split('\n');
+
+      const maxLen = Math.max(left.length, right.length);
+      const leftLines: { content: string; lineNumber: number; type: string }[] = [];
+      const rightLines: { content: string; lineNumber: number; type: string }[] = [];
+
+      for (let i = 0; i < maxLen; i++) {
+        const l = left[i] ?? '';
+        const r = right[i] ?? '';
+        let type: string = 'unchanged';
+        if (l !== r) {
+          if (l && !r) type = 'removed';
+          else if (!l && r) type = 'added';
+          else type = 'changed';
+        }
+        leftLines.push({ content: l, lineNumber: i + 1, type });
+        rightLines.push({ content: r, lineNumber: i + 1, type });
+      }
+
+      return { leftLines, rightLines };
+    } catch {
+      return { leftLines: [], rightLines: [] };
+    }
   }
 
   get totalSpecCount(): number {
@@ -236,6 +282,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   toggleDropdown() {
     this.isDropdownOpen = !this.isDropdownOpen;
+  }
+
+  getUserInitials(nameOrEmail?: string): string {
+    if (!nameOrEmail) return '?';
+    const source = nameOrEmail.split('@')[0];
+    const parts = source.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) {
+      return parts[0].substring(0, 2).toUpperCase();
+    }
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
   toggleSpecDropdown(specId: string) {
@@ -369,6 +425,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.baseSpec = spec;
     this.leftSideSpec = null;
     this.rightSideSpec = null;
+    this.canShowComparison = false;
     this.showCompareModal = true;
   }
 
@@ -377,6 +434,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.baseSpec = null;
     this.leftSideSpec = null;
     this.rightSideSpec = null;
+    this.canShowComparison = false;
   }
 
   // --- Versioning & Comparison Helpers ---
@@ -481,5 +539,91 @@ export class DashboardComponent implements OnInit, OnDestroy {
         },
       });
     }
+  }
+
+  // Reset and Diff helpers for Compare modal
+  resetComparison(): void {
+    this.leftSideSpec = null;
+    this.rightSideSpec = null;
+    this.canShowComparison = false;
+  }
+
+  private generateProtoContent(specData: any): string {
+    if (!specData) return '// No content available';
+
+    let content = `syntax = "${specData.syntax || 'proto3'}";\n\n`;
+
+    if (specData.package) {
+      content += `package ${specData.package};\n\n`;
+    }
+
+    if (Array.isArray(specData.imports) && specData.imports.length > 0) {
+      for (const imp of specData.imports) {
+        content += `import "${imp}";\n`;
+      }
+      content += '\n';
+    }
+
+    const normalizeType = (t: any): string => {
+      if (!t) return 'string';
+      if (typeof t === 'string') return t;
+      if (typeof t === 'object' && t.value) return t.value;
+      return String(t);
+    };
+
+    const renderMessage = (message: any, indent: number): string => {
+      const pad = '  '.repeat(indent);
+      let s = `${pad}message ${message.name} {\n`;
+
+      if (Array.isArray(message.nestedEnums)) {
+        for (const en of message.nestedEnums) {
+          s += `${pad}  enum ${en.name} {\n`;
+          for (const v of en.values || []) {
+            s += `${pad}    ${v.name} = ${v.number};\n`;
+          }
+          s += `${pad}  }\n\n`;
+        }
+      }
+
+      if (Array.isArray(message.nestedMessages)) {
+        for (const nm of message.nestedMessages) {
+          s += renderMessage(nm, indent + 1);
+        }
+      }
+
+      for (const field of message.fields || []) {
+        const repeated = field.repeated ? 'repeated ' : '';
+        const optional = field.optional ? 'optional ' : '';
+        const type = normalizeType(field.type);
+        s += `${pad}  ${repeated}${optional}${type} ${field.name} = ${field.number};\n`;
+      }
+
+      s += `${pad}}\n\n`;
+      return s;
+    };
+
+    for (const e of specData.enums || []) {
+      content += `enum ${e.name} {\n`;
+      for (const v of e.values || []) {
+        content += `  ${v.name} = ${v.number};\n`;
+      }
+      content += `}\n\n`;
+    }
+
+    for (const m of specData.messages || []) {
+      content += renderMessage(m, 0);
+    }
+
+    for (const svc of specData.services || []) {
+      content += `service ${svc.name} {\n`;
+      for (const method of svc.methods || []) {
+        const inStream = method.streaming?.input ? 'stream ' : '';
+        const outStream = method.streaming?.output ? 'stream ' : '';
+        content += `  rpc ${method.name}(${inStream}${method.inputType}) returns (${outStream}${method.outputType});\n`;
+      }
+      content += `}\n\n`;
+    }
+
+    return content;
   }
 }
