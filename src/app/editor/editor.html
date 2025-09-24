@@ -1164,12 +1164,29 @@
             </div>
           </div>
           <button
-            class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+            (click)="handlePublishOrCommit()"
+            [disabled]="!currentSpecId"
+            class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Publish Spec
+            {{ isPublished ? 'Commit Spec' : 'Publish Spec' }}
           </button>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<app-publish-modal
+  *ngIf="showPublishModal"
+  [spec]="currentSpec"
+  (close)="closePublishModal()"
+  (publish)="handlePublish($event)"
+></app-publish-modal>
+
+<app-push-to-branch-modal
+  *ngIf="showPushToBranchModal"
+  [spec]="currentSpec"
+  (close)="closePushToBranchModal()"
+  (push)="handlePushToBranch($event)"
+></app-push-to-branch-modal>
+

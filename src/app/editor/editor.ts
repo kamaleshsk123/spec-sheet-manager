@@ -6,6 +6,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, ProtobufSpec } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { parse } from 'proto-parser';
+import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
+import { PushToBranchModalComponent } from '../components/push-to-branch-modal/push-to-branch-modal.component';
 // import * as monaco from 'monaco-editor'; // Temporarily comment out
 
 interface Field {
@@ -59,7 +61,7 @@ interface ProtoFile {
 
 @Component({
   selector: 'app-editor',
-  imports: [CommonModule, FormsModule, NuMonacoEditorModule],
+  imports: [CommonModule, FormsModule, NuMonacoEditorModule, PublishModalComponent, PushToBranchModalComponent],
   templateUrl: './editor.html',
   styleUrl: './editor.css',
 })
@@ -88,6 +90,7 @@ export class EditorComponent implements OnInit {
 
   // Current spec ID (for updates)
   currentSpecId: string | null = null;
+  currentSpec: ProtobufSpec | null = null;
 
   // Original spec data for comparison
   originalSpecData: ProtoFile | null = null;
@@ -100,6 +103,9 @@ export class EditorComponent implements OnInit {
   // UI state
   isSaving: boolean = false;
   isLoading: boolean = false;
+  isPublished: boolean = false;
+  showPublishModal: boolean = false;
+  showPushToBranchModal: boolean = false;
 
   protoFile: ProtoFile = {
     syntax: 'proto3',
@@ -151,6 +157,7 @@ export class EditorComponent implements OnInit {
         this.isLoading = false;
         if (response.success && response.data) {
           const spec = response.data;
+          this.currentSpec = spec;
 
           // Load spec details
           this.specTitle = spec.title;
@@ -158,6 +165,7 @@ export class EditorComponent implements OnInit {
           this.specDescription = spec.description || '';
           this.specTags = spec.tags?.join(', ') || '';
           this.currentSpecId = spec.id!;
+          this.isPublished = !!spec.github_repo_url;
 
           // Load GitHub repository information
           this.githubRepoUrl = spec.github_repo_url || null;
@@ -806,5 +814,68 @@ export class EditorComponent implements OnInit {
       return this.incrementVersion(this.specVersion || '1.0.0');
     }
     return this.specVersion || '1.0.0';
+  }
+
+  // Publish and Commit methods
+  handlePublishOrCommit() {
+    if (this.isPublished) {
+      this.openPushToBranchModal();
+    } else {
+      this.openPublishModal();
+    }
+  }
+
+  openPublishModal() {
+    this.showPublishModal = true;
+  }
+
+  closePublishModal() {
+    this.showPublishModal = false;
+  }
+
+  handlePublish(event: any) {
+    if (!this.currentSpecId) return;
+
+    this.apiService.publishToGithub(this.currentSpecId, event).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success('Published to GitHub!', `Successfully created repository: ${response.data.url}`);
+          this.closePublishModal();
+          // Reload the spec to get the updated published status and repo URL
+          this.loadSpec(this.currentSpecId!);
+        } else {
+          this.notificationService.error('Publish Failed', response.error || 'Could not publish to GitHub.');
+        }
+      },
+      error: (error) => {
+        this.notificationService.error('Publish Error', error.error.error || 'An unknown error occurred.');
+      }
+    });
+  }
+
+  openPushToBranchModal() {
+    this.showPushToBranchModal = true;
+  }
+
+  closePushToBranchModal() {
+    this.showPushToBranchModal = false;
+  }
+
+  handlePushToBranch(event: any) {
+    if (!this.currentSpecId) return;
+
+    this.apiService.pushToBranch(this.currentSpecId, event.commitMessage).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success('Pushed to GitHub!', `Successfully pushed updates to ${this.currentSpec?.github_repo_name}.`);
+          this.closePushToBranchModal();
+        } else {
+          this.notificationService.error('Push Failed', response.error || 'Could not push to GitHub.');
+        }
+      },
+      error: (error) => {
+        this.notificationService.error('Push Error', error.error.error || 'An unknown error occurred.');
+      }
+    });
   }
 }
