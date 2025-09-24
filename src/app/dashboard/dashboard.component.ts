@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
 import { ApiService, ProtobufSpec, User, SpecVersion } from '../services/api.service';
@@ -44,6 +44,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   rightSideSpec: ProtobufSpec | null = null; // User selected right side
 
   private routerSubscription: Subscription; // Declare subscription
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: any) {
+    const clickedOnDropdownToggle = event.target.closest('[data-dropdown-toggle]');
+    const clickedInsideDropdown = event.target.closest('[data-dropdown-menu]');
+
+    if (!clickedOnDropdownToggle && !clickedInsideDropdown) {
+      this.openSpecDropdown = null;
+    }
+  }
 
   constructor(
     private apiService: ApiService,
@@ -177,6 +187,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   openEditor(specId?: string, version?: string) {
+    this.openSpecDropdown = null; // Close dropdown
     const queryParams: any = {};
     if (specId) {
       queryParams.id = specId;
@@ -188,6 +199,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   openVersionHistoryModal(spec: ProtobufSpec) {
+    this.openSpecDropdown = null; // Close dropdown
     this.specForVersionHistory = spec;
     this.showVersionHistoryModal = true;
     if (!this.specVersions[spec.id!]) {
@@ -215,6 +227,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   async deleteSpec(spec: ProtobufSpec) {
+    this.openSpecDropdown = null; // Close dropdown
     const confirmed = await this.notificationService.confirm(
       'Delete Specification',
       `Are you sure you want to delete "${spec.title}"? This action cannot be undone.`,
@@ -253,6 +266,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   async deleteSpecAndAllVersions(spec: ProtobufSpec) {
+    this.openSpecDropdown = null; // Close dropdown
     const confirmed = await this.notificationService.confirm(
       'Delete Entire Specification',
       `Are you sure you want to delete the entire spec "${spec.title}" and all its versions? This action is permanent and cannot be undone.`,
@@ -309,6 +323,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Comparison methods
   openCompareModal(spec: ProtobufSpec) {
+    this.openSpecDropdown = null; // Close dropdown
     this.baseSpec = spec; // This determines which spec family to show versions for
     this.leftSideSpec = null;
     this.rightSideSpec = null;
