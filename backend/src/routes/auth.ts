@@ -9,6 +9,10 @@ const router = Router();
 router.post('/register', validate(createUserSchema), AuthController.register);
 router.post('/login', validate(loginSchema), AuthController.login);
 
+// GitHub OAuth
+router.get('/github', AuthController.githubAuth);
+router.get('/github/callback', AuthController.githubCallback);
+
 // Protected routes
 router.get('/profile', authenticateToken, AuthController.getProfile);
 

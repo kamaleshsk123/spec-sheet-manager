@@ -1,8 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { ApiService, ProtobufSpec } from '../services/api.service';
+import { Router, NavigationEnd } from '@angular/router';
+import { ApiService, ProtobufSpec, User, SpecVersion } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
+import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
+import { PushToBranchModalComponent } from '../components/push-to-branch-modal/push-to-branch-modal.component';
+import { VersionHistoryModalComponent } from '../components/version-history-modal/version-history-modal.component';
+import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 interface DiffLine {
   content: string;
@@ -13,15 +18,24 @@ interface DiffLine {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PublishModalComponent, PushToBranchModalComponent, VersionHistoryModalComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   specs: ProtobufSpec[] = []; // Only latest versions for display
   allSpecs: ProtobufSpec[] = []; // All versions for comparison
   isLoading: boolean = true;
   error: string = '';
+  isDropdownOpen: boolean = false;
+  currentUser: User | null = null;
+  openSpecDropdown: string | null = null;
+  showPublishModal: boolean = false;
+  specToPublish: ProtobufSpec | null = null;
+  showPushToBranchModal: boolean = false;
+  specVersions: { [specId: string]: SpecVersion[] } = {};
+  showVersionHistoryModal = false;
+  specForVersionHistory: ProtobufSpec | null = null;
   
   // Comparison modal properties
   showCompareModal: boolean = false;
@@ -29,14 +43,122 @@ export class DashboardComponent implements OnInit {
   leftSideSpec: ProtobufSpec | null = null; // User selected left side
   rightSideSpec: ProtobufSpec | null = null; // User selected right side
 
+  private routerSubscription: Subscription; // Declare subscription
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: any) {
+    const clickedOnDropdownToggle = event.target.closest('[data-dropdown-toggle]');
+    const clickedInsideDropdown = event.target.closest('[data-dropdown-menu]');
+
+    if (!clickedOnDropdownToggle && !clickedInsideDropdown) {
+      this.openSpecDropdown = null;
+    }
+  }
+
   constructor(
     private apiService: ApiService,
     private router: Router,
     private notificationService: NotificationService
-  ) {}
+  ) {
+    // Subscribe to router events to reload specs when navigating to the dashboard
+    this.routerSubscription = this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd && event.url === '/')
+    ).subscribe(() => {
+      this.loadSpecs();
+    });
+  }
 
   ngOnInit() {
     this.loadSpecs();
+    this.loadUserProfile();
+  }
+
+  ngOnDestroy() {
+    // Unsubscribe to prevent memory leaks
+    if (this.routerSubscription) {
+      this.routerSubscription.unsubscribe();
+    }
+  }
+
+  loadUserProfile() {
+    this.apiService.getProfile().subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.currentUser = response.data;
+        }
+      },
+      error: (error) => {
+        console.error('Failed to load user profile', error);
+      }
+    });
+  }
+
+  toggleDropdown() {
+    this.isDropdownOpen = !this.isDropdownOpen;
+  }
+
+  toggleSpecDropdown(specId: string) {
+    this.openSpecDropdown = this.openSpecDropdown === specId ? null : specId;
+  }
+
+  openPublishModal(spec: ProtobufSpec) {
+    this.specToPublish = spec;
+    this.showPublishModal = true;
+    this.openSpecDropdown = null; // Close the dropdown
+  }
+
+  closePublishModal() {
+    this.showPublishModal = false;
+    this.specToPublish = null;
+  }
+
+  handlePublish(event: any) {
+    if (!this.specToPublish) return;
+
+    this.apiService.publishToGithub(this.specToPublish.id!, event).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success('Published to GitHub!', `Successfully created repository: ${response.data.url}`);
+          this.closePublishModal();
+          this.loadSpecs(); // Reload specs to update UI with github_repo_url
+        } else {
+          this.notificationService.error('Publish Failed', response.error || 'Could not publish to GitHub.');
+        }
+      },
+      error: (error) => {
+        this.notificationService.error('Publish Error', error.error.error || 'An unknown error occurred.');
+      }
+    });
+  }
+
+  openPushToBranchModal(spec: ProtobufSpec) {
+    this.specToPublish = spec;
+    this.showPushToBranchModal = true;
+    this.openSpecDropdown = null; // Close the dropdown
+  }
+
+  closePushToBranchModal() {
+    this.showPushToBranchModal = false;
+    this.specToPublish = null;
+  }
+
+  handlePushToBranch(event: any) {
+    if (!this.specToPublish) return;
+
+    this.apiService.pushToBranch(this.specToPublish.id!, event.commitMessage).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success('Pushed to GitHub!', `Successfully pushed updates to ${this.specToPublish?.github_repo_name}.`);
+          this.closePushToBranchModal();
+          this.loadSpecs(); // Reload specs to update UI
+        } else {
+          this.notificationService.error('Push Failed', response.error || 'Could not push to GitHub.');
+        }
+      },
+      error: (error) => {
+        this.notificationService.error('Push Error', error.error.error || 'An unknown error occurred.');
+      }
+    });
   }
 
   loadSpecs() {
@@ -47,6 +169,7 @@ export class DashboardComponent implements OnInit {
       next: (response) => {
         this.isLoading = false;
         if (response.success && response.data) {
+          console.log('Specs loaded:', response.data.data); // <--- ADDED THIS LINE
           // Store all specs for comparison
           this.allSpecs = response.data.data;
           // Group specs by title and show only the latest version of each
@@ -63,17 +186,48 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  openEditor(specId?: string) {
+  openEditor(specId?: string, version?: string) {
+    this.openSpecDropdown = null; // Close dropdown
+    const queryParams: any = {};
     if (specId) {
-      // Navigate to editor with spec ID (we'll implement this)
-      this.router.navigate(['/editor'], { queryParams: { id: specId } });
-    } else {
-      // Navigate to new editor
-      this.router.navigate(['/editor']);
+      queryParams.id = specId;
+    }
+    if (version) {
+      queryParams.version = version;
+    }
+    this.router.navigate(['/editor'], { queryParams });
+  }
+
+  openVersionHistoryModal(spec: ProtobufSpec) {
+    this.openSpecDropdown = null; // Close dropdown
+    this.specForVersionHistory = spec;
+    this.showVersionHistoryModal = true;
+    if (!this.specVersions[spec.id!]) {
+      this.apiService.getSpecVersions(spec.id!).subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.specVersions[spec.id!] = response.data;
+          }
+        },
+        error: (error) => {
+          this.notificationService.error('Error', 'Could not load spec versions.');
+        }
+      });
     }
   }
 
+  closeVersionHistoryModal() {
+    this.showVersionHistoryModal = false;
+    this.specForVersionHistory = null;
+  }
+
+  handleEditVersion(event: { specId: string, version: string }) {
+    this.closeVersionHistoryModal();
+    this.openEditor(event.specId, event.version);
+  }
+
   async deleteSpec(spec: ProtobufSpec) {
+    this.openSpecDropdown = null; // Close dropdown
     const confirmed = await this.notificationService.confirm(
       'Delete Specification',
       `Are you sure you want to delete "${spec.title}"? This action cannot be undone.`,
@@ -88,11 +242,11 @@ export class DashboardComponent implements OnInit {
       this.apiService.deleteSpec(spec.id!).subscribe({
         next: (response) => {
           if (response.success) {
-            this.specs = this.specs.filter(s => s.id !== spec.id);
             this.notificationService.success(
               'Specification Deleted',
               `"${spec.title}" has been deleted successfully`
             );
+            this.loadSpecs(); // Refresh the spec list
           } else {
             this.notificationService.error(
               'Delete Failed',
@@ -105,6 +259,45 @@ export class DashboardComponent implements OnInit {
           this.notificationService.error(
             'Delete Error',
             'Failed to delete specification. Please try again.'
+          );
+        }
+      });
+    }
+  }
+
+  async deleteSpecAndAllVersions(spec: ProtobufSpec) {
+    this.openSpecDropdown = null; // Close dropdown
+    const confirmed = await this.notificationService.confirm(
+      'Delete Entire Specification',
+      `Are you sure you want to delete the entire spec "${spec.title}" and all its versions? This action is permanent and cannot be undone.`,
+      {
+        confirmText: 'Delete All Versions',
+        cancelText: 'Cancel',
+        type: 'danger'
+      }
+    );
+
+    if (confirmed) {
+      this.apiService.deleteSpecAndAllVersions(spec.title).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.notificationService.success(
+              'Specification Deleted',
+              `The entire spec "${spec.title}" has been deleted successfully`
+            );
+            this.loadSpecs(); // Refresh the spec list
+          } else {
+            this.notificationService.error(
+              'Delete Failed',
+              response.error || 'Failed to delete the entire specification'
+            );
+          }
+        },
+        error: (error) => {
+          console.error('Delete all versions error:', error);
+          this.notificationService.error(
+            'Delete Error',
+            'Failed to delete the entire specification. Please try again.'
           );
         }
       });
@@ -130,6 +323,7 @@ export class DashboardComponent implements OnInit {
 
   // Comparison methods
   openCompareModal(spec: ProtobufSpec) {
+    this.openSpecDropdown = null; // Close dropdown
     this.baseSpec = spec; // This determines which spec family to show versions for
     this.leftSideSpec = null;
     this.rightSideSpec = null;

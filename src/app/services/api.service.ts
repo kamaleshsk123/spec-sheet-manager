@@ -25,6 +25,18 @@ export interface ProtobufSpec {
   is_published?: boolean;
   tags?: string[];
   download_count?: number;
+  github_repo_url?: string;
+  github_repo_name?: string;
+}
+
+export interface SpecVersion {
+  id: string;
+  spec_id: string;
+  version_number: string;
+  spec_data: ProtoFileData;
+  created_at: Date;
+  created_by: string;
+  created_by_name?: string;
 }
 
 export interface ApiResponse<T = any> {
@@ -42,6 +54,15 @@ export interface PaginatedResponse<T> {
     total: number;
     totalPages: number;
   };
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  created_at: Date;
+  github_id?: string;
+  github_username?: string;
 }
 
 @Injectable({
@@ -87,6 +108,13 @@ export class ApiService {
     return this.authToken.value !== null;
   }
 
+  getProfile(): Observable<ApiResponse<User>> {
+    return this.http.get<ApiResponse<User>>(
+      `${this.baseUrl}/auth/profile`,
+      { headers: this.getHeaders() }
+    );
+  }
+
   // Spec CRUD operations
   createSpec(spec: Omit<ProtobufSpec, 'id'>): Observable<ApiResponse<ProtobufSpec>> {
     return this.http.post<ApiResponse<ProtobufSpec>>(
@@ -124,9 +152,24 @@ export class ApiService {
     );
   }
 
-  getSpec(id: string): Observable<ApiResponse<ProtobufSpec>> {
+  getSpec(id: string, version?: string): Observable<ApiResponse<ProtobufSpec>> {
+    let params = new HttpParams();
+    if (version) {
+      params = params.set('version', version);
+    }
+
     return this.http.get<ApiResponse<ProtobufSpec>>(
       `${this.baseUrl}/specs/${id}`,
+      { 
+        headers: this.getHeaders(),
+        params: params
+      }
+    );
+  }
+
+  getSpecVersions(specId: string): Observable<ApiResponse<SpecVersion[]>> {
+    return this.http.get<ApiResponse<SpecVersion[]>>(
+      `${this.baseUrl}/specs/${specId}/versions`,
       { headers: this.getHeaders() }
     );
   }
@@ -146,10 +189,33 @@ export class ApiService {
     );
   }
 
+  deleteSpecAndAllVersions(title: string): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(
+      `${this.baseUrl}/specs/by-title/${title}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
   incrementDownloadCount(id: string): Observable<ApiResponse> {
     return this.http.post<ApiResponse>(
       `${this.baseUrl}/specs/${id}/download`,
       {},
+      { headers: this.getHeaders() }
+    );
+  }
+
+  publishToGithub(specId: string, data: { repoName: string, description: string, isPrivate: boolean }): Observable<ApiResponse> {
+    return this.http.post<ApiResponse>(
+      `${this.baseUrl}/specs/${specId}/publish-to-github`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  pushToBranch(specId: string, commitMessage: string): Observable<ApiResponse> {
+    return this.http.post<ApiResponse>(
+      `${this.baseUrl}/specs/${specId}/push-to-branch`,
+      { commitMessage },
       { headers: this.getHeaders() }
     );
   }

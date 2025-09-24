@@ -9,5 +9,6 @@ export declare class SpecController {
     static getSpecVersions(req: Request, res: Response): Promise<void>;
     static incrementDownloadCount(req: Request, res: Response): Promise<void>;
     static getDashboardStats(req: AuthRequest, res: Response): Promise<void>;
+    static publishToGithub(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }
 //# sourceMappingURL=specController.d.ts.map

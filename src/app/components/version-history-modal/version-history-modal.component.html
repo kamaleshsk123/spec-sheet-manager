@@ -1,0 +1,40 @@
+<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" (click)="closeModal()">
+  <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden border" (click)="$event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-900">Version History</h2>
+          <p class="text-sm text-gray-500">{{ spec?.title }}</p>
+        </div>
+        <button (click)="closeModal()" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal Content -->
+    <div class="p-6 overflow-y-auto" style="max-height: calc(90vh - 130px);">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div *ngFor="let version of versions; let i = index" 
+             class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow duration-200 flex flex-col">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-lg font-bold text-gray-900">v{{ version.version_number }}</p>
+              <p class="text-sm text-gray-500">by {{ version.created_by_name || 'Unknown' }}</p>
+            </div>
+            <span *ngIf="i === 0" class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">Latest</span>
+          </div>
+          <p class="text-sm text-gray-600 mt-2">Created on: {{ formatDate(version.created_at) }}</p>
+          <div class="mt-4 pt-4 border-t border-gray-100 flex-grow flex items-end">
+            <button (click)="onEditVersion(version.id, version.version_number)" 
+                    class="w-full inline-flex items-center justify-center px-3 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 transition-colors duration-200">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+              Edit
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

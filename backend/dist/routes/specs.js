@@ -15,5 +15,6 @@ router.post('/', auth_1.authenticateToken, (0, validation_1.validate)(validation
 router.put('/:id', auth_1.authenticateToken, (0, validation_1.validate)(validation_1.updateSpecSchema), specController_1.SpecController.updateSpec);
 router.delete('/:id', auth_1.authenticateToken, specController_1.SpecController.deleteSpec);
 router.get('/dashboard/stats', auth_1.authenticateToken, specController_1.SpecController.getDashboardStats);
+router.post('/:id/publish-to-github', auth_1.authenticateToken, specController_1.SpecController.publishToGithub);
 exports.default = router;
 //# sourceMappingURL=specs.js.map

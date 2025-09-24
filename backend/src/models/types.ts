@@ -6,6 +6,9 @@ export interface User {
   password_hash?: string;
   created_at: Date;
   updated_at: Date;
+  github_id?: string;
+  github_username?: string;
+  github_access_token?: string;
 }
 
 export interface CreateUserRequest {
@@ -81,6 +84,8 @@ export interface ProtobufSpec {
   is_published: boolean;
   tags: string[];
   download_count: number;
+  github_repo_url?: string | null;
+  github_repo_name?: string | null;
 }
 
 export interface CreateSpecRequest {
@@ -89,6 +94,8 @@ export interface CreateSpecRequest {
   description?: string;
   spec_data: ProtoFileData;
   tags?: string[];
+  github_repo_url?: string | null;
+  github_repo_name?: string | null;
 }
 
 export interface UpdateSpecRequest {
@@ -98,6 +105,8 @@ export interface UpdateSpecRequest {
   spec_data?: ProtoFileData;
   tags?: string[];
   is_published?: boolean;
+  github_repo_url?: string | null;
+  github_repo_name?: string | null;
 }
 
 export interface SpecVersion {
