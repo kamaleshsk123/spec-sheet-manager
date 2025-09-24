@@ -1,10 +1,11 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
-import { ApiService, ProtobufSpec, User } from '../services/api.service';
+import { ApiService, ProtobufSpec, User, SpecVersion } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
 import { PushToBranchModalComponent } from '../components/push-to-branch-modal/push-to-branch-modal.component';
+import { VersionHistoryModalComponent } from '../components/version-history-modal/version-history-modal.component';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
@@ -17,7 +18,7 @@ interface DiffLine {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, PublishModalComponent, PushToBranchModalComponent],
+  imports: [CommonModule, PublishModalComponent, PushToBranchModalComponent, VersionHistoryModalComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -32,6 +33,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   showPublishModal: boolean = false;
   specToPublish: ProtobufSpec | null = null;
   showPushToBranchModal: boolean = false;
+  specVersions: { [specId: string]: SpecVersion[] } = {};
+  showVersionHistoryModal = false;
+  specForVersionHistory: ProtobufSpec | null = null;
   
   // Comparison modal properties
   showCompareModal: boolean = false;
@@ -172,14 +176,42 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  openEditor(specId?: string) {
+  openEditor(specId?: string, version?: string) {
+    const queryParams: any = {};
     if (specId) {
-      // Navigate to editor with spec ID (we'll implement this)
-      this.router.navigate(['/editor'], { queryParams: { id: specId } });
-    } else {
-      // Navigate to new editor
-      this.router.navigate(['/editor']);
+      queryParams.id = specId;
     }
+    if (version) {
+      queryParams.version = version;
+    }
+    this.router.navigate(['/editor'], { queryParams });
+  }
+
+  openVersionHistoryModal(spec: ProtobufSpec) {
+    this.specForVersionHistory = spec;
+    this.showVersionHistoryModal = true;
+    if (!this.specVersions[spec.id!]) {
+      this.apiService.getSpecVersions(spec.id!).subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.specVersions[spec.id!] = response.data;
+          }
+        },
+        error: (error) => {
+          this.notificationService.error('Error', 'Could not load spec versions.');
+        }
+      });
+    }
+  }
+
+  closeVersionHistoryModal() {
+    this.showVersionHistoryModal = false;
+    this.specForVersionHistory = null;
+  }
+
+  handleEditVersion(event: { specId: string, version: string }) {
+    this.closeVersionHistoryModal();
+    this.openEditor(event.specId, event.version);
   }
 
   async deleteSpec(spec: ProtobufSpec) {

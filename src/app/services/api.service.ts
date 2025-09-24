@@ -29,6 +29,16 @@ export interface ProtobufSpec {
   github_repo_name?: string;
 }
 
+export interface SpecVersion {
+  id: string;
+  spec_id: string;
+  version_number: string;
+  spec_data: ProtoFileData;
+  created_at: Date;
+  created_by: string;
+  created_by_name?: string;
+}
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -142,9 +152,24 @@ export class ApiService {
     );
   }
 
-  getSpec(id: string): Observable<ApiResponse<ProtobufSpec>> {
+  getSpec(id: string, version?: string): Observable<ApiResponse<ProtobufSpec>> {
+    let params = new HttpParams();
+    if (version) {
+      params = params.set('version', version);
+    }
+
     return this.http.get<ApiResponse<ProtobufSpec>>(
       `${this.baseUrl}/specs/${id}`,
+      { 
+        headers: this.getHeaders(),
+        params: params
+      }
+    );
+  }
+
+  getSpecVersions(specId: string): Observable<ApiResponse<SpecVersion[]>> {
+    return this.http.get<ApiResponse<SpecVersion[]>>(
+      `${this.baseUrl}/specs/${specId}/versions`,
       { headers: this.getHeaders() }
     );
   }

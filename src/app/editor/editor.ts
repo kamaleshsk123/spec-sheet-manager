@@ -125,15 +125,15 @@ export class EditorComponent implements OnInit {
     // Check if we need to load a specific spec
     this.route.queryParams.subscribe((params) => {
       if (params['id']) {
-        this.loadSpec(params['id']);
+        this.loadSpec(params['id'], params['version']);
       }
     });
   }
 
-  loadSpec(specId: string) {
+  loadSpec(specId: string, version?: string) {
     this.isLoading = true;
 
-    this.apiService.getSpec(specId).subscribe({
+    this.apiService.getSpec(specId, version).subscribe({
       next: (response) => {
         this.isLoading = false;
         if (response.success && response.data) {

@@ -254,8 +254,10 @@ export class SpecController {
   static async getSpec(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      const { version } = req.query;
 
-      const result = await pool.query(
+      // First, get the main spec details
+      const mainSpecResult = await pool.query(
         `SELECT 
           ps.*,
           u.name as created_by_name,
@@ -266,18 +268,40 @@ export class SpecController {
         [id]
       );
 
-      if (result.rows.length === 0) {
+      if (mainSpecResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           error: 'Specification not found',
         } as ApiResponse);
       }
 
-      console.log('Backend getSpec result:', result.rows[0]); // <--- ADDED THIS LINE
+      let spec = mainSpecResult.rows[0];
+
+      // If a version is specified, get that version's data
+      if (version) {
+        const versionResult = await pool.query(
+          `SELECT spec_data, version_number FROM spec_versions WHERE spec_id = $1 AND version_number = $2`,
+          [id, version]
+        );
+
+        if (versionResult.rows.length > 0) {
+          spec.spec_data = versionResult.rows[0].spec_data;
+          spec.version = versionResult.rows[0].version_number;
+        } else {
+          // If the specific version is not found, you might want to return a 404.
+          // For now, it falls back to the latest version, which might be confusing.
+          return res.status(404).json({
+            success: false,
+            error: `Version '${version}' not found for this specification`,
+          } as ApiResponse);
+        }
+      }
+
+      console.log('Backend getSpec result:', spec); // <--- ADDED THIS LINE
 
       res.json({
         success: true,
-        data: result.rows[0],
+        data: spec,
       } as ApiResponse<ProtobufSpec>);
     } catch (error) {
       console.error('Get spec error:', error);
@@ -449,15 +473,28 @@ export class SpecController {
     try {
       const { id } = req.params;
 
+      // 1. Get the title of the spec from the given id
+      const titleResult = await pool.query('SELECT title FROM protobuf_specs WHERE id = $1', [id]);
+      if (titleResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Specification not found' });
+      }
+      const { title } = titleResult.rows[0];
+
+      // 2. Get all versions of the spec with the same title
       const result = await pool.query(
         `SELECT 
-          sv.*,
+          ps.id,
+          ps.id as spec_id,
+          ps.version as version_number,
+          ps.spec_data,
+          ps.created_at,
+          ps.created_by,
           u.name as created_by_name
-         FROM spec_versions sv
-         LEFT JOIN users u ON sv.created_by = u.id
-         WHERE sv.spec_id = $1
-         ORDER BY sv.created_at DESC`,
-        [id]
+         FROM protobuf_specs ps
+         LEFT JOIN users u ON ps.created_by = u.id
+         WHERE ps.title = $1
+         ORDER BY ps.created_at DESC`,
+        [title]
       );
 
       res.json({
