@@ -1,0 +1,105 @@
+# Project Documentation: Spec Sheet Manager
+
+## 1. Project Vision and Goals
+
+The Spec Sheet Manager is a web application designed to streamline the process of managing and collaborating on Protocol Buffer (Protobuf) specifications. The primary goal of this project is to provide a centralized platform for teams to create, version, and share their Protobuf specs, moving away from scattered files and inconsistent versioning.
+
+The vision is to create a "single source of truth" for Protobuf definitions within an organization, improving developer productivity and reducing errors caused by outdated or incorrect specs.
+
+## 2. Core Features and Functionality
+
+The application implements a rich set of features to support the entire lifecycle of a Protobuf spec:
+
+*   **User Authentication:** Secure user registration and login system.
+*   **Dashboard:** A personalized dashboard that provides a quick overview of all specifications, both personal and team-based.
+*   **Team Management:**
+    *   **Team Creation:** Users can create teams to group related specifications and manage access.
+    *   **Member Invitations:** Team owners can invite other users to join their teams via email.
+    *   **Member Removal:** Team owners have the ability to remove members from their teams.
+    *   **Team Deletion:** Team owners can delete teams they no longer need.
+*   **Specification Management:**
+    *   **Web-based Editor:** A user-friendly editor to create and modify Protobuf specs directly in the browser.
+    *   **Versioning:** The system automatically versions specs, allowing users to view and compare different versions.
+    *   **GitHub Integration:**
+        *   Publish new specs to a new GitHub repository.
+        *   Commit changes to existing specs to a branch in a connected GitHub repository.
+*   **Role-Based Access Control (RBAC):**
+    *   A clear distinction between team "owners" and "members".
+    *   Destructive actions like deleting a team or removing a member are restricted to team owners.
+
+## 3. Technical Deep Dive
+
+### 3.1. Architecture
+
+The application follows a modern client-server architecture:
+
+*   **Frontend:** A single-page application (SPA) built with Angular, responsible for the user interface and user experience.
+*   **Backend:** A RESTful API built with Node.js and Express.js, which handles business logic, data storage, and interactions with the database.
+
+This separation of concerns allows for independent development and scaling of the frontend and backend.
+
+### 3.2. Technology Choices
+
+*   **Angular:** Chosen for its robust framework, component-based architecture, and strong typing with TypeScript, which is ideal for building complex and maintainable applications.
+*   **Node.js & Express.js:** A popular and lightweight choice for building fast and scalable APIs. The use of JavaScript/TypeScript on both the frontend and backend allows for code sharing and a more unified development experience.
+*   **PostgreSQL:** A powerful and reliable open-source relational database, well-suited for storing structured data like users, teams, and specs. The use of foreign key constraints with `ON DELETE CASCADE` and `ON DELETE SET NULL` helps maintain data integrity.
+*   **Tailwind CSS:** A utility-first CSS framework that enables rapid UI development and easy customization without writing a lot of custom CSS.
+
+### 3.3. Database Schema
+
+The database schema is designed to support the core features of the application:
+
+*   **`users`:** Stores user information, including authentication details.
+*   **`teams`:** Stores information about teams, including the `owner_id` which is a foreign key to the `users` table.
+*   **`team_members`:** A join table that links users to teams and defines their role (`owner` or `member`).
+*   **`protobuf_specs`:** The main table for storing Protobuf specifications, including their content, version, and a `team_id` which is a foreign key to the `teams` table.
+
+## 4. Development Journey & Decision Making
+
+The development of this project was an iterative process, with features being built and refined based on user feedback.
+
+### 4.1. Dashboard UI Redesign
+
+*   **Problem:** The initial dashboard displayed each team's specs in a separate card, which was not visually appealing and made it hard to get a quick overview of all specs.
+*   **Solution:** We first explored a grid-based layout where each spec was a card. However, this was not what the user wanted. After clarification, we implemented a two-card layout: one for "Team Workspaces" and one for "Personal Workspace". The "Team Workspaces" card now groups all teams and their specs together, providing a more organized and consolidated view. We also added a condition to hide the "Team Workspaces" card completely if the user is not a member of any teams.
+
+### 4.2. Implementing Role-Based Access Control
+
+*   **Problem:** Destructive actions like deleting specs or removing team members were not restricted, which could lead to accidental data loss in a team setting.
+*   **Solution:** We introduced the concept of a team "owner".
+    1.  We first identified that the `teams` table has an `owner_id`.
+    2.  We added a method `isTeamOwner()` in the frontend components to check if the current user is the owner of a team.
+    3.  We used this method with `*ngIf` in the Angular templates to conditionally show or hide the "Delete" and "Remove" buttons.
+    4.  On the backend, we added authorization checks in the controller methods to ensure that only the team owner can perform these actions.
+
+### 4.3. Team and Member Management
+
+*   **Problem:** The application needed features for team owners to manage their teams effectively.
+*   **Solution:** We implemented two key features:
+    *   **Remove Member:** We added a "Remove" button next to each member in the team management page. This button is only visible to the team owner. Clicking it triggers a call to a new backend endpoint that removes the member from the team.
+    *   **Delete Team:** We added a "Delete Team" button on the team management page, also visible only to the owner.
+
+### 4.4. Fixing the "Delete Team" Bug
+
+*   **Problem:** The initial implementation of the "delete team" feature was failing with a generic server error.
+*   **Solution:**
+    1.  We investigated the backend code and suspected a database error.
+    2.  By examining the database migration files, we discovered that the table for specs was named `protobuf_specs`, but the delete query was trying to update a table named `specs`.
+    3.  We also realized that the manual deletion of `team_members` and update of `protobuf_specs` were redundant because of the `ON DELETE CASCADE` and `ON DELETE SET NULL` constraints in the database schema.
+    4.  We fixed the bug by simplifying the `deleteTeam` controller function to rely on the database's built-in cascading behavior, which made the code cleaner and more robust.
+
+## 5. Future Improvements and Ideas
+
+While the application is now in a good state, there are several ways we could enhance it in the future:
+
+*   **UI/UX Improvements:**
+    *   Add a search/filter bar to the dashboard.
+    *   Implement pagination for long lists of specs.
+    *   Add sorting options for specs.
+*   **Feature Enhancements:**
+    *   Implement an audit log to track changes.
+    *   Allow commenting on specs for better collaboration.
+    *   Expand the RBAC system with more roles (e.g., "editor", "viewer").
+*   **Code Quality and Maintenance:**
+    *   Add a comprehensive suite of unit and end-to-end tests.
+    *   Set up a CI/CD pipeline for automated testing and deployment.
