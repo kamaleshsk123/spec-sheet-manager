@@ -74,6 +74,7 @@ export interface ProtobufSpec {
     download_count: number;
     github_repo_url?: string | null;
     github_repo_name?: string | null;
+    team_id?: string | null;
 }
 export interface CreateSpecRequest {
     title: string;
@@ -94,6 +95,7 @@ export interface UpdateSpecRequest {
     is_published?: boolean;
     github_repo_url?: string | null;
     github_repo_name?: string | null;
+    team_id?: string | null;
 }
 export interface SpecVersion {
     id: string;

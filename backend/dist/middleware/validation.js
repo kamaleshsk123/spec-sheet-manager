@@ -64,6 +64,10 @@ exports.createSpecSchema = joi_1.default.object({
     description: joi_1.default.string().max(1000).optional(),
     spec_data: protoFileDataSchema.required(),
     tags: joi_1.default.array().items(joi_1.default.string().max(50)).max(10).optional(),
+    team_id: joi_1.default.string()
+        .guid({ version: ['uuidv4', 'uuidv5'] })
+        .allow(null)
+        .optional(),
 });
 exports.updateSpecSchema = joi_1.default.object({
     title: joi_1.default.string().min(1).max(255).optional(),
@@ -74,6 +78,10 @@ exports.updateSpecSchema = joi_1.default.object({
     is_published: joi_1.default.boolean().optional(),
     github_repo_url: joi_1.default.string().uri().allow(null).optional(),
     github_repo_name: joi_1.default.string().max(255).allow(null).optional(),
+    team_id: joi_1.default.string()
+        .guid({ version: ['uuidv4', 'uuidv5'] })
+        .allow(null)
+        .optional(),
 });
 // Validation middleware factory
 const validate = (schema) => {
