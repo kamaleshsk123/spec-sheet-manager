@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTeamMembers = exports.inviteMember = exports.getTeams = exports.createTeam = void 0;
+exports.deleteTeam = exports.removeMember = exports.getTeamMembers = exports.inviteMember = exports.getTeams = exports.createTeam = void 0;
 const database_1 = __importDefault(require("../config/database"));
 // Create a new team
 const createTeam = async (req, res) => {
@@ -103,4 +103,72 @@ const getTeamMembers = async (req, res) => {
     }
 };
 exports.getTeamMembers = getTeamMembers;
+// Remove a member from a team
+const removeMember = async (req, res) => {
+    const { teamId, memberId } = req.params;
+    const requesterId = req.user.id;
+    if (!memberId) {
+        return res.status(400).json({ success: false, error: 'Member ID is required' });
+    }
+    const client = await database_1.default.connect();
+    try {
+        // 1. Check if the requester is the owner of the team
+        const teamResult = await client.query('SELECT owner_id FROM teams WHERE id = $1', [teamId]);
+        if (teamResult.rowCount === 0) {
+            return res.status(404).json({ success: false, error: 'Team not found' });
+        }
+        const teamOwnerId = teamResult.rows[0].owner_id;
+        if (teamOwnerId !== requesterId) {
+            return res.status(403).json({ success: false, error: 'Only the team owner can remove members' });
+        }
+        // 2. Prevent the owner from removing themselves
+        if (memberId === teamOwnerId) {
+            return res.status(400).json({ success: false, error: 'The team owner cannot be removed' });
+        }
+        // 3. Remove the member from the team_members table
+        const deleteResult = await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, memberId]);
+        if (deleteResult.rowCount === 0) {
+            return res.status(404).json({ success: false, error: 'Member not found in this team' });
+        }
+        res.status(200).json({ success: true, message: 'Member removed from the team successfully' });
+    }
+    catch (error) {
+        console.error('Error removing member:', error);
+        res.status(500).json({ success: false, error: 'Server error while removing member' });
+    }
+    finally {
+        client.release();
+    }
+};
+exports.removeMember = removeMember;
+// Delete a team
+const deleteTeam = async (req, res) => {
+    const { teamId } = req.params;
+    const requesterId = req.user.id;
+    const client = await database_1.default.connect();
+    try {
+        // 1. Check if the requester is the owner of the team
+        const teamResult = await client.query('SELECT owner_id FROM teams WHERE id = $1', [teamId]);
+        if (teamResult.rowCount === 0) {
+            return res.status(404).json({ success: false, error: 'Team not found' });
+        }
+        const teamOwnerId = teamResult.rows[0].owner_id;
+        if (teamOwnerId !== requesterId) {
+            return res.status(403).json({ success: false, error: 'Only the team owner can delete the team' });
+        }
+        // Delete the team
+        // ON DELETE CASCADE will handle team_members
+        // ON DELETE SET NULL will handle protobuf_specs
+        await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+        res.status(200).json({ success: true, message: 'Team deleted successfully' });
+    }
+    catch (error) {
+        console.error('Error deleting team:', error);
+        res.status(500).json({ success: false, error: 'Server error while deleting team' });
+    }
+    finally {
+        client.release();
+    }
+};
+exports.deleteTeam = deleteTeam;
 //# sourceMappingURL=teamController.js.map
