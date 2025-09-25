@@ -154,6 +154,20 @@ export class ApiService {
     );
   }
 
+  removeTeamMember(teamId: string, memberId: string): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(
+      `${this.baseUrl}/teams/${teamId}/members/${memberId}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  deleteTeam(teamId: string): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(
+      `${this.baseUrl}/teams/${teamId}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
   // Spec CRUD operations
   createSpec(spec: Omit<ProtobufSpec, 'id'>): Observable<ApiResponse<ProtobufSpec>> {
     return this.http.post<ApiResponse<ProtobufSpec>>(
