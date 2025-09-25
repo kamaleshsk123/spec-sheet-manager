@@ -255,6 +255,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return personalPublished + teamPublished;
   }
 
+  isTeamOwner(workspace: TeamWorkspace): boolean {
+    return this.currentUser?.id === workspace.team.owner_id;
+  }
+
   // getTotalDownloads(): number {
   //   const personalDownloads = this.personalSpecs.reduce(
   //     (sum, spec) => sum + (spec.download_count || 0),

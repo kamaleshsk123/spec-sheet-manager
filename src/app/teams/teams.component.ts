@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
-import { ApiService, Team } from '../services/api.service';
+import { ApiService, Team, User } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 
 interface TeamWithMembers extends Team {
@@ -21,6 +21,7 @@ export class TeamsComponent implements OnInit {
   teams: TeamWithMembers[] = [];
   isLoading = true;
   newTeamName = '';
+  currentUser: User | null = null;
 
   constructor(
     private apiService: ApiService,
@@ -30,6 +31,20 @@ export class TeamsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadTeams();
+    this.loadProfile();
+  }
+
+  loadProfile(): void {
+    this.apiService.getProfile().subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.currentUser = response.data;
+        }
+      },
+      error: (err) => {
+        this.notificationService.error('Failed to load user profile.', err.message);
+      }
+    });
   }
 
   loadTeams(): void {
@@ -106,6 +121,60 @@ export class TeamsComponent implements OnInit {
           err.error?.error || err.message
         );
       },
+    });
+  }
+
+  isTeamOwner(team: TeamWithMembers): boolean {
+    return this.currentUser?.id === team.owner_id;
+  }
+
+  removeMember(team: TeamWithMembers, memberId: string): void {
+    this.notificationService.confirm(
+      'Remove Member',
+      'Are you sure you want to remove this member from the team?',
+      { confirmText: 'Remove', cancelText: 'Cancel', type: 'danger' }
+    ).then(confirmed => {
+      if (confirmed) {
+        this.apiService.removeTeamMember(team.id, memberId).subscribe({
+          next: (response) => {
+            if (response.success) {
+              this.notificationService.success('Member removed successfully.');
+              this.loadMembersFor(team); // Refresh members list
+            }
+          },
+          error: (err) => {
+            this.notificationService.error(
+              'Failed to remove member.',
+              err.error?.error || err.message
+            );
+          },
+        });
+      }
+    });
+  }
+
+  deleteTeam(team: TeamWithMembers): void {
+    this.notificationService.confirm(
+      'Delete Team',
+      `Are you sure you want to delete the team "${team.name}"? This action cannot be undone.`,
+      { confirmText: 'Delete', cancelText: 'Cancel', type: 'danger' }
+    ).then(confirmed => {
+      if (confirmed) {
+        this.apiService.deleteTeam(team.id).subscribe({
+          next: (response) => {
+            if (response.success) {
+              this.notificationService.success('Team deleted successfully.');
+              this.loadTeams(); // Refresh teams list
+            }
+          },
+          error: (err) => {
+            this.notificationService.error(
+              'Failed to delete team.',
+              err.error?.error || err.message
+            );
+          },
+        });
+      }
     });
   }
 }

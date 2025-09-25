@@ -66,7 +66,12 @@
       <div *ngIf="!isLoading && teams.length > 0" class="space-y-6">
         <div *ngFor="let team of teams" class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
           <div class="p-6">
-            <h3 class="text-2xl font-bold text-gray-800 mb-4">{{ team.name }}</h3>
+            <div class="flex justify-between items-start">
+              <h3 class="text-2xl font-bold text-gray-800 mb-4">{{ team.name }}</h3>
+              <button *ngIf="isTeamOwner(team)" (click)="deleteTeam(team)" class="text-red-600 hover:text-red-800 text-sm font-semibold">
+                Delete Team
+              </button>
+            </div>
 
             <!-- Invite Member Form -->
             <div class="mb-6">
@@ -97,13 +102,21 @@
                     <p class="font-medium text-gray-800">{{ member.name }}</p>
                     <p class="text-sm text-gray-500">{{ member.email }}</p>
                   </div>
-                  <span class="px-3 py-1 text-xs font-semibold rounded-full" 
-                    [ngClass]="{
-                      'bg-blue-100 text-blue-800': member.role === 'owner',
-                      'bg-gray-100 text-gray-800': member.role !== 'owner'
-                    }">
-                    {{ member.role | titlecase }}
-                  </span>
+                  <div class="flex items-center space-x-4">
+                    <span class="px-3 py-1 text-xs font-semibold rounded-full" 
+                      [ngClass]="{
+                        'bg-blue-100 text-blue-800': member.role === 'owner',
+                        'bg-gray-100 text-gray-800': member.role !== 'owner'
+                      }">
+                      {{ member.role | titlecase }}
+                    </span>
+                    <button 
+                      *ngIf="isTeamOwner(team) && member.id !== team.owner_id"
+                      (click)="removeMember(team, member.id)"
+                      class="text-red-600 hover:text-red-800 text-sm font-semibold">
+                      Remove
+                    </button>
+                  </div>
                 </li>
               </ul>
             </div>
