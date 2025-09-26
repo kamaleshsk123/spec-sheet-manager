@@ -1,59 +1,88 @@
-# SpecSheetManager
+# Spec Sheet Manager
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.2.
+This document provides instructions on how to set up and run the frontend, backend, and database for the Spec Sheet Manager application.
 
-## Development server
+## Database Setup (PostgreSQL)
 
-To start a local development server, run:
+1.  **Install PostgreSQL:**
+    If you don't have PostgreSQL installed, you can download it from [postgresql.org](https://www.postgresql.org/download/).
 
-```bash
-ng serve
-```
+2.  **Create a database and user:**
+    You can use the following SQL commands to create a database and a user for this application.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+    ```sql
+    CREATE DATABASE protobuf_specs;
+    CREATE USER protobuf WITH PASSWORD '''protobuf''';
+    GRANT ALL PRIVILEGES ON DATABASE protobuf_specs TO protobuf;
+    ```
 
-## Code scaffolding
+3.  **Environment Variables:**
+    The backend uses a `.env` file for configuration. In the `backend` directory, create a `.env` file by copying the `.env.example`:
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+    ```bash
+    cp backend/.env.example backend/.env
+    ```
 
-```bash
-ng generate component component-name
-```
+    Update the `backend/.env` file with your database connection details if they are different from the defaults.
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+    ```
+    DATABASE_URL=postgresql://protobuf:protobuf@localhost:5432/protobuf_specs
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_NAME=protobuf_specs
+    DB_USER=protobuf
+    DB_PASSWORD=protobuf
+    ```
 
-```bash
-ng generate --help
-```
+4.  **Run Migrations:**
+    After setting up the database and the `.env` file, run the database migrations from the `backend` directory:
 
-## Building
+    ```bash
+    cd backend
+    npm install
+    npm run build
+    npm run db:migrate
+    cd ..
+    ```
 
-To build the project run:
+## Backend Setup
 
-```bash
-ng build
-```
+1.  **Navigate to the backend directory:**
+    ```bash
+    cd backend
+    ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-## Running unit tests
+3.  **Run the backend server (development):**
+    ```bash
+    npm run dev
+    ```
+    The backend will be running on `http://localhost:3000`.
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+4.  **Run the backend server (production):**
+    ```bash
+    npm run build
+    npm start
+    ```
 
-```bash
-ng test
-```
+## Frontend Setup
 
-## Running end-to-end tests
+1.  **Navigate to the root directory:**
+    ```bash
+    cd /home/user/Desktop/myCode/Protobuf/Protobuf_Gitpush/spec-sheet-manager
+    ```
 
-For end-to-end (e2e) testing, run:
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+3.  **Run the frontend application:**
+    ```bash
+    npm start
+    ```
+    The frontend will be running on `http://localhost:4200`.
