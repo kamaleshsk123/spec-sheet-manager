@@ -1,0 +1,800 @@
+import { Request, Response } from 'express';
+import pool from '../config/database';
+import {
+  CreateSpecRequest,
+  UpdateSpecRequest,
+  ProtobufSpec,
+  ApiResponse,
+  PaginatedResponse,
+  SpecQueryParams,
+  SpecVersion,
+  ProtoFileData,
+} from '../models/types';
+import { AuthRequest } from '../middleware/auth';
+import { Octokit } from 'octokit';
+
+// Helper to check if a user has access to a spec (is owner or team member)
+async function checkSpecAccess(specId: string, userId: string): Promise<boolean> {
+  const specResult = await pool.query('SELECT created_by, team_id FROM protobuf_specs WHERE id = $1', [specId]);
+  if (specResult.rowCount === 0) {
+    return false; // Spec not found
+  }
+  const spec = specResult.rows[0];
+
+  // It's a personal spec, check ownership
+  if (spec.team_id === null) {
+    return spec.created_by === userId;
+  }
+
+  // It's a team spec, check membership
+  const memberResult = await pool.query('SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2', [spec.team_id, userId]);
+  return !!memberResult?.rowCount;
+}
+
+// Helper function to generate .proto content from spec data
+const generateProtoContent = (specData: ProtoFileData): string => {
+  if (!specData) {
+    return '// No content available';
+  }
+
+  let protoContent = `syntax = "${specData.syntax || 'proto3'}";\n\n`;
+
+  if (specData.package) {
+    protoContent += `package ${specData.package};\n\n`;
+  }
+
+  if (specData.imports && specData.imports.length > 0) {
+    for (const importPath of specData.imports) {
+      protoContent += `import "${importPath}";\n`;
+    }
+    protoContent += '\n';
+  }
+
+  const generateMessageContent = (message: any, indent: number): string => {
+    const spaces = '  '.repeat(indent);
+    let content = `${spaces}message ${message.name} {\n`;
+
+    if (message.nestedEnums) {
+      for (const nestedEnum of message.nestedEnums) {
+        content += `${spaces}  enum ${nestedEnum.name} {\n`;
+        for (const value of nestedEnum.values) {
+          content += `${spaces}    ${value.name} = ${value.number};\n`;
+        }
+        content += `${spaces}  }\n\n`;
+      }
+    }
+
+    if (message.nestedMessages) {
+      for (const nestedMessage of message.nestedMessages) {
+        content += generateMessageContent(nestedMessage, indent + 1);
+      }
+    }
+
+    if (message.fields) {
+      for (const field of message.fields) {
+        const repeated = field.repeated ? 'repeated ' : '';
+        const optional = field.optional ? 'optional ' : '';
+        content += `${spaces}  ${repeated}${optional}${field.type} ${field.name} = ${field.number};\n`;
+      }
+    }
+
+    content += `${spaces}}\n\n`;
+    return content;
+  };
+
+  if (specData.enums && specData.enums.length > 0) {
+    for (const enumItem of specData.enums) {
+      protoContent += `enum ${enumItem.name} {\n`;
+      if (enumItem.values) {
+        for (const value of enumItem.values) {
+          protoContent += `  ${value.name} = ${value.number};\n`;
+        }
+      }
+      protoContent += '}\n\n';
+    }
+  }
+
+  if (specData.messages && specData.messages.length > 0) {
+    for (const message of specData.messages) {
+      protoContent += generateMessageContent(message, 0);
+    }
+  }
+
+  if (specData.services && specData.services.length > 0) {
+    for (const service of specData.services) {
+      protoContent += `service ${service.name} {\n`;
+      if (service.methods) {
+        for (const method of service.methods) {
+          const inputStream = method.streaming?.input ? 'stream ' : '';
+          const outputStream = method.streaming?.output ? 'stream ' : '';
+          protoContent += `  rpc ${method.name}(${inputStream}${method.inputType}) returns (${outputStream}${method.outputType});\n`;
+        }
+      }
+      protoContent += '}\n\n';
+    }
+  }
+
+  return protoContent;
+};
+
+export class SpecController {
+  static async createSpec(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.id;
+      const {
+        title,
+        version = '1.0.0',
+        description,
+        spec_data,
+        tags = [],
+        github_repo_url: incoming_github_repo_url = null,
+        github_repo_name: incoming_github_repo_name = null,
+        team_id = null,
+      }: CreateSpecRequest = req.body;
+
+      // If team_id is provided, verify user is a member of that team
+      if (team_id) {
+        const memberCheck = await pool.query(
+          'SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2',
+          [team_id, userId]
+        );
+        if (memberCheck.rowCount === 0) {
+          return res.status(403).json({
+            success: false,
+            error: 'You are not a member of the specified team.',
+          });
+        }
+      }
+
+      let final_github_repo_url = incoming_github_repo_url;
+      let final_github_repo_name = incoming_github_repo_name;
+
+      // If GitHub info is not provided in the request, try to inherit from an existing published spec with the same title
+      if (!final_github_repo_url || !final_github_repo_name) {
+        const existingPublishedSpec = await pool.query(
+          `SELECT github_repo_url, github_repo_name FROM protobuf_specs WHERE title = $1 AND github_repo_url IS NOT NULL LIMIT 1`,
+          [title]
+        );
+
+        console.log('Existing published spec query result:', existingPublishedSpec.rows); // <--- ADDED THIS LINE
+
+        if (existingPublishedSpec.rows.length > 0) {
+          final_github_repo_url = existingPublishedSpec.rows[0].github_repo_url;
+          final_github_repo_name = existingPublishedSpec.rows[0].github_repo_name;
+        }
+      }
+
+      console.log('Final GitHub info before insert:', { url: final_github_repo_url, name: final_github_repo_name }); // <--- ADDED THIS LINE
+
+      const result = await pool.query(
+        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags, github_repo_url, github_repo_name, team_id) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+         RETURNING *`,
+        [title, version, description, JSON.stringify(spec_data), userId, tags, final_github_repo_url, final_github_repo_name, team_id]
+      );
+
+      const spec = result.rows[0];
+
+      // Create initial version
+      await pool.query(
+        `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
+         VALUES ($1, $2, $3, $4)`,
+        [spec.id, version, JSON.stringify(spec.spec_data), userId]
+      );
+
+      res.status(201).json({
+        success: true,
+        data: spec,
+        message: 'Specification created successfully',
+      } as ApiResponse<ProtobufSpec>);
+    } catch (error) {
+      console.error('Create spec error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
+  static async getSpecs(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const {
+        page = 1,
+        limit = 10,
+        search,
+        tags,
+        is_published,
+        sort_by = 'created_at',
+        sort_order = 'desc',
+      }: SpecQueryParams = req.query as any;
+
+      const offset = (page - 1) * Number(limit);
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+
+      let whereClause = '';
+      if (userId) {
+        const userTeams = await pool.query('SELECT team_id FROM team_members WHERE user_id = $1', [userId]);
+        const teamIds = userTeams.rows.map(row => row.team_id);
+
+        const personalSpecClause = `(ps.created_by::text = $${paramIndex++} AND ps.team_id IS NULL)`;
+        queryParams.push(String(userId));
+
+        let teamSpecClause = '';
+        if (teamIds.length > 0) {
+          teamSpecClause = `ps.team_id = ANY($${paramIndex++}::uuid[])`;
+          queryParams.push(teamIds);
+        }
+
+        whereClause = `WHERE (${personalSpecClause}${teamSpecClause ? ` OR ${teamSpecClause}` : ''})`;
+      } else {
+        whereClause = 'WHERE ps.is_published = true';
+      }
+
+      if (search) {
+        whereClause += ` AND to_tsvector('english', ps.title || ' ' || COALESCE(ps.description, '')) @@ plainto_tsquery('english', $${paramIndex++})`;
+        queryParams.push(search);
+      }
+      if (tags && tags.length > 0) {
+        whereClause += ` AND ps.tags && $${paramIndex++}`;
+        queryParams.push(Array.isArray(tags) ? tags : [tags]);
+      }
+      if (is_published !== undefined && userId) {
+        whereClause += ` AND ps.is_published = $${paramIndex++}`;
+        queryParams.push(is_published);
+      }
+
+      const orderClause = `ORDER BY ps.${sort_by} ${sort_order.toUpperCase()}`;
+
+      const countQuery = `SELECT COUNT(*) as total FROM protobuf_specs ps ${whereClause}`;
+      const countResult = await pool.query(countQuery, queryParams);
+      const total = parseInt(countResult.rows[0].total);
+
+      const specsQuery = `
+        SELECT 
+          ps.*,
+          u.name as created_by_name,
+          u.email as created_by_email
+        FROM protobuf_specs ps
+        LEFT JOIN users u ON ps.created_by = u.id
+        ${whereClause}
+        ${orderClause}
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
+
+      queryParams.push(Number(limit), offset);
+      const specsResult = await pool.query(specsQuery, queryParams);
+
+      const response: PaginatedResponse<ProtobufSpec> = {
+        data: specsResult.rows,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+      };
+
+      res.json({
+        success: true,
+        data: response,
+      } as ApiResponse<PaginatedResponse<ProtobufSpec>>);
+    } catch (error) {
+      console.error('Get specs error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
+  static async getSpec(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const { version } = req.query;
+      const userId = req.user?.id;
+
+      const mainSpecResult = await pool.query(
+        `SELECT 
+          ps.*,
+          u.name as created_by_name,
+          u.email as created_by_email
+         FROM protobuf_specs ps
+         LEFT JOIN users u ON ps.created_by = u.id
+         WHERE ps.id = $1`,
+        [id]
+      );
+
+      if (mainSpecResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found',
+        } as ApiResponse);
+      }
+
+      let spec = mainSpecResult.rows[0];
+
+      // Check access for non-published specs
+      if (!spec.is_published) {
+        if (!userId) {
+          return res.status(404).json({ success: false, error: 'Specification not found or access denied' });
+        }
+        const hasAccess = await checkSpecAccess(id, userId);
+        if (!hasAccess) {
+          return res.status(404).json({ success: false, error: 'Specification not found or access denied' });
+        }
+      }
+
+      // If a version is specified, get that version's data
+      if (version) {
+        const versionResult = await pool.query(
+          `SELECT spec_data, version_number FROM spec_versions WHERE spec_id = $1 AND version_number = $2`,
+          [id, version]
+        );
+
+        if (versionResult.rows.length > 0) {
+          spec.spec_data = versionResult.rows[0].spec_data;
+          spec.version = versionResult.rows[0].version_number;
+        } else {
+          return res.status(404).json({
+            success: false,
+            error: `Version '${version}' not found for this specification`,
+          } as ApiResponse);
+        }
+      }
+
+      console.log('Backend getSpec result:', spec); // <--- ADDED THIS LINE
+
+      res.json({
+        success: true,
+        data: spec,
+      } as ApiResponse<ProtobufSpec>);
+    } catch (error) {
+      console.error('Get spec error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
+  static async updateSpec(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const updateData: UpdateSpecRequest = req.body;
+
+      const hasAccess = await checkSpecAccess(id, userId);
+      if (!hasAccess) {
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found or access denied',
+        } as ApiResponse);
+      }
+
+      // Build update query dynamically
+      const updateFields: string[] = [];
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+
+      Object.entries(updateData).forEach(([key, value]) => {
+        // Include field if it's not undefined, or if it's a GitHub field (to preserve null values)
+        if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id') {
+          console.log(`Including field ${key} with value:`, value);
+          if (key === 'spec_data') {
+            updateFields.push(`${key} = $${paramIndex++}`);
+            queryParams.push(JSON.stringify(value));
+          } else {
+            updateFields.push(`${key} = $${paramIndex++}`);
+            queryParams.push(value);
+          }
+        } else {
+          console.log(`Skipping field ${key} with value:`, value);
+        }
+      });
+
+      updateFields.push(`updated_at = NOW()`);
+      queryParams.push(id);
+
+      const updateQuery = `
+        UPDATE protobuf_specs 
+        SET ${updateFields.join(
+        ', '
+      )}
+        WHERE id = $${paramIndex++}
+        RETURNING *
+      `;
+
+      const result = await pool.query(updateQuery, queryParams);
+
+      // If version or spec_data changed, create new version
+      if (updateData.version || updateData.spec_data) {
+        const spec = result.rows[0];
+        await pool.query(
+          `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (spec_id, version_number) DO NOTHING`,
+          [spec.id, spec.version, JSON.stringify(spec.spec_data), userId]
+        );
+      }
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+        message: 'Specification updated successfully',
+      } as ApiResponse<ProtobufSpec>);
+    } catch (error) {
+      console.error('Update spec error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
+  static async deleteSpec(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      const hasAccess = await checkSpecAccess(id, userId);
+      if (!hasAccess) {
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found or access denied',
+        } as ApiResponse);
+      }
+
+      const result = await pool.query(
+        'DELETE FROM protobuf_specs WHERE id = $1 RETURNING id',
+        [id]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found',
+        } as ApiResponse);
+      }
+
+      res.json({
+        success: true,
+        message: 'Specification deleted successfully',
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Delete spec error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
+  static async deleteSpecAndAllVersions(req: AuthRequest, res: Response) {
+    try {
+      const { title } = req.params;
+      const userId = req.user!.id;
+
+      // First, verify the user owns at least one spec with this title
+      const ownerCheck = await pool.query(
+        'SELECT id FROM protobuf_specs WHERE title = $1 AND created_by = $2 LIMIT 1',
+        [title, userId]
+      );
+
+      if (ownerCheck.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You do not own any specs with this title.',
+        } as ApiResponse);
+      }
+
+      // Proceed with deletion
+      const result = await pool.query(
+        'DELETE FROM protobuf_specs WHERE title = $1 AND created_by = $2 RETURNING id',
+        [title, userId]
+      );
+
+      if (result.rows.length === 0) {
+        // This case should ideally not be hit if the ownerCheck passes, but it's good for safety
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found or access denied',
+        } as ApiResponse);
+      }
+
+      res.json({
+        success: true,
+        message: `All versions of specification '${title}' deleted successfully.`,
+        data: {
+          deleted_count: result.rows.length
+        }
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Delete all spec versions error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
+  static async getSpecVersions(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      // 1. Get the title of the spec from the given id
+      const titleResult = await pool.query('SELECT title FROM protobuf_specs WHERE id = $1', [id]);
+      if (titleResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Specification not found' });
+      }
+      const { title } = titleResult.rows[0];
+
+      // 2. Get all versions of the spec with the same title
+      const result = await pool.query(
+        `SELECT 
+          ps.id,
+          ps.id as spec_id,
+          ps.version as version_number,
+          ps.spec_data,
+          ps.created_at,
+          ps.created_by,
+          u.name as created_by_name
+         FROM protobuf_specs ps
+         LEFT JOIN users u ON ps.created_by = u.id
+         WHERE ps.title = $1
+         ORDER BY ps.created_at DESC`,
+        [title]
+      );
+
+      res.json({
+        success: true,
+        data: result.rows,
+      } as ApiResponse<SpecVersion[]>);
+    } catch (error) {
+      console.error('Get spec versions error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
+  static async incrementDownloadCount(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      await pool.query(
+        'UPDATE protobuf_specs SET download_count = download_count + 1 WHERE id = $1',
+        [id]
+      );
+
+      res.json({
+        success: true,
+        message: 'Download count updated',
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Increment download count error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
+  static async getDashboardStats(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.id;
+
+      // Get user's specs count
+      const specsCount = await pool.query(
+        'SELECT COUNT(*) as total FROM protobuf_specs WHERE created_by = $1',
+        [userId]
+      );
+
+      // Get published specs count
+      const publishedCount = await pool.query(
+        'SELECT COUNT(*) as total FROM protobuf_specs WHERE created_by = $1 AND is_published = true',
+        [userId]
+      );
+
+      // Get total downloads
+      const totalDownloads = await pool.query(
+        'SELECT SUM(download_count) as total FROM protobuf_specs WHERE created_by = $1',
+        [userId]
+      );
+
+      // Get recent specs
+      const recentSpecs = await pool.query(
+        `SELECT id, title, version, created_at, download_count, is_published\n         FROM protobuf_specs 
+         WHERE created_by = $1 
+         ORDER BY created_at DESC 
+         LIMIT 5`,
+        [userId]
+      );
+
+      res.json({
+        success: true,
+        data: {
+          totalSpecs: parseInt(specsCount.rows[0].total),
+          publishedSpecs: parseInt(publishedCount.rows[0].total),
+          totalDownloads: parseInt(totalDownloads.rows[0].total || '0'),
+          recentSpecs: recentSpecs.rows,
+        },
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Get dashboard stats error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
+    }
+  }
+
+  static async publishToGithub(req: AuthRequest, res: Response) {
+    try {
+      const { id: specId } = req.params;
+      const userId = req.user!.id;
+      const { repoName, description, isPrivate } = req.body;
+
+      // 1. Fetch user and spec data
+      const userResult = await pool.query(
+        'SELECT github_access_token, github_username FROM users WHERE id = $1',
+        [userId]
+      );
+      const specResult = await pool.query(
+        'SELECT * FROM protobuf_specs WHERE id = $1 AND created_by = $2',
+        [specId, userId]
+      );
+
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      if (specResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Spec not found or access denied' });
+      }
+
+      const user = userResult.rows[0];
+      const spec = specResult.rows[0];
+
+      if (!user.github_access_token) {
+        return res
+          .status(400)
+          .json({ success: false, error: 'GitHub account not connected or access token missing.' });
+      }
+
+      // 2. Initialize Octokit
+      const octokit = new Octokit({ auth: user.github_access_token });
+
+      // 3. Create GitHub repository
+      const repo = await octokit.rest.repos.createForAuthenticatedUser({
+        name: repoName,
+        description: description,
+        private: isPrivate,
+      });
+
+      // 4. Generate .proto file content
+      const protoContent = generateProtoContent(spec.spec_data);
+
+      // 5. Commit the file to the new repository
+      await octokit.rest.repos.createOrUpdateFileContents({
+        owner: user.github_username,
+        repo: repoName,
+        path: `${spec.title.replace(/\s+/g, '_')}.proto`,
+        message: `feat: Initial commit of ${spec.title} v${spec.version}`,
+        content: Buffer.from(protoContent).toString('base64'),
+      });
+
+      // 6. Update the spec with GitHub repository information
+      await pool.query(
+        'UPDATE protobuf_specs SET github_repo_url = $1, github_repo_name = $2, updated_at = NOW() WHERE id = $3',
+        [repo.data.html_url, repoName, specId]
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Successfully published to GitHub!',
+        data: { url: repo.data.html_url },
+      });
+    } catch (error: any) {
+      console.error('GitHub publish error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+
+  static async pushToBranch(req: AuthRequest, res: Response) {
+    try {
+      const { id: specId } = req.params;
+      const userId = req.user!.id;
+      const { branch = 'main', commitMessage } = req.body;
+
+      // 1. Fetch user and spec data
+      const userResult = await pool.query(
+        'SELECT github_access_token, github_username FROM users WHERE id = $1',
+        [userId]
+      );
+      const specResult = await pool.query(
+        'SELECT * FROM protobuf_specs WHERE id = $1 AND created_by = $2',
+        [specId, userId]
+      );
+
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      if (specResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Spec not found or access denied' });
+      }
+
+      const user = userResult.rows[0];
+      const spec = specResult.rows[0];
+
+      // Check if spec has been published to GitHub
+      if (!spec.github_repo_url || !spec.github_repo_name) {
+        return res.status(400).json({
+          success: false,
+          error: 'Spec must be published to GitHub first before pushing to branch.',
+        });
+      }
+
+      if (!user.github_access_token) {
+        return res
+          .status(400)
+          .json({ success: false, error: 'GitHub account not connected or access token missing.' });
+      }
+
+      // 2. Initialize Octokit
+      const octokit = new Octokit({ auth: user.github_access_token });
+
+      // 3. Generate .proto file content
+      const protoContent = generateProtoContent(spec.spec_data);
+
+      // 4. Get the current file content to check if it exists
+      let currentFile;
+      try {
+        currentFile = await octokit.rest.repos.getContent({
+          owner: user.github_username,
+          repo: spec.github_repo_name,
+          path: `${spec.title.replace(/\s+/g, '_')}.proto`,
+          ref: branch,
+        });
+      } catch (error: any) {
+        // File doesn't exist, that's okay
+        currentFile = null;
+      }
+
+      // 5. Create or update the file
+      const message = commitMessage || `feat: Update ${spec.title} v${spec.version}`;
+      const sha = currentFile?.data?.sha;
+
+      await octokit.rest.repos.createOrUpdateFileContents({
+        owner: user.github_username,
+        repo: spec.github_repo_name,
+        path: `${spec.title.replace(/\s+/g, '_')}.proto`,
+        message: message,
+        content: Buffer.from(protoContent).toString('base64'),
+        sha: sha, // Include SHA if updating existing file
+        branch: branch,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Successfully pushed to GitHub branch!',
+        data: {
+          repo: spec.github_repo_name,
+          branch: branch,
+          owner: user.github_username,
+          url: spec.github_repo_url,
+        },
+      });
+    } catch (error: any) {
+      console.error('GitHub push to branch error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+}

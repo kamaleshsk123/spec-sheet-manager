@@ -1,0 +1,1144 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+  <!-- Header -->
+  <header class="bg-white shadow-lg border-b border-gray-200">
+    <div class="container mx-auto px-6 py-4">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <div
+            class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center"
+          >
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"
+              ></path>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Protobuf Dashboard</h1>
+            <p class="text-sm text-gray-500">Manage your protocol buffer specifications</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button
+            (click)="openEditor()"
+            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              ></path>
+            </svg>
+            New Spec
+          </button>
+          <div class="relative">
+            <button
+              (click)="toggleDropdown()"
+              class="flex items-center gap-2 pl-1 pr-1 py-1 rounded-full hover:bg-gray-100"
+              aria-haspopup="menu"
+              aria-expanded="{{ isDropdownOpen }}"
+            >
+              <div
+                class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden"
+              >
+                <img
+                  *ngIf="currentUser && currentUser.github_id"
+                  [src]="'https://avatars.githubusercontent.com/u/' + currentUser.github_id"
+                  alt="Avatar"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  *ngIf="!currentUser || !currentUser.github_id"
+                  class="w-full h-full flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold"
+                >
+                  {{ getUserInitials(currentUser?.name || currentUser?.email) }}
+                </div>
+              </div>
+            </button>
+            <div
+              *ngIf="isDropdownOpen"
+              class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl ring-1 ring-black/5 z-50"
+              data-dropdown-menu
+            >
+              <div class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center"
+                  >
+                    <img
+                      *ngIf="currentUser && currentUser.github_id"
+                      [src]="'https://avatars.githubusercontent.com/u/' + currentUser.github_id"
+                      alt="Avatar"
+                      class="w-full h-full object-cover"
+                    />
+                    <div
+                      *ngIf="!currentUser || !currentUser.github_id"
+                      class="w-full h-full flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold"
+                    >
+                      {{ getUserInitials(currentUser?.name || currentUser?.email) }}
+                    </div>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm font-semibold text-gray-900 truncate">
+                      {{ currentUser?.name || 'User' }}
+                    </p>
+                    <p class="text-xs text-gray-500 truncate">{{ currentUser?.email }}</p>
+                  </div>
+                </div>
+                <div *ngIf="!currentUser || !currentUser.github_id" class="mt-3">
+                  <a
+                    href="http://localhost:3000/api/auth/github"
+                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800"
+                  >
+                    <svg
+                      class="w-4 h-4 mr-1"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M12 .5C5.73.5.75 5.48.75 11.77c0 4.95 3.21 9.15 7.66 10.63.56.1.77-.24.77-.54 0-.27-.01-1.15-.02-2.09-3.12.68-3.78-1.33-3.78-1.33-.51-1.29-1.24-1.64-1.24-1.64-1.02-.7.08-.69.08-.69 1.13.08 1.73 1.16 1.73 1.16 1 .1 1.64-.76 1.87-1.16.1-.74.4-1.24.72-1.53-2.49-.28-5.11-1.24-5.11-5.52 0-1.22.43-2.22 1.15-3-.12-.29-.5-1.45.11-3.03 0 0 .95-.3 3.11 1.15.9-.25 1.86-.38 2.82-.38.96 0 1.92.13 2.82.38 2.16-1.45 3.11-1.15 3.11-1.15.61 1.58.23 2.74.11 3.03.72.78 1.15 1.78 1.15 3 0 4.29-2.63 5.23-5.13 5.5.41.35.77 1.04.77 2.11 0 1.52-.02 2.74-.02 3.11 0 .3.2.64.78.53 4.44-1.48 7.65-5.68 7.65-10.63C23.25 5.48 18.27.5 12 .5z"
+                      />
+                    </svg>
+                    Connect GitHub
+                  </a>
+                </div>
+              </div>
+              <div class="py-1 border-t border-gray-100">
+                <a
+                  routerLink="/"
+                  class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <svg
+                    class="w-4 h-4 mr-2 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                    />
+                  </svg>
+                  Dashboard
+                </a>
+                <a
+                  routerLink="/teams"
+                  class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <svg
+                    class="w-4 h-4 mr-2 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M15 11a4 4 0 10-6 0 4 4 0 006 0z"
+                    />
+                  </svg>
+                  Manage Teams
+                </a>
+              </div>
+              <div class="py-1 border-t border-gray-100">
+                <button
+                  (click)="logout()"
+                  class="w-full flex items-center px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h4a2 2 0 012 2v1"
+                    />
+                  </svg>
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container mx-auto px-6 py-8">
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error && !isLoading" class="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+      <div class="flex items-center">
+        <svg
+          class="w-5 h-5 text-red-500 mr-2"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+        </svg>
+        <span class="text-red-700">{{ error }}</span>
+      </div>
+    </div>
+
+    <!-- Specs Grid -->
+    <div *ngIf="!isLoading && !error">
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center">
+            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg
+                class="w-6 h-6 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                ></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Total Specs</p>
+              <p class="text-2xl font-bold text-gray-900">{{ specs.length }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center">
+            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg
+                class="w-6 h-6 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Published</p>
+              <p class="text-2xl font-bold text-gray-900">{{ getPublishedCount() }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center">
+            <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <svg
+                class="w-6 h-6 text-purple-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                ></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Total Downloads</p>
+              <p class="text-2xl font-bold text-gray-900">{{ getTotalDownloads() }}</p>
+            </div>
+          </div>
+        </div> -->
+      </div>
+
+      <!-- Specs List -->
+      <div class="space-y-12">
+        <!-- Team Workspaces -->
+        <div *ngIf="teamWorkspaces.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div class="p-6 border-b border-gray-100">
+            <h2 class="text-xl font-semibold text-gray-900">Team Workspaces</h2>
+          </div>
+          <div class="divide-y divide-gray-200">
+            <div *ngFor="let workspace of teamWorkspaces">
+              <div class="p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ workspace.team.name }}</h3>
+                <div *ngIf="workspace.specs.length === 0" class="p-6 text-center">
+                  <p class="text-gray-500">This team doesn't have any specs yet.</p>
+                </div>
+                <div *ngIf="workspace.specs.length > 0" class="divide-y divide-gray-100">
+                  <div
+                    *ngFor="let spec of workspace.specs"
+                    class="py-4 hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    <!-- Spec Item Content (re-used) -->
+                    <div class="flex items-center justify-between">
+                      <div class="flex-1">
+                        <div class="flex items-center space-x-3">
+                          <h4 class="text-md font-semibold text-gray-900">{{ spec.title }}</h4>
+                          <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
+                            >v{{ spec.version }} (Latest)</span
+                          >
+                          <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded"
+                            >{{ getVersionCount(spec.title) }} version{{
+                              getVersionCount(spec.title) > 1 ? 's' : ''
+                            }}</span
+                          >
+                          <span
+                            *ngIf="spec.is_published"
+                            class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded"
+                            >Published</span
+                          >
+                        </div>
+                        <p *ngIf="spec.description" class="text-gray-600 mt-1 text-sm">{{ spec.description }}</p>
+                        <div class="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                          <span>Created: {{ formatDate(spec.created_at!) }}</span>
+                          <span *ngIf="spec.download_count">Downloads: {{ spec.download_count }}</span>
+                          <div
+                            *ngIf="spec.tags && spec.tags.length > 0"
+                            class="flex items-center space-x-1"
+                          >
+                            <span>Tags:</span>
+                            <span
+                              *ngFor="let tag of spec.tags"
+                              class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                              >{{ tag }}</span
+                            >
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        class="relative"
+                        [class]="dropdownPlacement[spec.id!] === 'up' ? 'pb-2' : 'pt-2'"
+                      >
+                        <button
+                          (click)="toggleSpecDropdown(spec.id!, $event)"
+                          data-dropdown-toggle
+                          class="p-2 text-gray-500 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="4"
+                              d="M12 5v.01M12 12v.01M12 19v.01"
+                            ></path>
+                          </svg>
+                        </button>
+                        <div
+                          *ngIf="openSpecDropdown === spec.id"
+                          data-dropdown-menu
+                          class="absolute right-0 w-52 bg-white rounded-md shadow-lg py-1 z-20"
+                          [ngStyle]="
+                            dropdownPlacement[spec.id!] === 'up' ? { bottom: '100%' } : { top: '100%' }
+                          "
+                        >
+                          <button
+                            (click)="openEditor(spec.id)"
+                            class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <svg
+                              class="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              ></path>
+                            </svg>
+                            Edit
+                          </button>
+                          <button
+                            (click)="openVersionHistoryModal(spec)"
+                            class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <svg
+                              class="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                              ></path>
+                            </svg>
+                            View Versions
+                          </button>
+                          <button
+                            (click)="openCompareModal(spec)"
+                            class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <svg
+                              class="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"
+                              ></path>
+                            </svg>
+                            Compare
+                          </button>
+                          <button
+                            *ngIf="!spec.github_repo_url"
+                            (click)="openPublishModal(spec)"
+                            class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <svg
+                              class="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                              ></path>
+                            </svg>
+                            Publish to GitHub
+                          </button>
+                          <button
+                            *ngIf="spec.github_repo_url"
+                            (click)="openPushToBranchModal(spec)"
+                            class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <svg
+                              class="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                              ></path>
+                            </svg>
+                            Commit
+                          </button>
+                          <ng-container *ngIf="isTeamOwner(workspace)">
+                          <div class="border-t border-gray-100 my-1"></div>
+                          <button
+                            (click)="deleteSpec(spec)"
+                            class="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                          >
+                            <svg
+                              class="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              ></path>
+                            </svg>
+                            Delete v{{ spec.version }}
+                          </button>
+                          <button
+                            (click)="deleteSpecAndAllVersions(spec)"
+                            class="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                          >
+                            <svg
+                              class="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              ></path>
+                            </svg>
+                            Delete Spec
+                          </button>
+                        </ng-container>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Personal Workspace -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div class="p-6 border-b border-gray-100">
+            <h2 class="text-xl font-semibold text-gray-900">Personal Workspace</h2>
+          </div>
+          <div *ngIf="personalSpecs.length === 0" class="p-12 text-center">
+            <p class="text-gray-500">You don't have any personal specs yet.</p>
+          </div>
+          <div *ngIf="personalSpecs.length > 0" class="divide-y divide-gray-200">
+            <div
+              *ngFor="let spec of personalSpecs"
+              class="p-6 hover:bg-gray-50 transition-colors duration-200"
+            >
+              <!-- Spec Item Content (re-used) -->
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center space-x-3">
+                    <h3 class="text-lg font-semibold text-gray-900">{{ spec.title }}</h3>
+                    <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
+                      >v{{ spec.version }} (Latest)</span
+                    >
+                    <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded"
+                      >{{ getVersionCount(spec.title) }} version{{
+                        getVersionCount(spec.title) > 1 ? 's' : ''
+                      }}</span
+                    >
+                    <span
+                      *ngIf="spec.is_published"
+                      class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded"
+                      >Published</span
+                    >
+                  </div>
+                  <p *ngIf="spec.description" class="text-gray-600 mt-1">{{ spec.description }}</p>
+                  <div class="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                    <span>Created: {{ formatDate(spec.created_at!) }}</span>
+                    <span *ngIf="spec.download_count">Downloads: {{ spec.download_count }}</span>
+                    <div
+                      *ngIf="spec.tags && spec.tags.length > 0"
+                      class="flex items-center space-x-1"
+                    >
+                      <span>Tags:</span>
+                      <span
+                        *ngFor="let tag of spec.tags"
+                        class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                        >{{ tag }}</span
+                      >
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="relative"
+                  [class]="dropdownPlacement[spec.id!] === 'up' ? 'pb-2' : 'pt-2'"
+                >
+                  <button
+                    (click)="toggleSpecDropdown(spec.id!, $event)"
+                    data-dropdown-toggle
+                    class="p-2 text-gray-500 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="4"
+                        d="M12 5v.01M12 12v.01M12 19v.01"
+                      ></path>
+                    </svg>
+                  </button>
+                  <div
+                    *ngIf="openSpecDropdown === spec.id"
+                    data-dropdown-menu
+                    class="absolute right-0 w-52 bg-white rounded-md shadow-lg py-1 z-20"
+                    [ngStyle]="
+                      dropdownPlacement[spec.id!] === 'up' ? { bottom: '100%' } : { top: '100%' }
+                    "
+                  >
+                    <button
+                      (click)="openEditor(spec.id)"
+                      class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        ></path>
+                      </svg>
+                      Edit
+                    </button>
+                    <button
+                      (click)="openVersionHistoryModal(spec)"
+                      class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                        ></path>
+                      </svg>
+                      View Versions
+                    </button>
+                    <button
+                      (click)="openCompareModal(spec)"
+                      class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"
+                        ></path>
+                      </svg>
+                      Compare
+                    </button>
+                    <button
+                      *ngIf="!spec.github_repo_url"
+                      (click)="openPublishModal(spec)"
+                      class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                        ></path>
+                      </svg>
+                      Publish to GitHub
+                    </button>
+                    <button
+                      *ngIf="spec.github_repo_url"
+                      (click)="openPushToBranchModal(spec)"
+                      class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                        ></path>
+                      </svg>
+                      Commit
+                    </button>
+                    <div class="border-t border-gray-100 my-1"></div>
+                    <button
+                      (click)="deleteSpec(spec)"
+                      class="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        ></path>
+                      </svg>
+                      Delete v{{ spec.version }}
+                    </button>
+                    <button
+                      (click)="deleteSpecAndAllVersions(spec)"
+                      class="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        ></path>
+                      </svg>
+                      Delete Spec
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State for All Workspaces -->
+        <div
+          *ngIf="noWorkspacesExist"
+          class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center"
+        >
+          <div
+            class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"
+          >
+            <svg
+              class="w-8 h-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium text-gray-900 mb-2">No specifications yet</h3>
+          <p class="text-gray-500 mb-4">Create your first protobuf specification to get started.</p>
+          <button
+            (click)="openEditor()"
+            class="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors duration-200"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              ></path>
+            </svg>
+            Create First Spec
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compare Modal -->
+  <app-version-history-modal
+    *ngIf="showVersionHistoryModal"
+    [spec]="specForVersionHistory"
+    [versions]="specVersions[specForVersionHistory?.id!] || []"
+    (close)="closeVersionHistoryModal()"
+    (editVersion)="handleEditVersion($event)"
+  >
+  </app-version-history-modal>
+
+  @if (showCompareModal) {
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div
+      class="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden border"
+    >
+      <!-- Modal Header -->
+      <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"
+                ></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900">Version Comparison</h2>
+              <p class="text-sm text-gray-500">{{ baseSpec?.title }}</p>
+            </div>
+          </div>
+          <button
+            (click)="closeCompareModal()"
+            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Content -->
+      <div class="p-6">
+        @if (!canShowComparison) {
+        <!-- Version Selection -->
+        <div class="space-y-6">
+          <!-- Selection Header -->
+          <div class="text-center">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Select Two Versions to Compare</h3>
+            <p class="text-gray-600">Choose any two versions to see their differences</p>
+          </div>
+
+          <!-- Selection Progress -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex items-center justify-between max-w-md mx-auto">
+              <!-- Left Selection -->
+              <div class="flex items-center space-x-3">
+                <div
+                  class="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium"
+                  [class]="leftSideSpec ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'"
+                >
+                  @if (leftSideSpec) {
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  } @else { A }
+                </div>
+                <div class="text-left">
+                  <p class="text-sm font-medium text-gray-900">Version A</p>
+                  <p class="text-xs text-gray-500">
+                    @if (leftSideSpec) { v{{ leftSideSpec.version }}
+                    } @else { Not selected }
+                  </p>
+                </div>
+              </div>
+
+              <!-- VS -->
+              <div class="px-4">
+                <span class="text-gray-400 font-medium">vs</span>
+              </div>
+
+              <!-- Right Selection -->
+              <div class="flex items-center space-x-3">
+                <div
+                  class="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium"
+                  [class]="
+                    rightSideSpec ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'
+                  "
+                >
+                  @if (rightSideSpec) {
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  } @else { B }
+                </div>
+                <div class="text-left">
+                  <p class="text-sm font-medium text-gray-900">Version B</p>
+                  <p class="text-xs text-gray-500">
+                    @if (rightSideSpec) { v{{ rightSideSpec.version }}
+                    } @else { Not selected }
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Available Versions -->
+          @if (getComparableSpecs().length === 0) {
+          <div
+            class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300"
+          >
+            <div
+              class="w-12 h-12 bg-gray-400 rounded-lg flex items-center justify-center mx-auto mb-4"
+            >
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"
+                ></path>
+              </svg>
+            </div>
+            <h4 class="text-lg font-medium text-gray-900 mb-2">No other versions found</h4>
+            <p class="text-gray-600">
+              This specification only has one version. Create new versions by editing and saving
+              with a different version number.
+            </p>
+          </div>
+          } @else {
+          <div class="space-y-4">
+            <h4 class="text-base font-medium text-gray-900">Available Versions</h4>
+            <div
+              class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-80 overflow-y-auto"
+            >
+              @for (spec of getComparableSpecs(); track spec.id) {
+              <div
+                class="relative border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md"
+                [class]="getVersionSelectionClass(spec)"
+                (click)="selectVersion(spec)"
+              >
+                <!-- Selection Badge -->
+                @if (leftSideSpec?.id === spec.id) {
+                <div
+                  class="absolute -top-2 -right-2 bg-blue-500 text-white px-2 py-1 text-xs font-medium rounded-full"
+                >
+                  A
+                </div>
+                } @else if (rightSideSpec?.id === spec.id) {
+                <div
+                  class="absolute -top-2 -right-2 bg-green-500 text-white px-2 py-1 text-xs font-medium rounded-full"
+                >
+                  B
+                </div>
+                }
+
+                <!-- Version Info -->
+                <div class="text-center">
+                  <div
+                    class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-2"
+                  >
+                    <svg
+                      class="w-4 h-4 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                      ></path>
+                    </svg>
+                  </div>
+                  <p class="font-medium text-gray-900">v{{ spec.version }}</p>
+                  <p class="text-xs text-gray-500 mt-1">{{ formatDate(spec.created_at!) }}</p>
+                </div>
+              </div>
+              }
+            </div>
+          </div>
+          }
+        </div>
+        } @else {
+        <!-- Comparison View -->
+        <div class="space-y-6">
+          <!-- Comparison Header -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                  <span class="w-3 h-3 bg-blue-500 rounded-full"></span>
+                  <span class="text-sm font-medium text-gray-900"
+                    >Version A: {{ leftSideSpec?.version }}</span
+                  >
+                </div>
+                <span class="text-gray-400">vs</span>
+                <div class="flex items-center space-x-2">
+                  <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                  <span class="text-sm font-medium text-gray-900"
+                    >Version B: {{ rightSideSpec?.version }}</span
+                  >
+                </div>
+              </div>
+              <div class="flex items-center space-x-4">
+                @if (getDiffStats(); as stats) {
+                <div class="flex items-center space-x-3 text-xs">
+                  <div class="flex items-center space-x-1">
+                    <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span class="text-green-700 font-medium">+{{ stats.added }}</span>
+                  </div>
+                  <div class="flex items-center space-x-1">
+                    <span class="w-2 h-2 bg-red-500 rounded-full"></span>
+                    <span class="text-red-700 font-medium">-{{ stats.removed }}</span>
+                  </div>
+                  <div class="flex items-center space-x-1">
+                    <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                    <span class="text-yellow-700 font-medium">~{{ stats.changed }}</span>
+                  </div>
+                </div>
+                }
+                <div class="text-sm text-gray-500">
+                  {{ formatDate(leftSideSpec?.created_at!) }} →
+                  {{ formatDate(rightSideSpec?.created_at!) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comparison Content -->
+          <div class="border rounded-lg overflow-hidden">
+            <div class="bg-gray-50 px-4 py-3 border-b">
+              <div class="flex items-center justify-between">
+                <h4 class="font-medium text-gray-900">Protocol Buffer Comparison</h4>
+                <div class="flex items-center space-x-4 text-xs">
+                  <div class="flex items-center space-x-1">
+                    <div class="w-3 h-3 bg-red-200 border border-red-400 rounded"></div>
+                    <span class="text-gray-600">Removed</span>
+                  </div>
+                  <div class="flex items-center space-x-1">
+                    <div class="w-3 h-3 bg-green-200 border border-green-400 rounded"></div>
+                    <span class="text-gray-600">Added</span>
+                  </div>
+                  <div class="flex items-center space-x-1">
+                    <div class="w-3 h-3 bg-yellow-200 border border-yellow-400 rounded"></div>
+                    <span class="text-gray-600">Modified</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 divide-x" style="height: 500px">
+              <!-- Left Side -->
+              <div class="overflow-auto">
+                <div class="sticky top-0 bg-blue-50 px-4 py-2 border-b border-blue-200">
+                  <h5 class="text-sm font-medium text-blue-800">
+                    Version {{ leftSideSpec?.version }}
+                  </h5>
+                </div>
+                <div class="diff-container">
+                  @if (getDiffData(); as diffData) { @for (line of diffData.leftLines; track $index)
+                  {
+                  <div class="flex" [class]="'diff-' + line.type">
+                    <div class="line-number w-12 px-2 py-1 text-xs flex-shrink-0 text-center">
+                      {{ line.type !== 'empty' ? line.lineNumber : '' }}
+                    </div>
+                    <div class="code-content flex-1 px-3 py-1" [class]="'text-' + line.type">
+                      {{ line.content || ' ' }}
+                    </div>
+                  </div>
+                  } }
+                </div>
+              </div>
+              <!-- Right Side -->
+              <div class="overflow-auto">
+                <div class="sticky top-0 bg-green-50 px-4 py-2 border-b border-green-200">
+                  <h5 class="text-sm font-medium text-green-800">
+                    Version {{ rightSideSpec?.version }}
+                  </h5>
+                </div>
+                <div class="diff-container">
+                  @if (getDiffData(); as diffData) { @for (line of diffData.rightLines; track
+                  $index) {
+                  <div class="flex" [class]="'diff-' + line.type">
+                    <div class="line-number w-12 px-2 py-1 text-xs flex-shrink-0 text-center">
+                      {{ line.type !== 'empty' ? line.lineNumber : '' }}
+                    </div>
+                    <div class="code-content flex-1 px-3 py-1" [class]="'text-' + line.type">
+                      {{ line.content || ' ' }}
+                    </div>
+                  </div>
+                  } }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex justify-between items-center pt-2">
+            <button
+              (click)="resetComparison()"
+              class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                ></path>
+              </svg>
+              Back to Selection
+            </button>
+            <div class="flex space-x-2">
+              <button
+                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  ></path>
+                </svg>
+                Export
+              </button>
+              <button
+                (click)="closeCompareModal()"
+                class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+  }
+</div>
+
+<app-publish-modal
+  *ngIf="showPublishModal"
+  [spec]="specToPublish"
+  (close)="closePublishModal()"
+  (publish)="handlePublish($event)"
+>
+</app-publish-modal>
+
+<app-push-to-branch-modal
+  *ngIf="showPushToBranchModal"
+  [spec]="specToPublish"
+  (close)="closePushToBranchModal()"
+  (push)="handlePushToBranch($event)"
+>
+</app-push-to-branch-modal>

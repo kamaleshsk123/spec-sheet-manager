@@ -1,0 +1,77 @@
+/* Dashboard specific styles */
+
+/* VS Code-style diff colors */
+.diff-added {
+  background-color: #e6ffed;
+  border-left: 3px solid #28a745;
+}
+
+.diff-removed {
+  background-color: #ffeef0;
+  border-left: 3px solid #d73a49;
+}
+
+.diff-modified {
+  background-color: #fff8e1;
+  border-left: 3px solid #ffc107;
+}
+
+.diff-empty {
+  background-color: #f8f9fa;
+}
+
+.diff-unchanged:hover {
+  background-color: #f8f9fa;
+}
+
+/* Line number styling */
+.line-number {
+  background-color: #f6f8fa;
+  border-right: 1px solid #e1e4e8;
+  color: #586069;
+  user-select: none;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+/* Code content styling */
+.code-content {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Diff text colors */
+.text-added {
+  color: #22863a;
+}
+
+.text-removed {
+  color: #cb2431;
+}
+
+.text-modified {
+  color: #b08800;
+}
+
+.text-empty {
+  color: #6a737d;
+}
+
+/* Scrollbar styling for diff view */
+.diff-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.diff-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.diff-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.diff-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
