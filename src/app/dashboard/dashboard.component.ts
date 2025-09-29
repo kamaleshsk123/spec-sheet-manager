@@ -8,6 +8,7 @@ import { PushToBranchModalComponent } from '../components/push-to-branch-modal/p
 import { VersionHistoryModalComponent } from '../components/version-history-modal/version-history-modal.component';
 import { forkJoin, Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 interface TeamWorkspace {
   team: Team;
@@ -58,12 +59,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   rightSideSpec: ProtobufSpec | null = null;
 
   private routerSubscription: Subscription;
+  public githubAuthUrl: string;
 
   constructor(
     private apiService: ApiService,
     private router: Router,
     private notificationService: NotificationService
   ) {
+    this.githubAuthUrl = `${environment.apiUrl}/auth/github`;
     this.routerSubscription = this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd && event.url === '/'))
       .subscribe(() => {
@@ -322,6 +325,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
   logout() {
     this.apiService.clearAuthToken();
     this.router.navigate(['/auth']);
+  }
+
+  disconnectGitHub() {
+    this.apiService.disconnectGitHub().subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success('GitHub account disconnected successfully');
+          this.loadUserProfile();
+        } else {
+          this.notificationService.error('Failed to disconnect GitHub account', response.error);
+        }
+      },
+      error: (error) => {
+        this.notificationService.error('An error occurred while disconnecting the GitHub account.');
+        console.error('GitHub disconnect error:', error);
+      }
+    });
   }
 
   formatDate(date: Date | string): string {

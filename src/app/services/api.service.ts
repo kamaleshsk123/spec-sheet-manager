@@ -288,6 +288,13 @@ export class ApiService {
     );
   }
 
+  disconnectGitHub(): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(
+      `${this.baseUrl}/auth/github`,
+      { headers: this.getHeaders() }
+    );
+  }
+
   // Health check
   healthCheck(): Observable<ApiResponse> {
     return this.http.get<ApiResponse>(`${this.baseUrl}/health`);

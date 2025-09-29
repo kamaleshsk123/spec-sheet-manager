@@ -3,21 +3,28 @@
   <header class="bg-white shadow-lg border-b border-gray-200">
     <div class="container mx-auto px-6 py-4">
       <div class="flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-          <div
-            class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center"
-          >
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="flex items-center space-x-2">
+          <div class="w-12 h-12 rounded-lg flex items-center justify-center">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 32 32"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect width="32" height="32" rx="16" fill="white" />
               <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"
-              ></path>
+                d="M15.1403 21.6395H10.8435L9.2653 25.6951H6.87546L8.45412 21.6395H5.07812L5.47279 19.4473H9.30771L10.7985 15.6548H7.42378L7.81844 13.4625H11.6534L13.2099 9.47266H15.5993L14.0427 13.4625H18.3396L19.8962 9.47266H22.2855L20.7292 13.4625H23.6447L23.2501 15.6548H19.8758L18.3855 19.4473H21.3009L20.9062 21.6395H17.5297L15.9515 25.6951H13.5617L15.1403 21.6395ZM17.486 15.6548H13.1891L11.6981 19.4473H15.9952L17.486 15.6548Z"
+                fill="black"
+              />
+              <path
+                d="M23.7714 6.92359C23.7714 6.20384 24.3077 5.58594 25.4008 5.58594C26.4939 5.58594 27.0305 6.2107 27.0305 6.92359C27.0305 7.45311 26.7258 7.84016 26.3242 8.03699C26.8266 8.22721 27.1593 8.66835 27.1593 9.25908C27.1593 10.1622 26.4261 10.7461 25.4008 10.7461C24.3824 10.7461 23.6484 10.1619 23.6484 9.25908C23.6484 8.66175 23.9811 8.22035 24.4769 8.03699C24.0566 7.8267 23.7714 7.47343 23.7714 6.92359ZM24.3893 9.23191C24.3893 9.73425 24.7702 10.101 25.4008 10.101C26.0256 10.101 26.3989 9.72765 26.3989 9.23191C26.3989 8.67521 25.9847 8.37654 25.4008 8.37654C24.8314 8.37705 24.3893 8.65489 24.3893 9.23191ZM26.2902 7.01857C26.2902 6.51064 25.9441 6.23127 25.4013 6.23127C24.8718 6.23127 24.5188 6.50276 24.5188 7.02568C24.5188 7.47368 24.8855 7.79292 25.4013 7.79292C25.9171 7.79292 26.2902 7.46683 26.2902 7.01857Z"
+                fill="black"
+              />
             </svg>
           </div>
           <div>
-            <h1 class="text-2xl font-bold text-gray-900">Protobuf Dashboard</h1>
+            <h1 class="text-2xl font-bold text-gray-900">Proto Hash</h1>
             <p class="text-sm text-gray-500">Manage your protocol buffer specifications</p>
           </div>
         </div>
@@ -92,7 +99,7 @@
                 </div>
                 <div *ngIf="!currentUser || !currentUser.github_id" class="mt-3">
                   <a
-                    href="http://localhost:3000/api/auth/github"
+                    [href]="githubAuthUrl"
                     class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800"
                   >
                     <svg
@@ -107,6 +114,14 @@
                     </svg>
                     Connect GitHub
                   </a>
+                </div>
+                <div *ngIf="currentUser && currentUser.github_id" class="mt-3">
+                  <button
+                    (click)="disconnectGitHub()"
+                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                  >
+                    Disconnect GitHub
+                  </button>
                 </div>
               </div>
               <div class="py-1 border-t border-gray-100">
@@ -278,7 +293,10 @@
       <!-- Specs List -->
       <div class="space-y-12">
         <!-- Team Workspaces -->
-        <div *ngIf="teamWorkspaces.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div
+          *ngIf="teamWorkspaces.length > 0"
+          class="bg-white rounded-xl shadow-sm border border-gray-200"
+        >
           <div class="p-6 border-b border-gray-100">
             <h2 class="text-xl font-semibold text-gray-900">Team Workspaces</h2>
           </div>
@@ -299,10 +317,12 @@
                       <div class="flex-1">
                         <div class="flex items-center space-x-3">
                           <h4 class="text-md font-semibold text-gray-900">{{ spec.title }}</h4>
-                          <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
+                          <span
+                            class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
                             >v{{ spec.version }} (Latest)</span
                           >
-                          <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded"
+                          <span
+                            class="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded"
                             >{{ getVersionCount(spec.title) }} version{{
                               getVersionCount(spec.title) > 1 ? 's' : ''
                             }}</span
@@ -313,10 +333,14 @@
                             >Published</span
                           >
                         </div>
-                        <p *ngIf="spec.description" class="text-gray-600 mt-1 text-sm">{{ spec.description }}</p>
+                        <p *ngIf="spec.description" class="text-gray-600 mt-1 text-sm">
+                          {{ spec.description }}
+                        </p>
                         <div class="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                           <span>Created: {{ formatDate(spec.created_at!) }}</span>
-                          <span *ngIf="spec.download_count">Downloads: {{ spec.download_count }}</span>
+                          <span *ngIf="spec.download_count"
+                            >Downloads: {{ spec.download_count }}</span
+                          >
                           <div
                             *ngIf="spec.tags && spec.tags.length > 0"
                             class="flex items-center space-x-1"
@@ -339,7 +363,12 @@
                           data-dropdown-toggle
                           class="p-2 text-gray-500 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
                             <path
                               stroke-linecap="round"
                               stroke-linejoin="round"
@@ -353,7 +382,9 @@
                           data-dropdown-menu
                           class="absolute right-0 w-52 bg-white rounded-md shadow-lg py-1 z-20"
                           [ngStyle]="
-                            dropdownPlacement[spec.id!] === 'up' ? { bottom: '100%' } : { top: '100%' }
+                            dropdownPlacement[spec.id!] === 'up'
+                              ? { bottom: '100%' }
+                              : { top: '100%' }
                           "
                         >
                           <button
@@ -454,46 +485,46 @@
                             Commit
                           </button>
                           <ng-container *ngIf="isTeamOwner(workspace)">
-                          <div class="border-t border-gray-100 my-1"></div>
-                          <button
-                            (click)="deleteSpec(spec)"
-                            class="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                          >
-                            <svg
-                              class="w-4 h-4 mr-2"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                            <div class="border-t border-gray-100 my-1"></div>
+                            <button
+                              (click)="deleteSpec(spec)"
+                              class="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                             >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              ></path>
-                            </svg>
-                            Delete v{{ spec.version }}
-                          </button>
-                          <button
-                            (click)="deleteSpecAndAllVersions(spec)"
-                            class="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                          >
-                            <svg
-                              class="w-4 h-4 mr-2"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                              <svg
+                                class="w-4 h-4 mr-2"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                ></path>
+                              </svg>
+                              Delete v{{ spec.version }}
+                            </button>
+                            <button
+                              (click)="deleteSpecAndAllVersions(spec)"
+                              class="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                             >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              ></path>
-                            </svg>
-                            Delete Spec
-                          </button>
-                        </ng-container>
+                              <svg
+                                class="w-4 h-4 mr-2"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                ></path>
+                              </svg>
+                              Delete Spec
+                            </button>
+                          </ng-container>
                         </div>
                       </div>
                     </div>
