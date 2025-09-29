@@ -78,7 +78,7 @@ export interface User {
   providedIn: 'root'
 })
 export class ApiService {
-  private readonly baseUrl = 'http://localhost:3000/api';
+  private readonly baseUrl = environment.apiUrl;
   private authToken = new BehaviorSubject<string | null>(null);
 
   constructor(private http: HttpClient) {
@@ -290,6 +290,6 @@ export class ApiService {
 
   // Health check
   healthCheck(): Observable<ApiResponse> {
-    return this.http.get<ApiResponse>(`http://localhost:3000/health`);
+    return this.http.get<ApiResponse>(`${this.baseUrl}/health`);
   }
 }
