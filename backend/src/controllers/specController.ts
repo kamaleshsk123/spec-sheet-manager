@@ -12,6 +12,7 @@ import {
 } from '../models/types';
 import { AuthRequest } from '../middleware/auth';
 import { Octokit } from 'octokit';
+import { incrementVersion, determineChangeType } from '../utils/versioning';
 
 // Helper to check if a user has access to a spec (is owner or team member)
 async function checkSpecAccess(specId: string, userId: string): Promise<boolean> {
@@ -373,6 +374,36 @@ export class SpecController {
         } as ApiResponse);
       }
 
+      // Get current spec data to compare changes
+      const currentSpecResult = await pool.query(
+        'SELECT version, spec_data FROM protobuf_specs WHERE id = $1',
+        [id]
+      );
+      
+      if (currentSpecResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found',
+        } as ApiResponse);
+      }
+
+      const currentSpec = currentSpecResult.rows[0];
+      let newVersion = currentSpec.version;
+
+      // Check if spec_data is being updated
+      if (updateData.spec_data) {
+        // Parse the current and new spec data for comparison
+        const currentData = currentSpec.spec_data;
+        const newData = updateData.spec_data;
+        
+        // Determine the type of change and increment version accordingly
+        const changeType = determineChangeType(currentData, newData);
+        newVersion = incrementVersion(currentSpec.version, changeType);
+        
+        // Update the version in the update data
+        updateData.version = newVersion;
+      }
+
       // Build update query dynamically
       const updateFields: string[] = [];
       const queryParams: any[] = [];
@@ -399,23 +430,20 @@ export class SpecController {
 
       const updateQuery = `
         UPDATE protobuf_specs 
-        SET ${updateFields.join(
-        ', '
-      )}
-        WHERE id = $${paramIndex++}
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
         RETURNING *
       `;
 
       const result = await pool.query(updateQuery, queryParams);
 
-      // If version or spec_data changed, create new version
-      if (updateData.version || updateData.spec_data) {
+      // Create new version if spec_data was updated
+      if (updateData.spec_data) {
         const spec = result.rows[0];
         await pool.query(
           `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (spec_id, version_number) DO NOTHING`,
-          [spec.id, spec.version, JSON.stringify(spec.spec_data), userId]
+           VALUES ($1, $2, $3, $4)`,
+          [spec.id, newVersion, JSON.stringify(spec.spec_data), userId]
         );
       }
 
