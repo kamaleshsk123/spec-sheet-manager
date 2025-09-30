@@ -26,7 +26,6 @@ import { JsonCompareModalComponent } from '../components/json-compare-modal/json
     PublishModalComponent,
     PushToBranchModalComponent,
     VersionHistoryModalComponent,
-    JsonCompareModalComponent,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
@@ -60,8 +59,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   baseSpec: ProtobufSpec | null = null;
   leftSideSpec: ProtobufSpec | null = null;
   rightSideSpec: ProtobufSpec | null = null;
-  showJsonCompareModal = false;
-  selectedSpecForJsonCompare: { oldSpec: any, newSpec: any } | null = null;
+  comparisonSpecType: 'protobuf' | 'json' = 'protobuf';
 
   private routerSubscription: Subscription;
   public githubAuthUrl: string;
@@ -163,7 +161,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const sameGroup = this.allSpecs.filter(
       (spec) =>
         spec.title === this.baseSpec!.title &&
-        (spec.team_id || null) === (this.baseSpec!.team_id || null)
+        (spec.team_id || null) === (this.baseSpec!.team_id || null) &&
+        (spec.spec_type || 'protobuf') === this.comparisonSpecType
     );
     // Sort by version descending so newest first
     return sameGroup.sort((a, b) => this.compareVersions(b.version, a.version));
@@ -213,8 +212,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     rightLines: { content: string; lineNumber: number; type: string }[];
   } {
     try {
-      const leftText = this.generateProtoContent(this.leftSideSpec?.spec_data || {});
-      const rightText = this.generateProtoContent(this.rightSideSpec?.spec_data || {});
+      let leftText: string;
+      let rightText: string;
+
+      if (this.comparisonSpecType === 'json') {
+        leftText = JSON.stringify(this.leftSideSpec?.spec_data || {}, null, 2);
+        rightText = JSON.stringify(this.rightSideSpec?.spec_data || {}, null, 2);
+      } else {
+        leftText = this.generateProtoContent(this.leftSideSpec?.spec_data || {});
+        rightText = this.generateProtoContent(this.rightSideSpec?.spec_data || {});
+      }
 
       const left = leftText.split('\n');
       const right = rightText.split('\n');
@@ -343,9 +350,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
       },
       error: (error) => {
-          this.notificationService.error('An error occurred while disconnecting the GitHub account.');
-          console.error('GitHub disconnect error:', error);
-      }
+        this.notificationService.error('An error occurred while disconnecting the GitHub account.');
+        console.error('GitHub disconnect error:', error);
+      },
     });
   }
 
@@ -460,28 +467,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   openCompareModal(spec: ProtobufSpec) {
     this.openSpecDropdown = null;
-    if (spec.spec_type === 'json') {
-      const versions = this.allSpecs.filter(s => s.title === spec.title && (s.team_id || null) === (spec.team_id || null));
-      if (versions.length > 1) {
-        const sortedVersions = versions.sort((a, b) => this.compareVersions(b.version, a.version));
-        this.selectedSpecForJsonCompare = { oldSpec: sortedVersions[1].spec_data, newSpec: sortedVersions[0].spec_data };
-        this.showJsonCompareModal = true;
-      } else {
-        this.notificationService.info('Not enough versions', 'This spec does not have enough versions to compare.');
-      }
-    } else {
-      this.baseSpec = spec;
-      this.leftSideSpec = null;
-      this.rightSideSpec = null;
-      this.canShowComparison = false;
-      this.showCompareModal = true;
-    }
+    this.baseSpec = spec;
+    this.comparisonSpecType = spec.spec_type || 'protobuf';
+    this.leftSideSpec = null;
+    this.rightSideSpec = null;
+    this.canShowComparison = false;
+    this.showCompareModal = true;
   }
 
-  closeJsonCompareModal() {
-    this.showJsonCompareModal = false;
-    this.selectedSpecForJsonCompare = null;
-  }
   closeCompareModal() {
     this.showCompareModal = false;
     this.baseSpec = null;
@@ -530,7 +523,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.openSpecDropdown = null;
     const confirmed = await this.notificationService.confirm(
       'Delete Specification',
-      `Are you sure you want to delete "${spec.title}"? This action cannot be undone.`, { confirmText: 'Delete', cancelText: 'Cancel', type: 'danger' } 
+      `Are you sure you want to delete "${spec.title}"? This action cannot be undone.`,
+      { confirmText: 'Delete', cancelText: 'Cancel', type: 'danger' }
     );
     if (confirmed) {
       this.apiService.deleteSpec(spec.id!).subscribe({
@@ -563,7 +557,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.openSpecDropdown = null;
     const confirmed = await this.notificationService.confirm(
       'Delete Entire Specification',
-      `Are you sure you want to delete the entire spec "${spec.title}" and all its versions? This action is permanent and cannot be undone.`, { confirmText: 'Delete All Versions', cancelText: 'Cancel', type: 'danger' } 
+      `Are you sure you want to delete the entire spec "${spec.title}" and all its versions? This action is permanent and cannot be undone.`,
+      { confirmText: 'Delete All Versions', cancelText: 'Cancel', type: 'danger' }
     );
     if (confirmed) {
       this.apiService.deleteSpecAndAllVersions(spec.title).subscribe({

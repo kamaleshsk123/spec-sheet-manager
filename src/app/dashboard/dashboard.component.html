@@ -806,6 +806,7 @@
   >
   </app-version-history-modal>
 
+  <!-- Compare Modal -->
   @if (showCompareModal) {
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
     <div
@@ -830,6 +831,7 @@
               <p class="text-sm text-gray-500">{{ baseSpec?.title }}</p>
             </div>
           </div>
+
           <button
             (click)="closeCompareModal()"
             class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
@@ -851,6 +853,43 @@
         @if (!canShowComparison) {
         <!-- Version Selection -->
         <div class="space-y-6">
+          <!-- Toggle placed for selection step -->
+          <div class="flex justify-end">
+            <div class="flex items-center p-1 bg-gray-200 rounded-full">
+              <button
+                (click)="comparisonSpecType = 'protobuf'; resetComparison()"
+                [class.bg-white]="comparisonSpecType === 'protobuf'"
+                [class.shadow]="comparisonSpecType === 'protobuf'"
+                class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full transition-colors"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  ></path>
+                </svg>
+                Protobuf
+              </button>
+              <button
+                (click)="comparisonSpecType = 'json'; resetComparison()"
+                [class.bg-white]="comparisonSpecType === 'json'"
+                [class.shadow]="comparisonSpecType === 'json'"
+                class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full transition-colors"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  ></path>
+                </svg>
+                JSON
+              </button>
+            </div>
+          </div>
           <!-- Selection Header -->
           <div class="text-center">
             <h3 class="text-lg font-medium text-gray-900 mb-2">Select Two Versions to Compare</h3>
@@ -1049,7 +1088,56 @@
           <div class="border rounded-lg overflow-hidden">
             <div class="bg-gray-50 px-4 py-3 border-b">
               <div class="flex items-center justify-between">
-                <h4 class="font-medium text-gray-900">Protocol Buffer Comparison</h4>
+                <div class="flex items-center gap-4">
+                  <h4 class="font-medium text-gray-900">
+                    {{ comparisonSpecType === 'protobuf' ? 'Protocol Buffer' : 'JSON' }} Comparison
+                  </h4>
+                  <!-- Moved & Restyled Toggle -->
+                  <!-- <div class="flex items-center p-1 bg-gray-200 rounded-full">
+                    <button
+                      (click)="comparisonSpecType = 'protobuf'; resetComparison()"
+                      [class.bg-white]="comparisonSpecType === 'protobuf'"
+                      [class.shadow]="comparisonSpecType === 'protobuf'"
+                      class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full transition-colors"
+                    >
+                      <svg
+                        class="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                        ></path>
+                      </svg>
+                      Protobuf
+                    </button>
+                    <button
+                      (click)="comparisonSpecType = 'json'; resetComparison()"
+                      [class.bg-white]="comparisonSpecType === 'json'"
+                      [class.shadow]="comparisonSpecType === 'json'"
+                      class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full transition-colors"
+                    >
+                      <svg
+                        class="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                        ></path>
+                      </svg>
+                      JSON
+                    </button>
+                  </div> -->
+                </div>
                 <div class="flex items-center space-x-4 text-xs">
                   <div class="flex items-center space-x-1">
                     <div class="w-3 h-3 bg-red-200 border border-red-400 rounded"></div>
@@ -1157,20 +1245,6 @@
   </div>
   }
 </div>
-
-<app-json-compare-modal
-  *ngIf="showJsonCompareModal"
-  [oldSpec]="selectedSpecForJsonCompare?.oldSpec"
-  [newSpec]="selectedSpecForJsonCompare?.newSpec"
-  (close)="closeJsonCompareModal()"
-></app-json-compare-modal>
-
-<app-json-compare-modal
-  *ngIf="showJsonCompareModal"
-  [oldSpec]="selectedSpecForJsonCompare?.oldSpec"
-  [newSpec]="selectedSpecForJsonCompare?.newSpec"
-  (close)="closeJsonCompareModal()"
-></app-json-compare-modal>
 
 <app-publish-modal
   *ngIf="showPublishModal"

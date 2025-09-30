@@ -44,3 +44,6 @@ Thumbs.db
 
 # YoYo AI version control directory
 .yoyo/
+
+
+.env.example
