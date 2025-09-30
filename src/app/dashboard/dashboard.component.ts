@@ -15,6 +15,8 @@ interface TeamWorkspace {
   specs: ProtobufSpec[];
 }
 
+import { JsonCompareModalComponent } from '../components/json-compare-modal/json-compare-modal.component';
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -24,6 +26,7 @@ interface TeamWorkspace {
     PublishModalComponent,
     PushToBranchModalComponent,
     VersionHistoryModalComponent,
+    JsonCompareModalComponent,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
@@ -57,6 +60,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   baseSpec: ProtobufSpec | null = null;
   leftSideSpec: ProtobufSpec | null = null;
   rightSideSpec: ProtobufSpec | null = null;
+  showJsonCompareModal = false;
+  selectedSpecForJsonCompare: { oldSpec: any, newSpec: any } | null = null;
 
   private routerSubscription: Subscription;
   public githubAuthUrl: string;
@@ -338,8 +343,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
       },
       error: (error) => {
-        this.notificationService.error('An error occurred while disconnecting the GitHub account.');
-        console.error('GitHub disconnect error:', error);
+          this.notificationService.error('An error occurred while disconnecting the GitHub account.');
+          console.error('GitHub disconnect error:', error);
       }
     });
   }
@@ -455,13 +460,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   openCompareModal(spec: ProtobufSpec) {
     this.openSpecDropdown = null;
-    this.baseSpec = spec;
-    this.leftSideSpec = null;
-    this.rightSideSpec = null;
-    this.canShowComparison = false;
-    this.showCompareModal = true;
+    if (spec.spec_type === 'json') {
+      const versions = this.allSpecs.filter(s => s.title === spec.title && (s.team_id || null) === (spec.team_id || null));
+      if (versions.length > 1) {
+        const sortedVersions = versions.sort((a, b) => this.compareVersions(b.version, a.version));
+        this.selectedSpecForJsonCompare = { oldSpec: sortedVersions[1].spec_data, newSpec: sortedVersions[0].spec_data };
+        this.showJsonCompareModal = true;
+      } else {
+        this.notificationService.info('Not enough versions', 'This spec does not have enough versions to compare.');
+      }
+    } else {
+      this.baseSpec = spec;
+      this.leftSideSpec = null;
+      this.rightSideSpec = null;
+      this.canShowComparison = false;
+      this.showCompareModal = true;
+    }
   }
 
+  closeJsonCompareModal() {
+    this.showJsonCompareModal = false;
+    this.selectedSpecForJsonCompare = null;
+  }
   closeCompareModal() {
     this.showCompareModal = false;
     this.baseSpec = null;
@@ -510,8 +530,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.openSpecDropdown = null;
     const confirmed = await this.notificationService.confirm(
       'Delete Specification',
-      `Are you sure you want to delete "${spec.title}"? This action cannot be undone.`,
-      { confirmText: 'Delete', cancelText: 'Cancel', type: 'danger' }
+      `Are you sure you want to delete "${spec.title}"? This action cannot be undone.`, { confirmText: 'Delete', cancelText: 'Cancel', type: 'danger' } 
     );
     if (confirmed) {
       this.apiService.deleteSpec(spec.id!).subscribe({
@@ -544,8 +563,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.openSpecDropdown = null;
     const confirmed = await this.notificationService.confirm(
       'Delete Entire Specification',
-      `Are you sure you want to delete the entire spec "${spec.title}" and all its versions? This action is permanent and cannot be undone.`,
-      { confirmText: 'Delete All Versions', cancelText: 'Cancel', type: 'danger' }
+      `Are you sure you want to delete the entire spec "${spec.title}" and all its versions? This action is permanent and cannot be undone.`, { confirmText: 'Delete All Versions', cancelText: 'Cancel', type: 'danger' } 
     );
     if (confirmed) {
       this.apiService.deleteSpecAndAllVersions(spec.title).subscribe({
@@ -612,7 +630,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         for (const en of message.nestedEnums) {
           s += `${pad}  enum ${en.name} {\n`;
           for (const v of en.values || []) {
-            s += `${pad}    ${v.name} = ${v.number};\n`;
+            s += `${pad}    ${v.name} = ${v.number};
+`;
           }
           s += `${pad}  }\n\n`;
         }

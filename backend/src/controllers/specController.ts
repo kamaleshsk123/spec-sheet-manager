@@ -34,8 +34,9 @@ async function checkSpecAccess(specId: string, userId: string): Promise<boolean>
 
 // Helper function to generate .proto content from spec data
 const generateProtoContent = (specData: ProtoFileData): string => {
-  if (!specData) {
-    return '// No content available';
+  if (!specData || !('syntax' in specData)) {
+    // If it's a JSON schema or invalid data, return a comment
+    return '// Not a Protobuf schema';
   }
 
   let protoContent = `syntax = "${specData.syntax || 'proto3'}";\n\n`;
@@ -127,6 +128,7 @@ export class SpecController {
         version = '1.0.0',
         description,
         spec_data,
+        spec_type = 'protobuf',
         tags = [],
         github_repo_url: incoming_github_repo_url = null,
         github_repo_name: incoming_github_repo_name = null,
@@ -157,28 +159,24 @@ export class SpecController {
           [title]
         );
 
-        console.log('Existing published spec query result:', existingPublishedSpec.rows); // <--- ADDED THIS LINE
-
         if (existingPublishedSpec.rows.length > 0) {
           final_github_repo_url = existingPublishedSpec.rows[0].github_repo_url;
           final_github_repo_name = existingPublishedSpec.rows[0].github_repo_name;
         }
       }
 
-      console.log('Final GitHub info before insert:', { url: final_github_repo_url, name: final_github_repo_name }); // <--- ADDED THIS LINE
-
       const result = await pool.query(
-        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags, github_repo_url, github_repo_name, team_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+        `INSERT INTO protobuf_specs (title, version, description, spec_data, spec_type, created_by, tags, github_repo_url, github_repo_name, team_id) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
          RETURNING *`,
-        [title, version, description, JSON.stringify(spec_data), userId, tags, final_github_repo_url, final_github_repo_name, team_id]
+        [title, version, description, JSON.stringify(spec_data), spec_type, userId, tags, final_github_repo_url, final_github_repo_name, team_id]
       );
 
       const spec = result.rows[0];
 
       // Create initial version
       await pool.query(
-        `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
+        `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by) 
          VALUES ($1, $2, $3, $4)`,
         [spec.id, version, JSON.stringify(spec.spec_data), userId]
       );
@@ -345,8 +343,6 @@ export class SpecController {
         }
       }
 
-      console.log('Backend getSpec result:', spec); // <--- ADDED THIS LINE
-
       res.json({
         success: true,
         data: spec,
@@ -412,7 +408,6 @@ export class SpecController {
       Object.entries(updateData).forEach(([key, value]) => {
         // Include field if it's not undefined, or if it's a GitHub field (to preserve null values)
         if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id') {
-          console.log(`Including field ${key} with value:`, value);
           if (key === 'spec_data') {
             updateFields.push(`${key} = $${paramIndex++}`);
             queryParams.push(JSON.stringify(value));
@@ -420,8 +415,6 @@ export class SpecController {
             updateFields.push(`${key} = $${paramIndex++}`);
             queryParams.push(value);
           }
-        } else {
-          console.log(`Skipping field ${key} with value:`, value);
         }
       });
 

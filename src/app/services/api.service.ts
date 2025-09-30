@@ -19,6 +19,7 @@ export interface ProtobufSpec {
   version: string;
   description?: string;
   spec_data: ProtoFileData;
+  spec_type: 'protobuf' | 'json';
   created_at?: Date;
   updated_at?: Date;
   created_by?: string;

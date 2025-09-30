@@ -246,20 +246,29 @@ export class EditorComponent implements OnInit {
           // Load GitHub repository information
           this.githubRepoUrl = spec.github_repo_url || null;
           this.githubRepoName = spec.github_repo_name || null;
-          console.log('Loaded GitHub info:', {
-            url: this.githubRepoUrl,
-            name: this.githubRepoName,
-          }); // <--- ADDED THIS LINE
 
-          // Load proto data
-          this.protoFile = spec.spec_data;
-
-          // Store original data for comparison
-          this.originalSpecData = JSON.parse(JSON.stringify(spec.spec_data));
-          this.originalVersion = spec.version;
+          // Set the toggle and load data based on the spec type
+          if (spec.spec_type === 'json') {
+            this.toggleValue = 'json';
+            this.toggleChecked = true;
+            this.jsonSchema = spec.spec_data as any;
+            this.jsonFields = this.jsonFieldsFromSchema(this.jsonSchema);
+          } else {
+            this.toggleValue = 'protobuf';
+            this.toggleChecked = false;
+            this.protoFile = spec.spec_data;
+          }
 
           // Update preview
           this.updateEditorContent();
+
+          // Store original data for comparison AFTER content is updated
+          if (this.toggleValue === 'json') {
+            this.originalSpecData = JSON.parse(JSON.stringify(this.jsonSchema));
+          } else {
+            this.originalSpecData = JSON.parse(JSON.stringify(this.protoFile));
+          }
+          this.originalVersion = spec.version;
 
           this.notificationService.success(
             'Specification Loaded',
@@ -795,7 +804,8 @@ export class EditorComponent implements OnInit {
       title: this.specTitle.trim(),
       version: finalVersion,
       description: this.specDescription || '',
-      spec_data: this.protoFile,
+      spec_type: this.toggleValue,
+      spec_data: this.toggleValue === 'protobuf' ? this.protoFile : this.jsonSchema,
       tags: this.specTags
         ? this.specTags
             .split(',')
@@ -833,7 +843,11 @@ export class EditorComponent implements OnInit {
           this.currentSpecId = response.data.id!;
 
           // Update original data for future comparisons
-          this.originalSpecData = JSON.parse(JSON.stringify(this.protoFile));
+          if (this.toggleValue === 'json') {
+            this.originalSpecData = JSON.parse(JSON.stringify(this.jsonSchema));
+          } else {
+            this.originalSpecData = JSON.parse(JSON.stringify(this.protoFile));
+          }
           this.originalVersion = finalVersion;
 
           let title: string = '';
@@ -876,6 +890,10 @@ export class EditorComponent implements OnInit {
   hasSpecDataChanged(): boolean {
     if (!this.originalSpecData) {
       return false; // New spec, no comparison needed
+    }
+
+    if (this.toggleValue === 'json') {
+      return JSON.stringify(this.originalSpecData) !== JSON.stringify(this.jsonSchema);
     }
 
     return JSON.stringify(this.originalSpecData) !== JSON.stringify(this.protoFile);
@@ -999,6 +1017,47 @@ export class EditorComponent implements OnInit {
     });
   }
   // --- JSON Schema Methods ---
+  jsonFieldsFromSchema(schema: JsonSchema): JsonField[] {
+    const fields: JsonField[] = [];
+    if (schema && schema.properties) {
+      for (const key in schema.properties) {
+        const prop = schema.properties[key];
+        const field: JsonField = {
+          name: key,
+          is_required: schema.required?.includes(key) || false,
+          type: prop.type,
+          pattern: prop.pattern,
+          minimum: prop.minimum,
+          maximum: prop.maximum,
+          enum: prop.enum,
+          children: [],
+          items: {
+            type: prop.items?.type || 'string',
+            children: [],
+          },
+        };
+        if (prop.type === 'object' && prop.properties) {
+          field.children = this.jsonFieldsFromSchema({
+            title: '',
+            type: 'object',
+            properties: prop.properties,
+            required: prop.required || [],
+          });
+        }
+        if (prop.type === 'array' && prop.items?.type === 'object' && prop.items.properties) {
+          field.items.children = this.jsonFieldsFromSchema({
+            title: '',
+            type: 'object',
+            properties: prop.items.properties,
+            required: prop.items.required || [],
+          });
+        }
+        fields.push(field);
+      }
+    }
+    return fields;
+  }
+
   addJsonField(parent?: JsonField, isArrayItem: boolean = false) {
     const newField: JsonField = {
       name: 'new_field',

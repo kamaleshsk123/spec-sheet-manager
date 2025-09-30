@@ -1158,6 +1158,20 @@
   }
 </div>
 
+<app-json-compare-modal
+  *ngIf="showJsonCompareModal"
+  [oldSpec]="selectedSpecForJsonCompare?.oldSpec"
+  [newSpec]="selectedSpecForJsonCompare?.newSpec"
+  (close)="closeJsonCompareModal()"
+></app-json-compare-modal>
+
+<app-json-compare-modal
+  *ngIf="showJsonCompareModal"
+  [oldSpec]="selectedSpecForJsonCompare?.oldSpec"
+  [newSpec]="selectedSpecForJsonCompare?.newSpec"
+  (close)="closeJsonCompareModal()"
+></app-json-compare-modal>
+
 <app-publish-modal
   *ngIf="showPublishModal"
   [spec]="specToPublish"
