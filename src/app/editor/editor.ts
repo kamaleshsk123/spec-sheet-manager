@@ -1201,28 +1201,38 @@ export class EditorComponent implements OnInit {
   private generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
     switch (prop.type) {
       case 'string': {
-        if (prop.pattern && /^\^\[A-Z0-9\]\{6\}\$$/.test(prop.pattern)) {
-          return 'ABC123';
-        }
         if (prop.enum && prop.enum.length > 0) {
-          return prop.enum[0];
+          return prop.enum[Math.floor(Math.random() * prop.enum.length)];
         }
-        return 'string';
+        if (prop.pattern && /^\^\[A-Z0-9\]\{6\}\$$/.test(prop.pattern)) {
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+          let result = '';
+          for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          return result;
+        }
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        const length = Math.floor(Math.random() * 8) + 5; // Random length between 5 and 12
+        for (let i = 0; i < length; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
       }
       case 'integer': {
         const min = prop.minimum ?? 0;
         const max = prop.maximum ?? min + 100;
-        const mid = Math.floor((min + max) / 2);
-        return mid;
+        return Math.floor(Math.random() * (max - min + 1)) + min;
       }
       case 'number': {
         const min = prop.minimum ?? 0;
         const max = prop.maximum ?? min + 100;
-        const mid = (min + max) / 2;
-        return Math.round(mid * 100) / 100;
+        const randomNum = Math.random() * (max - min) + min;
+        return Math.round(randomNum * 100) / 100;
       }
       case 'boolean':
-        return true;
+        return Math.random() < 0.5;
       case 'object': {
         const child: any = {};
         const nestedProps = prop.properties || {};
@@ -1233,7 +1243,12 @@ export class EditorComponent implements OnInit {
       }
       case 'array': {
         const itemSchema = prop.items || ({ type: 'string' } as JsonSchemaProperty);
-        return [this.generateMockForProperty(itemSchema, key)];
+        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const items = [];
+        for (let i = 0; i < itemCount; i++) {
+          items.push(this.generateMockForProperty(itemSchema, key));
+        }
+        return items;
       }
       default:
         return null;
