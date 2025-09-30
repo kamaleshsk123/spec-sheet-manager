@@ -59,6 +59,41 @@ interface ProtoFile {
   services: Service[];
 }
 
+// --- JSON Schema Interfaces ---
+interface JsonSchemaProperty {
+  type: string;
+  pattern?: string;
+  minimum?: number;
+  maximum?: number;
+  enum?: any[];
+  properties?: { [key: string]: JsonSchemaProperty };
+  required?: string[];
+  items?: JsonSchemaProperty; // For arrays
+}
+
+interface JsonSchema {
+  title: string;
+  type: 'object';
+  properties: { [key: string]: JsonSchemaProperty };
+  required: string[];
+}
+
+interface JsonField {
+  name: string;
+  is_required: boolean;
+  type: string;
+  pattern?: string;
+  minimum?: number;
+  maximum?: number;
+  enum?: any[];
+  children: JsonField[]; // For type 'object'
+  items: {
+    // For type 'array'
+    type: string;
+    children: JsonField[]; // For array of objects
+  };
+}
+
 @Component({
   selector: 'app-editor',
   imports: [
@@ -95,6 +130,9 @@ export class EditorComponent implements OnInit {
   specDescription: string = '';
   specTags: string = '';
 
+  toggleChecked = false;
+  toggleValue: 'protobuf' | 'json' = 'protobuf';
+
   // Current spec ID (for updates)
   currentSpecId: string | null = null;
   currentSpec: ProtobufSpec | null = null;
@@ -128,7 +166,18 @@ export class EditorComponent implements OnInit {
   };
   showDownloadMenu: boolean = false;
   activeTab: 'messages' | 'enums' | 'services' | 'settings';
-
+  // --- JSON Schema State ---
+  jsonSchema: JsonSchema = {
+    title: 'StatusUpdate',
+    type: 'object',
+    properties: {},
+    required: [],
+  };
+  jsonFields: JsonField[] = [];
+  // JSON Demo overlay state
+  showJsonDemoOverlay: boolean = false;
+  demoJsonText: string = '';
+  demoJsonHtml: string = '';
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
     if (this.showDownloadMenu) {
@@ -151,7 +200,7 @@ export class EditorComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.updateProtoPreview();
+    this.updateEditorContent();
     this.loadMyTeams();
 
     // Check if we need to load a specific spec
@@ -210,7 +259,7 @@ export class EditorComponent implements OnInit {
           this.originalVersion = spec.version;
 
           // Update preview
-          this.updateProtoPreview();
+          this.updateEditorContent();
 
           this.notificationService.success(
             'Specification Loaded',
@@ -246,12 +295,12 @@ export class EditorComponent implements OnInit {
       nestedMessages: [],
       nestedEnums: [],
     });
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   removeMessage(index: number) {
     this.protoFile.messages.splice(index, 1);
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   addField(message: Message) {
@@ -262,12 +311,12 @@ export class EditorComponent implements OnInit {
       repeated: false,
       optional: false,
     });
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   removeField(message: Message, index: number) {
     message.fields.splice(index, 1);
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   uploadSpec() {
@@ -287,7 +336,7 @@ export class EditorComponent implements OnInit {
         const ast = parse(content) as any;
         this.fromAst(ast);
         this.notificationService.success('Spec Uploaded', 'Successfully parsed .proto file.');
-        this.updateProtoPreview();
+        this.updateEditorContent();
       } catch (error: any) {
         this.notificationService.error(
           'Parse Error',
@@ -397,12 +446,12 @@ export class EditorComponent implements OnInit {
       name: 'NewEnum',
       values: [{ name: 'UNKNOWN', number: 0 }],
     });
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   removeEnum(index: number) {
     this.protoFile.enums.splice(index, 1);
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   addEnumValue(enumItem: Enum) {
@@ -411,12 +460,12 @@ export class EditorComponent implements OnInit {
       name: 'NEW_VALUE',
       number: nextNumber,
     });
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   removeEnumValue(enumItem: Enum, index: number) {
     enumItem.values.splice(index, 1);
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   // Service methods
@@ -425,12 +474,12 @@ export class EditorComponent implements OnInit {
       name: 'NewService',
       methods: [],
     });
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   removeService(index: number) {
     this.protoFile.services.splice(index, 1);
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   addServiceMethod(service: Service) {
@@ -440,23 +489,23 @@ export class EditorComponent implements OnInit {
       outputType: 'google.protobuf.Empty',
       streaming: { input: false, output: false },
     });
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   removeServiceMethod(service: Service, index: number) {
     service.methods.splice(index, 1);
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   // Import methods
   addImport() {
     this.protoFile.imports.push('google/protobuf/empty.proto');
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   removeImport(index: number) {
     this.protoFile.imports.splice(index, 1);
-    this.updateProtoPreview();
+    this.updateEditorContent();
   }
 
   // Tab switching
@@ -464,6 +513,18 @@ export class EditorComponent implements OnInit {
     this.activeTab = tab;
   }
 
+  updateEditorContent() {
+    if (this.toggleValue === 'protobuf') {
+      this.editorOptions = { ...this.editorOptions, language: 'plaintext' };
+      this.updateProtoPreview();
+    } else {
+      this.editorOptions = { ...this.editorOptions, language: 'json' };
+      if (this.activeTab !== 'messages') {
+        this.setActiveTab('messages');
+      }
+      this.updateJsonPreview();
+    }
+  }
   updateProtoPreview() {
     let protoContent = `syntax = "${this.protoFile.syntax}";\n\n`;
 
@@ -936,5 +997,228 @@ export class EditorComponent implements OnInit {
         );
       },
     });
+  }
+  // --- JSON Schema Methods ---
+  addJsonField(parent?: JsonField, isArrayItem: boolean = false) {
+    const newField: JsonField = {
+      name: 'new_field',
+      is_required: false,
+      type: 'string',
+      children: [],
+      items: { type: 'string', children: [] },
+    };
+    if (parent) {
+      if (isArrayItem) {
+        parent.items.children = [...parent.items.children, newField];
+      } else {
+        parent.children = [...parent.children, newField];
+      }
+      this.jsonFields = [...this.jsonFields];
+    } else {
+      this.jsonFields = [...this.jsonFields, newField];
+    }
+    this.updateJsonPreview();
+  }
+
+  removeJsonField(index: number, parent?: JsonField, isArrayItem: boolean = false) {
+    const target = isArrayItem
+      ? parent!.items.children
+      : parent
+      ? parent.children
+      : this.jsonFields;
+    target.splice(index, 1);
+    this.updateJsonPreview();
+  }
+
+  updateJsonPreview() {
+    const buildSchema = (
+      fields: JsonField[]
+    ): { properties: { [key: string]: JsonSchemaProperty }; required: string[] } => {
+      const properties: { [key: string]: JsonSchemaProperty } = {};
+      const required: string[] = [];
+      for (const field of fields) {
+        if (!field.name) continue;
+        const property: JsonSchemaProperty = { type: field.type };
+        if (field.is_required) required.push(field.name);
+        if (field.type === 'string' && field.pattern) property.pattern = field.pattern;
+        if (field.type === 'number' || field.type === 'integer') {
+          if (field.minimum !== null && field.minimum !== undefined)
+            property.minimum = field.minimum;
+          if (field.maximum !== null && field.maximum !== undefined)
+            property.maximum = field.maximum;
+        }
+        if (field.enum && field.enum.length > 0 && (field.enum.length > 1 || field.enum[0]))
+          property.enum = field.enum;
+        if (field.type === 'object') {
+          const nestedSchema = buildSchema(field.children);
+          property.properties = nestedSchema.properties;
+          if (nestedSchema.required.length > 0) property.required = nestedSchema.required;
+        } else if (field.type === 'array') {
+          const itemsSchema: JsonSchemaProperty = { type: field.items.type };
+          if (field.items.type === 'object') {
+            const nestedSchema = buildSchema(field.items.children);
+            itemsSchema.properties = nestedSchema.properties;
+            if (nestedSchema.required.length > 0) itemsSchema.required = nestedSchema.required;
+          }
+          property.items = itemsSchema;
+        }
+        properties[field.name] = property;
+      }
+      return { properties, required };
+    };
+    const { properties, required } = buildSchema(this.jsonFields);
+    this.jsonSchema.properties = properties;
+    this.jsonSchema.required = required;
+    this.code = JSON.stringify(this.jsonSchema, null, 2);
+  }
+
+  updateJsonEnum(event: string, field: JsonField) {
+    if (event && event.trim()) {
+      const isNumeric = field.type === 'number' || field.type === 'integer';
+      field.enum = event.split(',').map((s) => {
+        const trimmed = s.trim();
+        return isNumeric && trimmed ? Number(trimmed) : trimmed;
+      });
+    } else {
+      field.enum = [];
+    }
+    this.updateJsonPreview();
+  }
+
+  // --- Preview Actions ---
+  copyCode() {
+    const textToCopy = this.code || '';
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard
+        .writeText(textToCopy)
+        .then(() => {
+          this.notificationService.success('Copied', 'Preview code copied to clipboard');
+        })
+        .catch(() => {
+          this.fallbackCopy(textToCopy);
+        });
+    } else {
+      this.fallbackCopy(textToCopy);
+    }
+  }
+
+  private fallbackCopy(text: string) {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      this.notificationService.success('Copied', 'Preview code copied to clipboard');
+    } catch (e) {
+      this.notificationService.error('Copy Failed', 'Could not copy to clipboard');
+    }
+  }
+
+  showJsonDemo() {
+    // Generate mock JSON from current schema and show overlay
+    const demo: any = {};
+    const schema = (this.jsonSchema as any) || {};
+    if (schema.title) {
+      demo.title = schema.title || 'Demo Json Spec';
+    }
+    const props = (schema.properties || {}) as { [key: string]: JsonSchemaProperty };
+    Object.keys(props).forEach((key) => {
+      demo[key] = this.generateMockForProperty(props[key], key);
+    });
+    this.demoJsonText = JSON.stringify(demo, null, 2);
+    this.demoJsonHtml = this.renderDemoHtml(demo);
+    this.showJsonDemoOverlay = true;
+  }
+
+  closeJsonDemoOverlay() {
+    this.showJsonDemoOverlay = false;
+  }
+
+  private generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
+    switch (prop.type) {
+      case 'string': {
+        if (prop.pattern && /^\^\[A-Z0-9\]\{6\}\$$/.test(prop.pattern)) {
+          return 'ABC123';
+        }
+        if (prop.enum && prop.enum.length > 0) {
+          return prop.enum[0];
+        }
+        return 'string';
+      }
+      case 'integer': {
+        const min = prop.minimum ?? 0;
+        const max = prop.maximum ?? min + 100;
+        const mid = Math.floor((min + max) / 2);
+        return mid;
+      }
+      case 'number': {
+        const min = prop.minimum ?? 0;
+        const max = prop.maximum ?? min + 100;
+        const mid = (min + max) / 2;
+        return Math.round(mid * 100) / 100;
+      }
+      case 'boolean':
+        return true;
+      case 'object': {
+        const child: any = {};
+        const nestedProps = prop.properties || {};
+        Object.keys(nestedProps).forEach((k) => {
+          child[k] = this.generateMockForProperty(nestedProps[k], k);
+        });
+        return child;
+      }
+      case 'array': {
+        const itemSchema = prop.items || ({ type: 'string' } as JsonSchemaProperty);
+        return [this.generateMockForProperty(itemSchema, key)];
+      }
+      default:
+        return null;
+    }
+  }
+
+  private escapeHtml(text: string): string {
+    return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  private renderDemoHtml(value: any, indentLevel: number = 0): string {
+    const indentUnit = '  ';
+    const indent = indentUnit.repeat(indentLevel);
+    const keyColor = '#2563eb'; // blue
+    const valueColor = '#1e3a8a'; // dark blue
+
+    if (value === null) {
+      return `<span style=\"color:${valueColor}\">null</span>`;
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '[]';
+      const items = value
+        .map((item) => `${indent}${indentUnit}${this.renderDemoHtml(item, indentLevel + 1)}`)
+        .join(',\n');
+      return `[\n${items}\n${indent}]`;
+    }
+    switch (typeof value) {
+      case 'object': {
+        const entries = Object.keys(value);
+        if (entries.length === 0) return '{}';
+        const lines = entries.map((k) => {
+          const keyHtml = `<span style=\"color:${keyColor}\">\"${this.escapeHtml(k)}\"</span>`;
+          const valHtml = this.renderDemoHtml(value[k], indentLevel + 1);
+          return `${indent}${indentUnit}${keyHtml}: ${valHtml}`;
+        });
+        return `{\n${lines.join(',\n')}\n${indent}}`;
+      }
+      case 'string':
+        return `<span style=\"color:${valueColor}\">\"${this.escapeHtml(value)}\"</span>`;
+      case 'number':
+      case 'boolean':
+        return `<span style=\"color:${valueColor}\">${String(value)}</span>`;
+      default:
+        return `<span style=\"color:${valueColor}\">${this.escapeHtml(String(value))}</span>`;
+    }
   }
 }
