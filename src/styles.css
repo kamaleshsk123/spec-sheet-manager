@@ -5,3 +5,35 @@
 /* You can add global styles to this file, and also import other style files */
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+/* Hide scrollbar appearance globally (keep vertical scrolling) */
+html, body {
+  overflow-y: auto; /* allow vertical scroll */
+  -ms-overflow-style: none; /* IE and old Edge */
+  scrollbar-width: none; /* Firefox */
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 0; /* WebKit: hide vertical scrollbar */
+  background: transparent;
+}
+
+/* Optionally hide scrollbars on all scrollable elements (keeps scrolling) */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  width: 0;
+  background: transparent;
+}
+
+/* Ensure app takes full viewport height */
+:root, body, app-root { height: 100%; }
+
+/* Hide Monaco editor vertical scrollbar UI */
+.monaco-editor .scrollbar.vertical { width: 0 !important; }
+.monaco-editor .scrollbar.vertical .slider { display: none !important; }
+.monaco-editor .monaco-scrollable-element { scrollbar-width: none !important; }
+.monaco-editor .monaco-scrollable-element::-webkit-scrollbar { width: 0 !important; }
+.monaco-editor .decorationsOverviewRuler { display: none !important; }
