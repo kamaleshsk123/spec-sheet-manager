@@ -8,6 +8,7 @@ import { NotificationService } from '../services/notification.service';
 import { parse } from 'proto-parser';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
 import { PushToBranchModalComponent } from '../components/push-to-branch-modal/push-to-branch-modal.component';
+import { SpecificationDetailsComponent } from '../components/specification-details/specification-details.component';
 // import * as monaco from 'monaco-editor'; // Temporarily comment out
 
 interface Field {
@@ -102,6 +103,7 @@ interface JsonField {
     NuMonacoEditorModule,
     PublishModalComponent,
     PushToBranchModalComponent,
+    SpecificationDetailsComponent,
   ],
   templateUrl: './editor.html',
   styleUrl: './editor.css',
