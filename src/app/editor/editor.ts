@@ -9,6 +9,9 @@ import { parse } from 'proto-parser';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
 import { PushToBranchModalComponent } from '../components/push-to-branch-modal/push-to-branch-modal.component';
 import { SpecificationDetailsComponent } from '../components/specification-details/specification-details.component';
+import { DefinitionDetailsComponent } from '../components/definition-details/definition-details';
+import { MessageEnvelope } from "../components/message-envelope/message-envelope";
+
 // import * as monaco from 'monaco-editor'; // Temporarily comment out
 
 interface Field {
@@ -104,14 +107,16 @@ interface JsonField {
     PublishModalComponent,
     PushToBranchModalComponent,
     SpecificationDetailsComponent,
-  ],
+    MessageEnvelope
+],
   templateUrl: './editor.html',
   styleUrl: './editor.css',
 })
 export class EditorComponent implements OnInit {
   tabs = [
     { name: 'Specification Details', content: 'spec' },
-    { name: 'Definition Details', content: 'definitions' },
+    // { name: 'Definition Details', content: 'definitions' },
+    { name: 'Message Envelope', content: 'messageEnvelope' },
   ];
   activeTabIndex = 0;
   showNewTabOverlay = false;
@@ -279,7 +284,7 @@ export class EditorComponent implements OnInit {
             this.toggleValue = 'json';
             this.toggleChecked = true;
             this.jsonSchema = spec.spec_data as any;
-            this.jsonFields = this.jsonFieldsFromSchema(this.jsonSchema);
+
           } else {
             this.toggleValue = 'protobuf';
             this.toggleChecked = false;
@@ -558,7 +563,7 @@ export class EditorComponent implements OnInit {
       if (this.activeTab !== 'messages') {
         this.setActiveTab('messages');
       }
-      this.updateJsonPreview();
+
     }
   }
   updateProtoPreview() {
@@ -1042,284 +1047,5 @@ export class EditorComponent implements OnInit {
         );
       },
     });
-  }
-  // --- JSON Schema Methods ---
-  jsonFieldsFromSchema(schema: JsonSchema): JsonField[] {
-    const fields: JsonField[] = [];
-    if (schema && schema.properties) {
-      for (const key in schema.properties) {
-        const prop = schema.properties[key];
-        const field: JsonField = {
-          name: key,
-          is_required: schema.required?.includes(key) || false,
-          type: prop.type,
-          pattern: prop.pattern,
-          minimum: prop.minimum,
-          maximum: prop.maximum,
-          enum: prop.enum,
-          children: [],
-          items: {
-            type: prop.items?.type || 'string',
-            children: [],
-          },
-        };
-        if (prop.type === 'object' && prop.properties) {
-          field.children = this.jsonFieldsFromSchema({
-            title: '',
-            type: 'object',
-            properties: prop.properties,
-            required: prop.required || [],
-          });
-        }
-        if (prop.type === 'array' && prop.items?.type === 'object' && prop.items.properties) {
-          field.items.children = this.jsonFieldsFromSchema({
-            title: '',
-            type: 'object',
-            properties: prop.items.properties,
-            required: prop.items.required || [],
-          });
-        }
-        fields.push(field);
-      }
-    }
-    return fields;
-  }
-
-  addJsonField(parent?: JsonField, isArrayItem: boolean = false) {
-    const newField: JsonField = {
-      name: 'new_field',
-      is_required: false,
-      type: 'string',
-      children: [],
-      items: { type: 'string', children: [] },
-    };
-    if (parent) {
-      if (isArrayItem) {
-        parent.items.children = [...parent.items.children, newField];
-      } else {
-        parent.children = [...parent.children, newField];
-      }
-      this.jsonFields = [...this.jsonFields];
-    } else {
-      this.jsonFields = [...this.jsonFields, newField];
-    }
-    this.updateJsonPreview();
-  }
-
-  removeJsonField(index: number, parent?: JsonField, isArrayItem: boolean = false) {
-    const target = isArrayItem
-      ? parent!.items.children
-      : parent
-      ? parent.children
-      : this.jsonFields;
-    target.splice(index, 1);
-    this.updateJsonPreview();
-  }
-
-  updateJsonPreview() {
-    const buildSchema = (
-      fields: JsonField[]
-    ): { properties: { [key: string]: JsonSchemaProperty }; required: string[] } => {
-      const properties: { [key: string]: JsonSchemaProperty } = {};
-      const required: string[] = [];
-      for (const field of fields) {
-        if (!field.name) continue;
-        const property: JsonSchemaProperty = { type: field.type };
-        if (field.is_required) required.push(field.name);
-        if (field.type === 'string' && field.pattern) property.pattern = field.pattern;
-        if (field.type === 'number' || field.type === 'integer') {
-          if (field.minimum !== null && field.minimum !== undefined)
-            property.minimum = field.minimum;
-          if (field.maximum !== null && field.maximum !== undefined)
-            property.maximum = field.maximum;
-        }
-        if (field.enum && field.enum.length > 0 && (field.enum.length > 1 || field.enum[0]))
-          property.enum = field.enum;
-        if (field.type === 'object') {
-          const nestedSchema = buildSchema(field.children);
-          property.properties = nestedSchema.properties;
-          if (nestedSchema.required.length > 0) property.required = nestedSchema.required;
-        } else if (field.type === 'array') {
-          const itemsSchema: JsonSchemaProperty = { type: field.items.type };
-          if (field.items.type === 'object') {
-            const nestedSchema = buildSchema(field.items.children);
-            itemsSchema.properties = nestedSchema.properties;
-            if (nestedSchema.required.length > 0) itemsSchema.required = nestedSchema.required;
-          }
-          property.items = itemsSchema;
-        }
-        properties[field.name] = property;
-      }
-      return { properties, required };
-    };
-    const { properties, required } = buildSchema(this.jsonFields);
-    this.jsonSchema.properties = properties;
-    this.jsonSchema.required = required;
-    this.code = JSON.stringify(this.jsonSchema, null, 2);
-  }
-
-  updateJsonEnum(event: string, field: JsonField) {
-    if (event && event.trim()) {
-      const isNumeric = field.type === 'number' || field.type === 'integer';
-      field.enum = event.split(',').map((s) => {
-        const trimmed = s.trim();
-        return isNumeric && trimmed ? Number(trimmed) : trimmed;
-      });
-    } else {
-      field.enum = [];
-    }
-    this.updateJsonPreview();
-  }
-
-  // --- Preview Actions ---
-  copyCode() {
-    const textToCopy = this.code || '';
-    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard
-        .writeText(textToCopy)
-        .then(() => {
-          this.notificationService.success('Copied', 'Preview code copied to clipboard');
-        })
-        .catch(() => {
-          this.fallbackCopy(textToCopy);
-        });
-    } else {
-      this.fallbackCopy(textToCopy);
-    }
-  }
-
-  private fallbackCopy(text: string) {
-    try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      this.notificationService.success('Copied', 'Preview code copied to clipboard');
-    } catch (e) {
-      this.notificationService.error('Copy Failed', 'Could not copy to clipboard');
-    }
-  }
-
-  showJsonDemo() {
-    // Generate mock JSON from current schema and show overlay
-    const demo: any = {};
-    const schema = (this.jsonSchema as any) || {};
-    if (schema.title) {
-      demo.title = schema.title || 'Demo Json Spec';
-    }
-    const props = (schema.properties || {}) as { [key: string]: JsonSchemaProperty };
-    Object.keys(props).forEach((key) => {
-      demo[key] = this.generateMockForProperty(props[key], key);
-    });
-    this.demoJsonText = JSON.stringify(demo, null, 2);
-    this.demoJsonHtml = this.renderDemoHtml(demo);
-    this.showJsonDemoOverlay = true;
-  }
-
-  closeJsonDemoOverlay() {
-    this.showJsonDemoOverlay = false;
-  }
-
-  private generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
-    switch (prop.type) {
-      case 'string': {
-        if (prop.enum && prop.enum.length > 0) {
-          return prop.enum[Math.floor(Math.random() * prop.enum.length)];
-        }
-        if (prop.pattern && /^\^\[A-Z0-9\]\{6\}\$$/.test(prop.pattern)) {
-          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-          let result = '';
-          for (let i = 0; i < 6; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-          }
-          return result;
-        }
-        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let result = '';
-        const length = Math.floor(Math.random() * 8) + 5; // Random length between 5 and 12
-        for (let i = 0; i < length; i++) {
-          result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-      }
-      case 'integer': {
-        const min = prop.minimum ?? 0;
-        const max = prop.maximum ?? min + 100;
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-      }
-      case 'number': {
-        const min = prop.minimum ?? 0;
-        const max = prop.maximum ?? min + 100;
-        const randomNum = Math.random() * (max - min) + min;
-        return Math.round(randomNum * 100) / 100;
-      }
-      case 'boolean':
-        return Math.random() < 0.5;
-      case 'object': {
-        const child: any = {};
-        const nestedProps = prop.properties || {};
-        Object.keys(nestedProps).forEach((k) => {
-          child[k] = this.generateMockForProperty(nestedProps[k], k);
-        });
-        return child;
-      }
-      case 'array': {
-        const itemSchema = prop.items || ({ type: 'string' } as JsonSchemaProperty);
-        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
-        const items = [];
-        for (let i = 0; i < itemCount; i++) {
-          items.push(this.generateMockForProperty(itemSchema, key));
-        }
-        return items;
-      }
-      default:
-        return null;
-    }
-  }
-
-  private escapeHtml(text: string): string {
-    return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  private renderDemoHtml(value: any, indentLevel: number = 0): string {
-    const indentUnit = '  ';
-    const indent = indentUnit.repeat(indentLevel);
-    const keyColor = '#2563eb'; // blue
-    const valueColor = '#1e3a8a'; // dark blue
-
-    if (value === null) {
-      return `<span style=\"color:${valueColor}\">null</span>`;
-    }
-    if (Array.isArray(value)) {
-      if (value.length === 0) return '[]';
-      const items = value
-        .map((item) => `${indent}${indentUnit}${this.renderDemoHtml(item, indentLevel + 1)}`)
-        .join(',\n');
-      return `[\n${items}\n${indent}]`;
-    }
-    switch (typeof value) {
-      case 'object': {
-        const entries = Object.keys(value);
-        if (entries.length === 0) return '{}';
-        const lines = entries.map((k) => {
-          const keyHtml = `<span style=\"color:${keyColor}\">\"${this.escapeHtml(k)}\"</span>`;
-          const valHtml = this.renderDemoHtml(value[k], indentLevel + 1);
-          return `${indent}${indentUnit}${keyHtml}: ${valHtml}`;
-        });
-        return `{\n${lines.join(',\n')}\n${indent}}`;
-      }
-      case 'string':
-        return `<span style=\"color:${valueColor}\">\"${this.escapeHtml(value)}\"</span>`;
-      case 'number':
-      case 'boolean':
-        return `<span style=\"color:${valueColor}\">${String(value)}</span>`;
-      default:
-        return `<span style=\"color:${valueColor}\">${this.escapeHtml(String(value))}</span>`;
-    }
   }
 }
