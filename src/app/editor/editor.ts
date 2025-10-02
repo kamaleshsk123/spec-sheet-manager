@@ -107,6 +107,14 @@ interface JsonField {
   styleUrl: './editor.css',
 })
 export class EditorComponent implements OnInit {
+  tabs = [
+    { name: 'Specification Details', content: 'spec' },
+    { name: 'Definition Details', content: 'definitions' },
+  ];
+  activeTabIndex = 0;
+  showNewTabOverlay = false;
+  newTabName = '';
+
   @ViewChild('fileInput') fileInput!: ElementRef;
   @ViewChild('downloadButton') downloadButton!: ElementRef;
   @ViewChild('downloadMenu') downloadMenu!: ElementRef;
@@ -209,6 +217,23 @@ export class EditorComponent implements OnInit {
         this.loadSpec(params['id'], params['version']);
       }
     });
+  }
+
+  openNewTabDialog() {
+    this.showNewTabOverlay = true;
+  }
+
+  closeNewTabDialog() {
+    this.showNewTabOverlay = false;
+    this.newTabName = '';
+  }
+
+  addNewTab() {
+    if (this.newTabName.trim()) {
+      this.tabs.push({ name: this.newTabName, content: 'new' });
+      this.activeTabIndex = this.tabs.length - 1;
+      this.closeNewTabDialog();
+    }
   }
 
   loadMyTeams() {
