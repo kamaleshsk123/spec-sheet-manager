@@ -63,6 +63,7 @@ export interface ProtoFile {
 
 export interface JsonSchemaProperty {
   type: string;
+  format?: string;
   pattern?: string;
   minimum?: number;
   maximum?: number;
@@ -369,7 +370,8 @@ export class DefinitionDetailsComponent implements OnInit {
       const required: string[] = [];
       for (const field of fields) {
         if (!field.name) continue;
-        const property: JsonSchemaProperty = { type: field.type };
+        const property: JsonSchemaProperty = { type: field.type === 'time' ? 'string' : field.type };
+        if (field.type === 'time') property.format = 'date-time';
         if (field.is_required) required.push(field.name);
         if (field.type === 'string' && field.pattern) property.pattern = field.pattern;
         if (field.type === 'number' || field.type === 'integer') {
@@ -385,7 +387,8 @@ export class DefinitionDetailsComponent implements OnInit {
           property.properties = nestedSchema.properties;
           if (nestedSchema.required.length > 0) property.required = nestedSchema.required;
         } else if (field.type === 'array') {
-          const itemsSchema: JsonSchemaProperty = { type: field.items.type };
+          const itemsSchema: JsonSchemaProperty = { type: field.items.type === 'time' ? 'string' : field.items.type };
+          if (field.items.type === 'time') itemsSchema.format = 'date-time';
           if (field.items.type === 'object') {
             const nestedSchema = buildSchema(field.items.children);
             itemsSchema.properties = nestedSchema.properties;
@@ -471,6 +474,13 @@ export class DefinitionDetailsComponent implements OnInit {
   private generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
     switch (prop.type) {
       case 'string': {
+        if (prop.format === 'date-time') {
+          // Generate a valid ISO 8601 timestamp
+          const now = new Date();
+          const randomOffset = Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000); // Random offset up to 1 year
+          const randomDate = new Date(now.getTime() - randomOffset);
+          return randomDate.toISOString();
+        }
         if (prop.enum && prop.enum.length > 0) {
           return prop.enum[Math.floor(Math.random() * prop.enum.length)];
         }
