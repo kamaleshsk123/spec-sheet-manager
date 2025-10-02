@@ -12,6 +12,7 @@ router.post('/login', validate(loginSchema), AuthController.login);
 // GitHub OAuth
 router.get('/github', AuthController.githubAuth);
 router.get('/github/callback', AuthController.githubCallback);
+router.delete('/github', authenticateToken, AuthController.githubDisconnect);
 
 // Protected routes
 router.get('/profile', authenticateToken, AuthController.getProfile);

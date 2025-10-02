@@ -12,19 +12,29 @@
       <div class="flex justify-between items-center">
         <div class="flex items-center space-x-3">
           <div
-            class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center"
+            (click)="goToDashboard()"
+            class="w-12 h-12 rounded-lg cursor-pointer flex items-center justify-center"
           >
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 32 32"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect width="32" height="32" rx="16" fill="white" />
               <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
+                d="M15.1403 21.6395H10.8435L9.2653 25.6951H6.87546L8.45412 21.6395H5.07812L5.47279 19.4473H9.30771L10.7985 15.6548H7.42378L7.81844 13.4625H11.6534L13.2099 9.47266H15.5993L14.0427 13.4625H18.3396L19.8962 9.47266H22.2855L20.7292 13.4625H23.6447L23.2501 15.6548H19.8758L18.3855 19.4473H21.3009L20.9062 21.6395H17.5297L15.9515 25.6951H13.5617L15.1403 21.6395ZM17.486 15.6548H13.1891L11.6981 19.4473H15.9952L17.486 15.6548Z"
+                fill="black"
+              />
+              <path
+                d="M23.7714 6.92359C23.7714 6.20384 24.3077 5.58594 25.4008 5.58594C26.4939 5.58594 27.0305 6.2107 27.0305 6.92359C27.0305 7.45311 26.7258 7.84016 26.3242 8.03699C26.8266 8.22721 27.1593 8.66835 27.1593 9.25908C27.1593 10.1622 26.4261 10.7461 25.4008 10.7461C24.3824 10.7461 23.6484 10.1619 23.6484 9.25908C23.6484 8.66175 23.9811 8.22035 24.4769 8.03699C24.0566 7.8267 23.7714 7.47343 23.7714 6.92359ZM24.3893 9.23191C24.3893 9.73425 24.7702 10.101 25.4008 10.101C26.0256 10.101 26.3989 9.72765 26.3989 9.23191C26.3989 8.67521 25.9847 8.37654 25.4008 8.37654C24.8314 8.37705 24.3893 8.65489 24.3893 9.23191ZM26.2902 7.01857C26.2902 6.51064 25.9441 6.23127 25.4013 6.23127C24.8718 6.23127 24.5188 6.50276 24.5188 7.02568C24.5188 7.47368 24.8855 7.79292 25.4013 7.79292C25.9171 7.79292 26.2902 7.46683 26.2902 7.01857Z"
+                fill="black"
+              />
             </svg>
           </div>
           <div>
-            <h1 class="text-2xl font-bold text-gray-900">Protobuf Spec Editor</h1>
+            <h1 class="text-2xl font-bold text-gray-900">Proto Hash Spec Editor</h1>
             <p class="text-sm text-gray-500">
               Create and manage your protocol buffer specifications
             </p>
@@ -115,11 +125,13 @@
 
         <!-- Team Selection for New Specs -->
         <div *ngIf="!currentSpecId && myTeams.length > 0" class="mt-6">
-          <label for="teamSelect" class="block text-sm font-medium text-gray-700 mb-2">Save to</label>
-          <select 
-            id="teamSelect" 
-            [(ngModel)]="selectedTeamId" 
-            name="teamSelect" 
+          <label for="teamSelect" class="block text-sm font-medium text-gray-700 mb-2"
+            >Save to</label
+          >
+          <select
+            id="teamSelect"
+            [(ngModel)]="selectedTeamId"
+            name="teamSelect"
             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
           >
             <option value="personal">Personal Workspace</option>
@@ -135,114 +147,145 @@
       <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <!-- Tab Navigation -->
         <div class="border-b border-gray-200">
-          <nav class="flex space-x-8 px-6" aria-label="Tabs">
-            <button
-              type="button"
-              (click)="setActiveTab('messages')"
-              [class]="
-                activeTab === 'messages'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              "
-              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
-            >
-              <svg
-                class="w-4 h-4 inline mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          <div class="flex items-center justify-between px-6">
+            <nav class="flex space-x-8 px-6" aria-label="Tabs">
+              <button
+                type="button"
+                (click)="setActiveTab('messages')"
+                [class]="
+                  activeTab === 'messages'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                "
+                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                ></path>
-              </svg>
-              Messages
-            </button>
-            <button
-              type="button"
-              (click)="setActiveTab('enums')"
-              [class]="
-                activeTab === 'enums'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              "
-              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
-            >
-              <svg
-                class="w-4 h-4 inline mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                ></path>
-              </svg>
-              Enums
-            </button>
-            <button
-              type="button"
-              (click)="setActiveTab('services')"
-              [class]="
-                activeTab === 'services'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              "
-              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
-            >
-              <svg
-                class="w-4 h-4 inline mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
-                ></path>
-              </svg>
-              Services
-            </button>
-            <button
-              type="button"
-              (click)="setActiveTab('settings')"
-              [class]="
-                activeTab === 'settings'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              "
-              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
-            >
-              <svg
-                class="w-4 h-4 inline mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                ></path>
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                ></path>
-              </svg>
-              Settings
-            </button>
-          </nav>
+                <svg
+                  class="w-4 h-4 inline mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  ></path>
+                </svg>
+                Messages
+              </button>
+              <ng-container *ngIf="toggleValue === 'protobuf'">
+                <button
+                  type="button"
+                  (click)="setActiveTab('enums')"
+                  [class]="
+                    activeTab === 'enums'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  "
+                  class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+                >
+                  <svg
+                    class="w-4 h-4 inline mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    ></path>
+                  </svg>
+                  Enums
+                </button>
+                <button
+                  type="button"
+                  (click)="setActiveTab('services')"
+                  [class]="
+                    activeTab === 'services'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  "
+                  class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+                >
+                  <svg
+                    class="w-4 h-4 inline mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                    ></path>
+                  </svg>
+                  Services
+                </button>
+                <button
+                  type="button"
+                  (click)="setActiveTab('settings')"
+                  [class]="
+                    activeTab === 'settings'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  "
+                  class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+                >
+                  <svg
+                    class="w-4 h-4 inline mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    ></path>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    ></path>
+                  </svg>
+                  Settings
+                </button>
+              </ng-container>
+            </nav>
+
+            <div class="flex items-center space-x-2">
+              <span class="text-sm font-medium" [class.text-blue-600]="toggleValue === 'protobuf'">
+                Protobuf
+              </span>
+
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  class="sr-only peer"
+                  [(ngModel)]="toggleChecked"
+                  (change)="
+                    toggleValue = toggleChecked ? 'json' : 'protobuf'; updateEditorContent()
+                  "
+                />
+                <div
+                  class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 transition"
+                ></div>
+                <div
+                  class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition peer-checked:translate-x-5"
+                ></div>
+              </label>
+
+              <span class="text-sm font-medium" [class.text-blue-600]="toggleValue === 'json'">
+                JSON
+              </span>
+            </div>
+          </div>
         </div>
 
         <!-- Tab Content -->
@@ -250,27 +293,291 @@
           <!-- Messages Tab -->
           @if (activeTab === 'messages') {
           <div class="space-y-6">
-            <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-900">Message Definitions</h3>
-              <div class="flex space-x-2">
+            <!-- Protobuf Editor -->
+            @if (toggleValue === 'protobuf') {
+            <div>
+              <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">Message Definitions</h3>
+                <div class="flex space-x-2">
+                  <button
+                    type="button"
+                    (click)="uploadSpec()"
+                    class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white text-sm font-medium rounded-lg hover:from-gray-600 hover:to-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                  >
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                      ></path>
+                    </svg>
+                    Upload Spec
+                  </button>
+                  <button
+                    type="button"
+                    (click)="addMessage()"
+                    class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                  >
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                      ></path>
+                    </svg>
+                    Add Message
+                  </button>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                @for (message of protoFile.messages; track trackByIndex($index, message); let i =
+                $index) {
+                <div
+                  class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 p-4"
+                >
+                  <!-- Message Header -->
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                      <div
+                        class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center"
+                      >
+                        <svg
+                          class="w-4 h-4 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                          ></path>
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        [(ngModel)]="message.name"
+                        [name]="'messageName_' + i"
+                        (ngModelChange)="updateProtoPreview()"
+                        class="text-lg font-semibold bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-blue-500 outline-none transition-all duration-200 px-2 py-1"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      (click)="removeMessage(i)"
+                      class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+
+                  <!-- Fields -->
+                  <div class="space-y-3">
+                    @for (field of message.fields; track trackByIndex($index, field); let j =
+                    $index) {
+                    <div class="bg-white rounded-lg p-3 border border-gray-200">
+                      <!-- Main Field Row -->
+                      <div class="grid grid-cols-12 gap-3 items-center mb-2">
+                        <!-- Field Type -->
+                        <div class="col-span-4">
+                          <select
+                            [(ngModel)]="field.type"
+                            [name]="'fieldType_' + i + '_' + j"
+                            (ngModelChange)="updateProtoPreview()"
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="string">string</option>
+                            <option value="int32">int32</option>
+                            <option value="int64">int64</option>
+                            <option value="uint32">uint32</option>
+                            <option value="uint64">uint64</option>
+                            <option value="sint32">sint32</option>
+                            <option value="sint64">sint64</option>
+                            <option value="fixed32">fixed32</option>
+                            <option value="fixed64">fixed64</option>
+                            <option value="sfixed32">sfixed32</option>
+                            <option value="sfixed64">sfixed64</option>
+                            <option value="bool">bool</option>
+                            <option value="double">double</option>
+                            <option value="float">float</option>
+                            <option value="bytes">bytes</option>
+                          </select>
+                        </div>
+                        <!-- Field Name -->
+                        <div class="col-span-5">
+                          <input
+                            type="text"
+                            [(ngModel)]="field.name"
+                            [name]="'fieldName_' + i + '_' + j"
+                            (ngModelChange)="updateProtoPreview()"
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="field_name"
+                          />
+                        </div>
+                        <!-- Field Number -->
+                        <div class="col-span-2">
+                          <input
+                            type="number"
+                            [(ngModel)]="field.number"
+                            [name]="'fieldNumber_' + i + '_' + j"
+                            (ngModelChange)="updateProtoPreview()"
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="1"
+                            min="1"
+                          />
+                        </div>
+                        <!-- Remove Button -->
+                        <div class="col-span-1">
+                          <button
+                            type="button"
+                            (click)="removeField(message, j)"
+                            class="w-full p-2 text-red-500 hover:bg-red-50 rounded-md transition-all duration-200"
+                          >
+                            <svg
+                              class="w-4 h-4 mx-auto"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                              ></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Field Modifiers Row -->
+                      <div class="flex space-x-4 pl-1">
+                        <label class="flex items-center">
+                          <input
+                            type="checkbox"
+                            [(ngModel)]="field.repeated"
+                            [name]="'fieldRepeated_' + i + '_' + j"
+                            (ngModelChange)="updateProtoPreview()"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span class="ml-2 text-xs text-gray-600">repeated</span>
+                        </label>
+                        <label class="flex items-center">
+                          <input
+                            type="checkbox"
+                            [(ngModel)]="field.optional"
+                            [name]="'fieldOptional_' + i + '_' + j"
+                            (ngModelChange)="updateProtoPreview()"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span class="ml-2 text-xs text-gray-600">optional</span>
+                        </label>
+                      </div>
+                    </div>
+                    }
+                  </div>
+
+                  <!-- Add Field Button -->
+                  <button
+                    type="button"
+                    (click)="addField(message)"
+                    class="mt-3 w-full py-2 px-4 border-2 border-dashed border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-500 rounded-lg transition-all duration-200 text-sm font-medium"
+                  >
+                    <svg
+                      class="w-4 h-4 inline mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                      ></path>
+                    </svg>
+                    Add Field
+                  </button>
+                </div>
+                }
+              </div>
+
+              <!-- Empty State for Messages -->
+              @if (protoFile.messages.length === 0) {
+              <div class="text-center py-12">
+                <div
+                  class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"
+                >
+                  <svg
+                    class="w-8 h-8 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                    ></path>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No messages yet</h3>
+                <p class="text-gray-500 mb-4">
+                  Start building your protobuf specification by adding your first message.
+                </p>
                 <button
                   type="button"
-                  (click)="uploadSpec()"
-                  class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white text-sm font-medium rounded-lg hover:from-gray-600 hover:to-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                  (click)="addMessage()"
+                  class="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors duration-200"
                 >
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                     ></path>
                   </svg>
-                  Upload Spec
+                  Create First Message
                 </button>
+              </div>
+              }
+            </div>
+            }
+            <!-- JSON Schema Editor -->
+            @if (toggleValue === 'json') {
+            <div>
+              <div class="mb-4">
+                <label for="jsonSchemaTitle" class="block text-sm font-medium text-gray-700 mb-2"
+                  >Schema Title</label
+                >
+                <input
+                  type="text"
+                  id="jsonSchemaTitle"
+                  [(ngModel)]="jsonSchema.title"
+                  (ngModelChange)="updateJsonPreview()"
+                  name="jsonSchemaTitle"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+                  placeholder="Enter schema title..."
+                />
+              </div>
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">JSON Schema Definition</h3>
                 <button
                   type="button"
-                  (click)="addMessage()"
+                  (click)="addJsonField()"
                   class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
                 >
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,121 +588,68 @@
                       d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                     ></path>
                   </svg>
-                  Add Message
+                  Add Field
                 </button>
               </div>
-            </div>
 
-            <div class="space-y-4">
-              @for (message of protoFile.messages; track trackByIndex($index, message); let i =
-              $index) {
-              <div
-                class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 p-4"
-              >
-                <!-- Message Header -->
-                <div class="flex items-center justify-between mb-4">
-                  <div class="flex items-center space-x-3">
-                    <div
-                      class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center"
-                    >
-                      <svg
-                        class="w-4 h-4 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                        ></path>
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      [(ngModel)]="message.name"
-                      [name]="'messageName_' + i"
-                      (ngModelChange)="updateProtoPreview()"
-                      class="text-lg font-semibold bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-blue-500 outline-none transition-all duration-200 px-2 py-1"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    (click)="removeMessage(i)"
-                    class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+              <div class="space-y-4 mt-4">
+                <ng-template
+                  #jsonFieldEditor
+                  let-fields="fields"
+                  let-parent="parent"
+                  let-isArrayItem="isArrayItem"
+                >
+                  @for (field of fields; track trackByIndex($index, field); let i = $index) {
+                  <div
+                    class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 p-4"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      ></path>
-                    </svg>
-                  </button>
-                </div>
-
-                <!-- Fields -->
-                <div class="space-y-3">
-                  @for (field of message.fields; track trackByIndex($index, field); let j = $index)
-                  {
-                  <div class="bg-white rounded-lg p-3 border border-gray-200">
-                    <!-- Main Field Row -->
+                    <!-- Field Header -->
                     <div class="grid grid-cols-12 gap-3 items-center mb-2">
-                      <!-- Field Type -->
-                      <div class="col-span-4">
-                        <select
-                          [(ngModel)]="field.type"
-                          [name]="'fieldType_' + i + '_' + j"
-                          (ngModelChange)="updateProtoPreview()"
-                          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="string">string</option>
-                          <option value="int32">int32</option>
-                          <option value="int64">int64</option>
-                          <option value="uint32">uint32</option>
-                          <option value="uint64">uint64</option>
-                          <option value="sint32">sint32</option>
-                          <option value="sint64">sint64</option>
-                          <option value="fixed32">fixed32</option>
-                          <option value="fixed64">fixed64</option>
-                          <option value="sfixed32">sfixed32</option>
-                          <option value="sfixed64">sfixed64</option>
-                          <option value="bool">bool</option>
-                          <option value="double">double</option>
-                          <option value="float">float</option>
-                          <option value="bytes">bytes</option>
-                        </select>
-                      </div>
                       <!-- Field Name -->
-                      <div class="col-span-5">
+                      <div class="col-span-4">
                         <input
                           type="text"
                           [(ngModel)]="field.name"
-                          [name]="'fieldName_' + i + '_' + j"
-                          (ngModelChange)="updateProtoPreview()"
+                          [name]="'jsonFieldName_' + i"
+                          (ngModelChange)="updateJsonPreview()"
                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="field_name"
                         />
                       </div>
-                      <!-- Field Number -->
-                      <div class="col-span-2">
-                        <input
-                          type="number"
-                          [(ngModel)]="field.number"
-                          [name]="'fieldNumber_' + i + '_' + j"
-                          (ngModelChange)="updateProtoPreview()"
+                      <!-- Field Type -->
+                      <div class="col-span-4">
+                        <select
+                          [(ngModel)]="field.type"
+                          [name]="'jsonFieldType_' + i"
+                          (ngModelChange)="updateJsonPreview()"
                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="1"
-                          min="1"
-                        />
+                        >
+                          <option value="string">string</option>
+                          <option value="number">number</option>
+                          <option value="integer">integer</option>
+                          <option value="boolean">boolean</option>
+                          <option value="object">object</option>
+                          <option value="array">array</option>
+                        </select>
+                      </div>
+                      <!-- Required Checkbox -->
+                      <div class="col-span-3 flex items-center">
+                        <label class="flex items-center">
+                          <input
+                            type="checkbox"
+                            [(ngModel)]="field.is_required"
+                            [name]="'jsonFieldRequired_' + i"
+                            (ngModelChange)="updateJsonPreview()"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span class="ml-2 text-xs text-gray-600">required</span>
+                        </label>
                       </div>
                       <!-- Remove Button -->
                       <div class="col-span-1">
                         <button
                           type="button"
-                          (click)="removeField(message, j)"
+                          (click)="removeJsonField(i, parent, isArrayItem)"
                           class="w-full p-2 text-red-500 hover:bg-red-50 rounded-md transition-all duration-200"
                         >
                           <svg
@@ -415,41 +669,139 @@
                       </div>
                     </div>
 
-                    <!-- Field Modifiers Row -->
-                    <div class="flex space-x-4 pl-1">
-                      <label class="flex items-center">
+                    <!-- Constraints -->
+                    <div class="bg-white rounded-lg p-3 border border-gray-200 mt-2">
+                      @if (field.type === 'string') {
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700"
+                          >Pattern (Regex)</label
+                        >
                         <input
-                          type="checkbox"
-                          [(ngModel)]="field.repeated"
-                          [name]="'fieldRepeated_' + i + '_' + j"
-                          (ngModelChange)="updateProtoPreview()"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          type="text"
+                          [(ngModel)]="field.pattern"
+                          [name]="'jsonFieldPattern_' + i"
+                          (ngModelChange)="updateJsonPreview()"
+                          class="w-full mt-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="^[A-Z0-9]{6}$"
                         />
-                        <span class="ml-2 text-xs text-gray-600">repeated</span>
-                      </label>
-                      <label class="flex items-center">
+                      </div>
+                      } @if (field.type === 'number' || field.type === 'integer') {
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-sm font-medium text-gray-700">Minimum</label>
+                          <input
+                            type="number"
+                            [(ngModel)]="field.minimum"
+                            [name]="'jsonFieldMin_' + i"
+                            (ngModelChange)="updateJsonPreview()"
+                            class="w-full mt-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="-50"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-700">Maximum</label>
+                          <input
+                            type="number"
+                            [(ngModel)]="field.maximum"
+                            [name]="'jsonFieldMax_' + i"
+                            (ngModelChange)="updateJsonPreview()"
+                            class="w-full mt-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="150"
+                          />
+                        </div>
+                      </div>
+                      }
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mt-2"
+                          >Enum (comma-separated)</label
+                        >
                         <input
-                          type="checkbox"
-                          [(ngModel)]="field.optional"
-                          [name]="'fieldOptional_' + i + '_' + j"
-                          (ngModelChange)="updateProtoPreview()"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          type="text"
+                          [ngModel]="(field.enum || []).join(', ')"
+                          (ngModelChange)="updateJsonEnum($event, field)"
+                          [name]="'jsonFieldEnum_' + i"
+                          class="w-full mt-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="1, 2, 3, 4, 5"
                         />
-                        <span class="ml-2 text-xs text-gray-600">optional</span>
-                      </label>
+                      </div>
                     </div>
+
+                    <!-- Nested Object Editor -->
+                    @if (field.type === 'object') {
+                    <div class="mt-4 pl-6 border-l-2 border-blue-200">
+                      <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-md font-semibold text-gray-800">Nested Properties</h4>
+                        <button
+                          (click)="addJsonField(field)"
+                          class="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          + Add Nested
+                        </button>
+                      </div>
+                      <ng-container
+                        *ngTemplateOutlet="
+                          jsonFieldEditor;
+                          context: { fields: field.children, parent: field, isArrayItem: false }
+                        "
+                      ></ng-container>
+                    </div>
+                    }
+
+                    <!-- Nested Array Editor -->
+                    @if (field.type === 'array') {
+                    <div class="mt-4 pl-6 border-l-2 border-green-200">
+                      <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-md font-semibold text-gray-800">Array Items</h4>
+                        <select
+                          [(ngModel)]="field.items.type"
+                          (ngModelChange)="updateJsonPreview()"
+                          class="text-sm border-gray-300 rounded-md"
+                        >
+                          <option value="string">string</option>
+                          <option value="number">number</option>
+                          <option value="integer">integer</option>
+                          <option value="boolean">boolean</option>
+                          <option value="object">object</option>
+                        </select>
+                      </div>
+                      @if (field.items.type === 'object') {
+                      <div class="mt-2 pl-6 border-l-2 border-green-200">
+                        <button
+                          (click)="addJsonField(field, true)"
+                          class="text-sm text-green-600 hover:text-green-800 mb-2"
+                        >
+                          + Add Item Property
+                        </button>
+                        <ng-container
+                          *ngTemplateOutlet="
+                            jsonFieldEditor;
+                            context: {
+                              fields: field.items.children,
+                              parent: field,
+                              isArrayItem: true
+                            }
+                          "
+                        ></ng-container>
+                      </div>
+                      }
+                    </div>
+                    }
                   </div>
                   }
-                </div>
+                </ng-template>
+                <ng-container
+                  *ngTemplateOutlet="jsonFieldEditor; context: { fields: jsonFields }"
+                ></ng-container>
+              </div>
 
-                <!-- Add Field Button -->
-                <button
-                  type="button"
-                  (click)="addField(message)"
-                  class="mt-3 w-full py-2 px-4 border-2 border-dashed border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-500 rounded-lg transition-all duration-200 text-sm font-medium"
+              <!-- Empty State for JSON Fields -->
+              @if (jsonFields.length === 0) {
+              <div class="text-center py-12">
+                <div
+                  class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"
                 >
                   <svg
-                    class="w-4 h-4 inline mr-2"
+                    class="w-8 h-8 text-gray-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -458,54 +810,31 @@
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    ></path>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No fields yet</h3>
+                <p class="text-gray-500 mb-4">
+                  Start building your JSON schema by adding your first field.
+                </p>
+                <button
+                  type="button"
+                  (click)="addJsonField()"
+                  class="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
                       d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                     ></path>
                   </svg>
-                  Add Field
+                  Create First Field
                 </button>
               </div>
               }
-            </div>
-
-            <!-- Empty State for Messages -->
-            @if (protoFile.messages.length === 0) {
-            <div class="text-center py-12">
-              <div
-                class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"
-              >
-                <svg
-                  class="w-8 h-8 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                  ></path>
-                </svg>
-              </div>
-              <h3 class="text-lg font-medium text-gray-900 mb-2">No messages yet</h3>
-              <p class="text-gray-500 mb-4">
-                Start building your protobuf specification by adding your first message.
-              </p>
-              <button
-                type="button"
-                (click)="addMessage()"
-                class="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors duration-200"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  ></path>
-                </svg>
-                Create First Message
-              </button>
             </div>
             }
           </div>
@@ -1000,12 +1329,16 @@
       <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="p-6 border-b border-gray-100">
           <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-gray-900">Protocol Buffer Preview</h2>
+            <h2 class="text-lg font-semibold text-gray-900">
+              {{ toggleValue === 'protobuf' ? 'Protocol Buffer Preview' : 'JSON Preview' }}
+            </h2>
             <div class="flex items-center space-x-2">
+              @if (toggleValue === 'protobuf') {
               <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
                 >proto3</span
               >
               <button
+                (click)="copyCode()"
                 class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-all duration-200"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1017,6 +1350,29 @@
                   ></path>
                 </svg>
               </button>
+              } @if (toggleValue === 'json') {
+              <button
+                (click)="showJsonDemo()"
+                class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm text-gray-500 text-sm font-medium rounded-lg transition-all duration-200"
+              >
+                Show Demo
+              </button>
+
+              <button
+                (click)="copyCode()"
+                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  ></path>
+                </svg>
+              </button>
+
+              }
             </div>
           </div>
         </div>
@@ -1083,7 +1439,17 @@
             [disabled]="isSaving"
             class="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span *ngIf="!isSaving">{{ currentSpecId ? 'Update Draft' : 'Save Draft' }}</span>
+            <span *ngIf="!isSaving">
+              {{
+                toggleValue === 'json'
+                  ? currentSpecId
+                    ? 'Update JSON'
+                    : 'Save JSON'
+                  : currentSpecId
+                  ? 'Update Spec'
+                  : 'Save Spec'
+              }}
+            </span>
             <span *ngIf="isSaving" class="flex items-center">
               <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
                 <circle
@@ -1190,6 +1556,51 @@
   </div>
 </div>
 
+<!-- JSON Demo Overlay -->
+@if (showJsonDemoOverlay) {
+<div class="fixed inset-0 z-50 flex items-center justify-center">
+  <div class="absolute inset-0 bg-black/50" (click)="closeJsonDemoOverlay()"></div>
+  <div class="relative bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl mx-4">
+    <div class="flex items-center justify-between p-4 border-b border-gray-100">
+      <h3 class="text-lg font-semibold text-gray-900">Demo JSON</h3>
+      <button
+        (click)="closeJsonDemoOverlay()"
+        class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          ></path>
+        </svg>
+      </button>
+    </div>
+    <div class="p-4">
+      <pre
+        class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-auto max-h-[60vh] whitespace-pre-wrap"
+        >{{ demoJsonText }}</pre
+      >
+    </div>
+    <div class="flex items-center justify-end gap-2 p-4 border-t border-gray-100">
+      <button
+        (click)="closeJsonDemoOverlay()"
+        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+      >
+        Close
+      </button>
+      <button
+        (click)="copyCode()"
+        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      >
+        Copy
+      </button>
+    </div>
+  </div>
+</div>
+}
+
 <app-publish-modal
   *ngIf="showPublishModal"
   [spec]="currentSpec"
@@ -1203,4 +1614,3 @@
   (close)="closePushToBranchModal()"
   (push)="handlePushToBranch($event)"
 ></app-push-to-branch-modal>
-

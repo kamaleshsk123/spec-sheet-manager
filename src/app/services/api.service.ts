@@ -19,6 +19,7 @@ export interface ProtobufSpec {
   version: string;
   description?: string;
   spec_data: ProtoFileData;
+  spec_type: 'protobuf' | 'json';
   created_at?: Date;
   updated_at?: Date;
   created_by?: string;
@@ -285,6 +286,13 @@ export class ApiService {
     return this.http.post<ApiResponse<{user: any, token: string}>>(
       `${this.baseUrl}/auth/register`,
       { email, name, password }
+    );
+  }
+
+  disconnectGitHub(): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(
+      `${this.baseUrl}/auth/github`,
+      { headers: this.getHeaders() }
     );
   }
 

@@ -8,11 +8,14 @@ import { PushToBranchModalComponent } from '../components/push-to-branch-modal/p
 import { VersionHistoryModalComponent } from '../components/version-history-modal/version-history-modal.component';
 import { forkJoin, Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 interface TeamWorkspace {
   team: Team;
   specs: ProtobufSpec[];
 }
+
+import { JsonCompareModalComponent } from '../components/json-compare-modal/json-compare-modal.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -56,14 +59,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   baseSpec: ProtobufSpec | null = null;
   leftSideSpec: ProtobufSpec | null = null;
   rightSideSpec: ProtobufSpec | null = null;
+  comparisonSpecType: 'protobuf' | 'json' = 'protobuf';
 
   private routerSubscription: Subscription;
+  public githubAuthUrl: string;
 
   constructor(
     private apiService: ApiService,
     private router: Router,
     private notificationService: NotificationService
   ) {
+    this.githubAuthUrl = `${environment.apiUrl}/auth/github`;
     this.routerSubscription = this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd && event.url === '/'))
       .subscribe(() => {
@@ -155,7 +161,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const sameGroup = this.allSpecs.filter(
       (spec) =>
         spec.title === this.baseSpec!.title &&
-        (spec.team_id || null) === (this.baseSpec!.team_id || null)
+        (spec.team_id || null) === (this.baseSpec!.team_id || null) &&
+        (spec.spec_type || 'protobuf') === this.comparisonSpecType
     );
     // Sort by version descending so newest first
     return sameGroup.sort((a, b) => this.compareVersions(b.version, a.version));
@@ -205,8 +212,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     rightLines: { content: string; lineNumber: number; type: string }[];
   } {
     try {
-      const leftText = this.generateProtoContent(this.leftSideSpec?.spec_data || {});
-      const rightText = this.generateProtoContent(this.rightSideSpec?.spec_data || {});
+      let leftText: string;
+      let rightText: string;
+
+      if (this.comparisonSpecType === 'json') {
+        leftText = JSON.stringify(this.leftSideSpec?.spec_data || {}, null, 2);
+        rightText = JSON.stringify(this.rightSideSpec?.spec_data || {}, null, 2);
+      } else {
+        leftText = this.generateProtoContent(this.leftSideSpec?.spec_data || {});
+        rightText = this.generateProtoContent(this.rightSideSpec?.spec_data || {});
+      }
 
       const left = leftText.split('\n');
       const right = rightText.split('\n');
@@ -324,6 +339,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.router.navigate(['/auth']);
   }
 
+  disconnectGitHub() {
+    this.apiService.disconnectGitHub().subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success('GitHub account disconnected successfully');
+          this.loadUserProfile();
+        } else {
+          this.notificationService.error('Failed to disconnect GitHub account', response.error);
+        }
+      },
+      error: (error) => {
+        this.notificationService.error('An error occurred while disconnecting the GitHub account.');
+        console.error('GitHub disconnect error:', error);
+      },
+    });
+  }
+
   formatDate(date: Date | string): string {
     return new Date(date).toLocaleDateString();
   }
@@ -436,6 +468,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   openCompareModal(spec: ProtobufSpec) {
     this.openSpecDropdown = null;
     this.baseSpec = spec;
+    this.comparisonSpecType = spec.spec_type || 'protobuf';
     this.leftSideSpec = null;
     this.rightSideSpec = null;
     this.canShowComparison = false;
@@ -592,7 +625,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         for (const en of message.nestedEnums) {
           s += `${pad}  enum ${en.name} {\n`;
           for (const v of en.values || []) {
-            s += `${pad}    ${v.name} = ${v.number};\n`;
+            s += `${pad}    ${v.name} = ${v.number};
+`;
           }
           s += `${pad}  }\n\n`;
         }
