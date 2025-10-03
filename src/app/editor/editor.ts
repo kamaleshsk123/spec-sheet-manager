@@ -108,7 +108,7 @@ interface JsonField {
     PushToBranchModalComponent,
     SpecificationDetailsComponent,
     MessageEnvelope,
-    DefinitionDetailsComponent,
+    // DefinitionDetailsComponent,
   ],
   templateUrl: './editor.html',
   styleUrl: './editor.css',
@@ -116,7 +116,7 @@ interface JsonField {
 export class EditorComponent implements OnInit {
   tabs = [
     { name: 'Specification Details', content: 'spec' },
-    { name: 'Definition Details', content: 'definitions' },
+    // { name: 'Definition Details', content: 'definitions' },
     { name: 'Message Envelope', content: 'messageEnvelope' },
   ];
   activeTabIndex = 0;
