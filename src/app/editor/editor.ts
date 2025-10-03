@@ -107,15 +107,16 @@ interface JsonField {
     PublishModalComponent,
     PushToBranchModalComponent,
     SpecificationDetailsComponent,
-    MessageEnvelope
-],
+    MessageEnvelope,
+    DefinitionDetailsComponent,
+  ],
   templateUrl: './editor.html',
   styleUrl: './editor.css',
 })
 export class EditorComponent implements OnInit {
   tabs = [
     { name: 'Specification Details', content: 'spec' },
-    // { name: 'Definition Details', content: 'definitions' },
+    { name: 'Definition Details', content: 'definitions' },
     { name: 'Message Envelope', content: 'messageEnvelope' },
   ];
   activeTabIndex = 0;
@@ -284,7 +285,6 @@ export class EditorComponent implements OnInit {
             this.toggleValue = 'json';
             this.toggleChecked = true;
             this.jsonSchema = spec.spec_data as any;
-
           } else {
             this.toggleValue = 'protobuf';
             this.toggleChecked = false;
@@ -563,7 +563,6 @@ export class EditorComponent implements OnInit {
       if (this.activeTab !== 'messages') {
         this.setActiveTab('messages');
       }
-
     }
   }
   updateProtoPreview() {

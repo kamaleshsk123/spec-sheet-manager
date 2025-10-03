@@ -481,7 +481,7 @@
                     <select
                       [(ngModel)]="field.type"
                       [name]="'jsonFieldType_' + i"
-                      (ngModelChange)="updateJsonPreview()"
+                      (ngModelChange)="onFieldTypeChange(field)"
                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="string">string</option>
@@ -568,6 +568,17 @@
                         placeholder="150"
                       />
                     </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Digits</label>
+                      <input
+                        type="number"
+                        [(ngModel)]="field.digits"
+                        [name]="'jsonFieldDigits_' + i"
+                        (ngModelChange)="updateJsonPreview()"
+                        class="w-full mt-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="7"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mt-2"
@@ -609,7 +620,7 @@
                     <h4 class="text-md font-semibold text-gray-800">Array Items</h4>
                     <select
                       [(ngModel)]="field.items.type"
-                      (ngModelChange)="updateJsonPreview()"
+                      (ngModelChange)="onFieldTypeChange(field)"
                       class="text-sm border-gray-300 rounded-md"
                     >
                       <option value="string">string</option>

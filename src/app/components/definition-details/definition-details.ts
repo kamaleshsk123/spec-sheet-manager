@@ -6,6 +6,8 @@ import {
   ViewChild,
   ElementRef,
   OnInit,
+  OnChanges,
+  SimpleChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -71,6 +73,7 @@ export interface JsonSchemaProperty {
   properties?: { [key: string]: JsonSchemaProperty };
   required?: string[];
   items?: JsonSchemaProperty;
+  'x-digits'?: number;
 }
 
 export interface JsonSchema {
@@ -88,6 +91,7 @@ export interface JsonField {
   minimum?: number;
   maximum?: number;
   enum?: any[];
+  digits?: number;
   children: JsonField[];
   items: {
     type: string;
@@ -102,7 +106,7 @@ export interface JsonField {
   templateUrl: './definition-details.html',
   styleUrls: ['./definition-details.css'],
 })
-export class DefinitionDetailsComponent implements OnInit {
+export class DefinitionDetailsComponent implements OnInit, OnChanges {
   @Input() protoFile!: ProtoFile;
   @Input() jsonSchema!: JsonSchema;
   @Input() jsonFields: JsonField[] = [];
@@ -127,6 +131,12 @@ export class DefinitionDetailsComponent implements OnInit {
 
   ngOnInit() {
     this.toggleChecked = this.toggleValue === 'json';
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['jsonFields'] && this.toggleValue === 'json') {
+      this.updateJsonPreview();
+    }
   }
 
   setActiveTab(tab: 'messages' | 'enums' | 'services' | 'settings') {
@@ -362,6 +372,15 @@ export class DefinitionDetailsComponent implements OnInit {
     this.updateJsonPreview();
   }
 
+  onFieldTypeChange(field: JsonField) {
+    if (field.type === 'object' && !field.children) {
+      field.children = [];
+    } else if (field.type === 'array' && !field.items) {
+      field.items = { type: 'string', children: [] };
+    }
+    this.updateJsonPreview();
+  }
+
   updateJsonPreview() {
     const buildSchema = (
       fields: JsonField[]
@@ -379,6 +398,8 @@ export class DefinitionDetailsComponent implements OnInit {
             property.minimum = field.minimum;
           if (field.maximum !== null && field.maximum !== undefined)
             property.maximum = field.maximum;
+          if (field.digits)
+            property['x-digits'] = field.digits;
         }
         if (field.enum && field.enum.length > 0 && (field.enum.length > 1 || field.enum[0]))
           property.enum = field.enum;
@@ -501,11 +522,21 @@ export class DefinitionDetailsComponent implements OnInit {
         return result;
       }
       case 'integer': {
+        if (prop['x-digits']) {
+          const min = Math.pow(10, prop['x-digits'] - 1);
+          const max = Math.pow(10, prop['x-digits']) - 1;
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
         const min = prop.minimum ?? 0;
         const max = prop.maximum ?? min + 100;
         return Math.floor(Math.random() * (max - min + 1)) + min;
       }
       case 'number': {
+        if (prop['x-digits']) {
+          const min = Math.pow(10, prop['x-digits'] - 1);
+          const max = Math.pow(10, prop['x-digits']) - 1;
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
         const min = prop.minimum ?? 0;
         const max = prop.maximum ?? min + 100;
         const randomNum = Math.random() * (max - min) + min;
