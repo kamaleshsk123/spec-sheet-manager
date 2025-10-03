@@ -429,15 +429,51 @@
             >
               <div
                 *ngFor="let field of fields; let i = index; trackBy: trackByIndex"
-                class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden"
+                class="bg-white rounded-md border border-gray-200 shadow-sm  hover:shadow-md transition-all duration-300 overflow-hidden"
               >
-                <div class="bg-gray-50/70 p-5 border-b border-gray-200">
-                  <div class="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
+                <!-- Collapsible Header -->
+                <div
+                  class="flex items-center justify-between bg-gray-50/70 rounded-md p-4 border-b border-gray-200 cursor-pointer"
+                >
+                  <div class="flex items-center flex-grow" (click)="toggleField(field)">
+                    <svg
+                      class="w-5 h-5 text-gray-500 mr-3 transform transition-transform duration-200"
+                      [class.rotate-90]="field.isExpanded"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    <span class="font-semibold text-gray-800">{{ field.name || 'unnamed_field' }}</span>
+                    <span class="text-sm text-white ml-2 span rounded-full px-2 bg-sky-600 ">{{ field.type }}</span>
+                  </div>
+
+                  <div class="flex items-center">
+                    <button
+                      type="button"
+                      (click)="removeJsonField(i, parent, isArrayItem); $event.stopPropagation()"
+                      class="flex items-center justify-center h-10 w-10 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all duration-200"
+                      title="Remove field"
+                    >
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Collapsible Content -->
+                <div *ngIf="field.isExpanded" class="p-5">
+                  <!-- Main Field Configuration -->
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end mb-5">
                     <div class="md:col-span-4">
-                      <label
-                        class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider"
-                        >Field Name</label
-                      >
+                      <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Field Name</label>
                       <input
                         type="text"
                         [(ngModel)]="field.name"
@@ -448,10 +484,7 @@
                       />
                     </div>
                     <div class="md:col-span-4">
-                      <label
-                        class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider"
-                        >Type</label
-                      >
+                      <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Type</label>
                       <select
                         [(ngModel)]="field.type"
                         [name]="'jsonFieldType_' + i"
@@ -467,7 +500,7 @@
                         <option value="array">array</option>
                       </select>
                     </div>
-                    <div class="md:col-span-5 flex items-center justify-between h-10">
+                    <div class="md:col-span-4 flex items-center h-10">
                       <label class="flex items-center select-none cursor-pointer">
                         <input
                           type="checkbox"
@@ -478,39 +511,14 @@
                         />
                         <span class="ml-2 text-sm text-gray-700 font-medium">Required</span>
                       </label>
-                      <button
-                        type="button"
-                        (click)="removeJsonField(i, parent, isArrayItem)"
-                        class="flex items-center justify-center h-10 w-10 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all duration-200"
-                        title="Remove field"
-                      >
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
                     </div>
                   </div>
-                </div>
 
-                <div class="p-5">
+                  <!-- Field Constraints -->
                   <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
                     <h4 class="text-sm font-bold text-slate-800 mb-3 flex items-center">
-                      <svg
-                        class="w-5 h-5 mr-2 text-indigo-500"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fill-rule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z"
-                          clip-rule="evenodd"
-                        />
+                      <svg class="w-5 h-5 mr-2 text-indigo-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
                       </svg>
                       Field Constraints
                     </h4>
@@ -527,10 +535,7 @@
                       />
                     </div>
 
-                    <div
-                      *ngIf="field.type === 'number' || field.type === 'integer'"
-                      class="grid grid-cols-1 sm:grid-cols-3 gap-4"
-                    >
+                    <div *ngIf="field.type === 'number' || field.type === 'integer'" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Minimum</label>
                         <input
@@ -564,9 +569,7 @@
                     </div>
 
                     <div class="mt-4">
-                      <label class="block text-sm font-medium text-gray-700"
-                        >Enum Values (comma-separated)</label
-                      >
+                      <label class="block text-sm font-medium text-gray-700">Enum Values (comma-separated)</label>
                       <input
                         type="text"
                         [ngModel]="(field.enum || []).join(', ')"
@@ -578,10 +581,8 @@
                     </div>
                   </div>
 
-                  <div
-                    *ngIf="field.type === 'object' || field.type === 'array'"
-                    class="mt-5 pl-6 border-l-2 border-indigo-200 space-y-4"
-                  >
+                  <!-- Nested Fields -->
+                  <div *ngIf="field.type === 'object' || field.type === 'array'" class="mt-5 pl-6 border-l-2 border-indigo-200 space-y-4">
                     <button
                       type="button"
                       (click)="addJsonField(field)"
@@ -596,42 +597,39 @@
                       context: { fields: field.children, parent: field, isArrayItem: false }
                     "
                   ></ng-container>
-                </div>
 
-                <!-- Nested Array Editor -->
-                <div *ngIf="field.type === 'array'" class="mt-4 pl-6 border-l-2 border-green-200">
-                  <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-md font-semibold text-gray-800">Array Items</h4>
-                    <select
-                      [(ngModel)]="field.items.type"
-                      (ngModelChange)="onFieldTypeChange(field)"
-                      class="text-sm border-gray-300 rounded-md"
-                    >
-                      <option value="string">string</option>
-                      <option value="number">number</option>
-                      <option value="integer">integer</option>
-                      <option value="boolean">boolean</option>
-                      <option value="time">time</option>
-                      <option value="object">object</option>
-                    </select>
-                  </div>
-                  <div *ngIf="field.items.type === 'object'" class="mt-2 pl-6 border-l-2 border-green-200">
-                    <button
-                      (click)="addJsonField(field, true)"
-                      class="text-sm text-green-600 hover:text-green-800 mb-2"
-                    >
-                      + Add Item Property
-                    </button>
-                    <ng-container
-                      *ngTemplateOutlet="
-                        jsonFieldEditor;
-                        context: {
-                          fields: field.items.children,
-                          parent: field,
-                          isArrayItem: true
-                        }
-                      "
-                    ></ng-container>
+                  <!-- Nested Array Editor -->
+                  <div *ngIf="field.type === 'array'" class="mt-4 pl-6 border-l-2 border-green-200">
+                    <div class="flex items-center justify-between mb-2">
+                      <h4 class="text-md font-semibold text-gray-800">Array Items</h4>
+                      <select
+                        [(ngModel)]="field.items.type"
+                        (ngModelChange)="onFieldTypeChange(field)"
+                        class="text-sm border-gray-300 rounded-md"
+                      >
+                        <option value="string">string</option>
+                        <option value="number">number</option>
+                        <option value="integer">integer</option>
+                        <option value="boolean">boolean</option>
+                        <option value="time">time</option>
+                        <option value="object">object</option>
+                      </select>
+                    </div>
+                    <div *ngIf="field.items.type === 'object'" class="mt-2 pl-6 border-l-2 border-green-200">
+                      <button (click)="addJsonField(field, true)" class="text-sm text-green-600 hover:text-green-800 mb-2">
+                        + Add Item Property
+                      </button>
+                      <ng-container
+                        *ngTemplateOutlet="
+                          jsonFieldEditor;
+                          context: {
+                            fields: field.items.children,
+                            parent: field,
+                            isArrayItem: true
+                          }
+                        "
+                      ></ng-container>
+                    </div>
                   </div>
                 </div>
               </div>

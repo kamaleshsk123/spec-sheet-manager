@@ -97,6 +97,7 @@ export interface JsonField {
     type: string;
     children: JsonField[];
   };
+  isExpanded?: boolean;
 }
 
 @Component({
@@ -346,6 +347,7 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
       type: 'string',
       children: [],
       items: { type: 'string', children: [] },
+      isExpanded: true,
     };
     if (parent) {
       if (isArrayItem) {
@@ -379,6 +381,10 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
       field.items = { type: 'string', children: [] };
     }
     this.updateJsonPreview();
+  }
+
+  toggleField(field: JsonField) {
+    field.isExpanded = !field.isExpanded;
   }
 
   updateJsonPreview() {
