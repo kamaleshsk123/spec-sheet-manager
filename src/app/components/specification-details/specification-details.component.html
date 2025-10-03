@@ -16,11 +16,11 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
         </svg>
-        Add  Field
+        Add Field
       </button>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-2 lg:grid-cols-2 gap-6">
       <div>
         <label for="specTitle" class="block text-sm font-medium text-gray-700 mb-2"
           >Spec Sheet Title</label
@@ -65,12 +65,18 @@
       </div>
       <!-- Protocol Dropdown -->
       <div class="w-full">
-        <label for="protocols" class="block text-sm font-medium text-gray-700 mb-2">Protocol</label>
+        <div class="flex space-x-2">
+          <label for="protocols" class="block text-sm font-medium text-gray-700 mb-2"
+            >Protocol</label
+          >
+
+          <p class="text-sm text-gray-500">( You can select multiple protocols )</p>
+        </div>
 
         <div class="relative">
           <button
             type="button"
-            class="w-full flex justify-between items-center px-4 py-3 border border-gray-300 rounded-xl bg-white text-left text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            class="w-full flex justify-between items-center px-4 py-3 border border-gray-300 rounded-lg bg-white text-left text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
             (click)="isProtocolOpen = !isProtocolOpen"
           >
             <span *ngIf="protocols?.length; else placeholder">
@@ -118,8 +124,6 @@
             </ul>
           </div>
         </div>
-
-        <p class="mt-1 text-xs text-gray-500">You can select multiple protocols</p>
       </div>
 
       <div class="w-full">
@@ -131,7 +135,7 @@
         <div class="relative">
           <button
             type="button"
-            class="w-full flex justify-between items-center px-4 py-3 border border-gray-300 rounded-xl bg-white text-left text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            class="w-full flex justify-between items-center px-4 py-3 border border-gray-300 rounded-lg bg-white text-left text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
             (click)="isStatusOpen = !isStatusOpen"
           >
             <div class="flex items-center gap-2">

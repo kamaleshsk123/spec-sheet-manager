@@ -132,6 +132,7 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
 
   ngOnInit() {
     this.toggleChecked = this.toggleValue === 'json';
+    this.updateEditorContent();
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -433,6 +434,7 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
     this.jsonSchemaChange.emit(this.jsonSchema);
     this.code = JSON.stringify(this.jsonSchema, null, 2);
     this.codeChange.emit(this.code);
+    this.demoJsonText = this.generateDemoJson();
   }
 
   updateJsonEnum(event: string, field: JsonField) {
@@ -481,6 +483,15 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
 
   showJsonDemo() {
     // Generate mock JSON from current schema and show overlay
+    this.demoJsonText = this.generateDemoJson();
+    this.showJsonDemoOverlay = true;
+  }
+
+  closeJsonDemoOverlay() {
+    this.showJsonDemoOverlay = false;
+  }
+
+  private generateDemoJson(): string {
     const demo: any = {};
     const schema = (this.jsonSchema as any) || {};
     if (schema.title) {
@@ -490,12 +501,7 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
     Object.keys(props).forEach((key) => {
       demo[key] = this.generateMockForProperty(props[key], key);
     });
-    this.demoJsonText = JSON.stringify(demo, null, 2);
-    this.showJsonDemoOverlay = true;
-  }
-
-  closeJsonDemoOverlay() {
-    this.showJsonDemoOverlay = false;
+    return JSON.stringify(demo, null, 2);
   }
 
   private generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
