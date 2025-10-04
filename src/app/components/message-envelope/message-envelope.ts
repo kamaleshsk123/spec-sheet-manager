@@ -48,7 +48,7 @@ export class MessageEnvelope implements OnInit {
 
   ngOnInit() {
     this.jsonFields = [
-      { name: 'imei', type: 'number', is_required: true, children: [], items: { type: 'string', children: [] } },
+      { name: 'imei', type: 'number', is_required: true, digits: 15, children: [], items: { type: 'string', children: [] } },
       { name: 'event_ts', type: 'time', is_required: true, children: [], items: { type: 'string', children: [] } },
       { name: 'message-type', type: 'number', is_required: true, children: [], items: { type: 'string', children: [] } },
       { name: 'sequence', type: 'number', is_required: true, children: [], items: { type: 'string', children: [] } },

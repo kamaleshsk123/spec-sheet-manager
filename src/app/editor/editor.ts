@@ -11,6 +11,8 @@ import { PushToBranchModalComponent } from '../components/push-to-branch-modal/p
 import { SpecificationDetailsComponent } from '../components/specification-details/specification-details.component';
 import { DefinitionDetailsComponent } from '../components/definition-details/definition-details';
 import { MessageEnvelope } from "../components/message-envelope/message-envelope";
+import { MessageTypes } from '../components/message-types/message-types';
+import { EditMessageType } from '../components/edit-message-type/edit-message-type';
 
 // import * as monaco from 'monaco-editor'; // Temporarily comment out
 
@@ -108,6 +110,8 @@ interface JsonField {
     PushToBranchModalComponent,
     SpecificationDetailsComponent,
     MessageEnvelope,
+    MessageTypes,
+    EditMessageType,
     // DefinitionDetailsComponent,
   ],
   templateUrl: './editor.html',
@@ -118,6 +122,7 @@ export class EditorComponent implements OnInit {
     { name: 'Specification Details', content: 'spec' },
     // { name: 'Definition Details', content: 'definitions' },
     { name: 'Message Envelope', content: 'messageEnvelope' },
+    { name: 'Message Types', content: 'messageTypes' },
   ];
   activeTabIndex = 0;
   showNewTabOverlay = false;
@@ -167,6 +172,7 @@ export class EditorComponent implements OnInit {
   isPublished: boolean = false;
   showPublishModal: boolean = false;
   showPushToBranchModal: boolean = false;
+  editingMessageId: number | null = null;
 
   // Team properties
   myTeams: Team[] = [];
@@ -1046,5 +1052,13 @@ export class EditorComponent implements OnInit {
         );
       },
     });
+  }
+
+  handleEditMessage(messageId: number) {
+    this.editingMessageId = messageId;
+  }
+
+  handleDoneEditing() {
+    this.editingMessageId = null;
   }
 }
