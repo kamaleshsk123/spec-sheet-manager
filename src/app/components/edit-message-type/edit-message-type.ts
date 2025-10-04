@@ -8,6 +8,14 @@ import {
   JsonField,
 } from '../definition-details/definition-details';
 
+interface MessageType {
+  id: number;
+  name: string;
+  payloadDefinition?: string;
+  json: any | null;
+  fields: JsonField[];
+}
+
 @Component({
   selector: 'app-edit-message-type',
   imports: [CommonModule, FormsModule, DefinitionDetailsComponent],
@@ -15,8 +23,8 @@ import {
   styleUrl: './edit-message-type.css',
 })
 export class EditMessageType {
-  @Input() messageId: number | null = null;
-  @Output() done = new EventEmitter<void>();
+  @Input() message: MessageType | null = null;
+  @Output() done = new EventEmitter<MessageType>();
   protoFile: ProtoFile = {
     syntax: 'proto3',
     package: '',
@@ -48,57 +56,15 @@ export class EditMessageType {
   };
 
   ngOnInit() {
-    this.jsonFields = [
-      {
-        name: 'imei',
-        type: 'number',
-        is_required: true,
-        digits: 15,
-        children: [],
-        items: { type: 'string', children: [] },
-      },
-      {
-        name: 'event_ts',
-        type: 'time',
-        is_required: true,
-        children: [],
-        items: { type: 'string', children: [] },
-      },
-      {
-        name: 'message-type',
-        type: 'number',
-        is_required: true,
-        children: [],
-        items: { type: 'string', children: [] },
-      },
-      {
-        name: 'sequence',
-        type: 'number',
-        is_required: true,
-        children: [],
-        items: { type: 'string', children: [] },
-      },
-      {
-        name: 'csq-dbm',
-        type: 'number',
-        is_required: true,
-        children: [],
-        items: { type: 'string', children: [] },
-      },
-      {
-        name: 'rat_code',
-        type: 'number',
-        is_required: true,
-        children: [],
-        items: { type: 'string', children: [] },
-      },
-      {
-        name: 'cmd_id',
-        type: 'number',
-        is_required: true,
-        children: [],
-        items: { type: 'string', children: [] },
-      },
-    ];
+    if (this.message) {
+      this.jsonFields = this.message.fields;
+    }
+  }
+
+  onDone() {
+    if (this.message) {
+      this.message.fields = this.jsonFields;
+      this.done.emit(this.message);
+    }
   }
 }

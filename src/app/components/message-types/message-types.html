@@ -153,7 +153,7 @@
         </div>
       </div>
 
-      <div *ngIf="selectedMessage && selectedMessage.json !== null" class="h-full">
+      <div *ngIf="selectedMessage && (selectedMessage.json !== null || selectedMessage.fields.length > 0)" class="h-full">
         <div class="flex justify-between items-center px-4">
           <div>
             <h3 class="text-lg font-bold text-gray-800">{{ selectedMessage.name }}</h3>
@@ -201,7 +201,7 @@
               </button>
             </div>
             <div class="p-4 max-h-[630px] overflow-y-auto">
-              <pre class="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed font-mono">{{ selectedMessage.json | json }}</pre>
+              <pre class="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed font-mono">{{ (selectedMessage.fields && selectedMessage.fields.length > 0 ? generateJson(selectedMessage.fields) : selectedMessage.json) | json }}</pre>
             </div>
           </div>
         </div>

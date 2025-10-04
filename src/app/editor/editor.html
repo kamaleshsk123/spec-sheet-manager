@@ -161,11 +161,11 @@
     </div>
 
           <div *ngIf="tabs[activeTabIndex].content === 'messageTypes'" class="p-4">
-            <div *ngIf="!editingMessageId">
-              <app-message-types (edit)="handleEditMessage($event)"></app-message-types>
+            <div *ngIf="!editingMessage">
+              <app-message-types [messageTypes]="messageTypes" (edit)="handleEditMessage($event)"></app-message-types>
             </div>
-            <div *ngIf="editingMessageId">
-              <app-edit-message-type [messageId]="editingMessageId" (done)="handleDoneEditing()"></app-edit-message-type>
+            <div *ngIf="editingMessage">
+              <app-edit-message-type [message]="editingMessage" (done)="handleDoneEditing($event)"></app-edit-message-type>
             </div>
           </div>
 

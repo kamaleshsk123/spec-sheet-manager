@@ -16,6 +16,14 @@ import { EditMessageType } from '../components/edit-message-type/edit-message-ty
 
 // import * as monaco from 'monaco-editor'; // Temporarily comment out
 
+interface MessageType {
+  id: number;
+  name: string;
+  payloadDefinition?: string;
+  json: any | null;
+  fields: JsonField[];
+}
+
 interface Field {
   type: string;
   name: string;
@@ -172,7 +180,7 @@ export class EditorComponent implements OnInit {
   isPublished: boolean = false;
   showPublishModal: boolean = false;
   showPushToBranchModal: boolean = false;
-  editingMessageId: number | null = null;
+  editingMessage: MessageType | null = null;
 
   // Team properties
   myTeams: Team[] = [];
@@ -196,6 +204,7 @@ export class EditorComponent implements OnInit {
     required: [],
   };
   jsonFields: JsonField[] = [];
+  messageTypes: MessageType[] = [];
   // JSON Demo overlay state
   showJsonDemoOverlay: boolean = false;
   demoJsonText: string = '';
@@ -224,6 +233,11 @@ export class EditorComponent implements OnInit {
   ngOnInit() {
     this.updateEditorContent();
     this.loadMyTeams();
+
+    this.messageTypes = [
+      { id: 1, name: 'User Login', payloadDefinition: 'user_login.proto', json: { username: 'test', password: 'test' }, fields: [] },
+      { id: 2, name: 'User Logout', payloadDefinition: 'user_logout.proto', json: { username: 'test' }, fields: [] },
+    ];
 
     // Check if we need to load a specific spec
     this.route.queryParams.subscribe((params) => {
@@ -1054,11 +1068,15 @@ export class EditorComponent implements OnInit {
     });
   }
 
-  handleEditMessage(messageId: number) {
-    this.editingMessageId = messageId;
+  handleEditMessage(message: MessageType) {
+    this.editingMessage = message;
   }
 
-  handleDoneEditing() {
-    this.editingMessageId = null;
+  handleDoneEditing(updatedMessage: MessageType) {
+    const index = this.messageTypes.findIndex((m: MessageType) => m.id === updatedMessage.id);
+    if (index !== -1) {
+      this.messageTypes[index] = updatedMessage;
+    }
+    this.editingMessage = null;
   }
 }
