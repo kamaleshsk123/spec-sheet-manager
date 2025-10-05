@@ -20,6 +20,7 @@ export interface Field {
   number: number;
   repeated?: boolean;
   optional?: boolean;
+  format?: string;
 }
 
 interface EnumValue {
@@ -451,9 +452,195 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
     this.updateJsonPreview();
   }
 
+  private jsonToProtoType(jsonType: string): string {
+    switch (jsonType) {
+      case 'number':
+        return 'double';
+      case 'integer':
+        return 'int32';
+      case 'boolean':
+        return 'bool';
+      case 'string':
+      case 'time':
+        return 'string';
+      default:
+        return 'string';
+    }
+  }
+
+  private convertJsonToProto() {
+    if (this.jsonFields.length === 0) {
+      return;
+    }
+
+    const message: Message = {
+      name: this.jsonSchema.title || 'NewMessage',
+      fields: [],
+      nestedMessages: [],
+    };
+
+    let fieldNumber = 1;
+    for (const jsonField of this.jsonFields) {
+      const field: Field = {
+        name: jsonField.name,
+        type: this.jsonToProtoType(jsonField.type),
+        number: fieldNumber++,
+        repeated: jsonField.type === 'array',
+        optional: !jsonField.is_required,
+      };
+
+      if (jsonField.type === 'time') {
+        field.format = 'date-time';
+      }
+
+      if (jsonField.type === 'object') {
+        const nestedMessage: Message = {
+          name: jsonField.name,
+          fields: [],
+        };
+        let nestedFieldNumber = 1;
+        for (const child of jsonField.children) {
+          nestedMessage.fields.push({
+            name: child.name,
+            type: this.jsonToProtoType(child.type),
+            number: nestedFieldNumber++,
+            repeated: child.type === 'array',
+            optional: !child.is_required,
+          });
+        }
+        message.nestedMessages?.push(nestedMessage);
+        field.type = jsonField.name;
+      }
+
+      if (jsonField.type === 'array' && jsonField.items.type === 'object') {
+        const nestedMessage: Message = {
+          name: jsonField.name + 'Item',
+          fields: [],
+        };
+        let nestedFieldNumber = 1;
+        for (const child of jsonField.items.children) {
+          nestedMessage.fields.push({
+            name: child.name,
+            type: this.jsonToProtoType(child.type),
+            number: nestedFieldNumber++,
+            repeated: child.type === 'array',
+            optional: !child.is_required,
+          });
+        }
+        message.nestedMessages?.push(nestedMessage);
+        field.type = jsonField.name + 'Item';
+      }
+      
+      message.fields.push(field);
+    }
+
+    this.protoFile.messages = [message];
+    this.protoFileChange.emit(this.protoFile);
+  }
+
+  private protoToJSONType(protoType: string): string {
+    switch (protoType) {
+      case 'double':
+      case 'float':
+        return 'number';
+      case 'int32':
+      case 'int64':
+      case 'uint32':
+      case 'uint64':
+      case 'sint32':
+      case 'sint64':
+      case 'fixed32':
+      case 'fixed64':
+      case 'sfixed32':
+      case 'sfixed64':
+        return 'integer';
+      case 'bool':
+        return 'boolean';
+      case 'string':
+      case 'bytes':
+        return 'string';
+      default:
+        // This is a nested message
+        return 'object';
+    }
+  }
+
+  private convertProtoToJson() {
+    if (this.protoFile.messages.length === 0) {
+      return;
+    }
+
+    const jsonFields: JsonField[] = [];
+    const message = this.protoFile.messages[0];
+
+    for (const field of message.fields) {
+      const jsonField: JsonField = {
+        name: field.name,
+        type: this.protoToJSONType(field.type),
+        is_required: !field.optional,
+        children: [],
+        items: { type: 'string', children: [] },
+        isExpanded: false,
+      };
+
+      if (field.format === 'date-time') {
+        jsonField.type = 'time';
+      }
+
+      if (field.repeated) {
+        jsonField.type = 'array';
+        // find the nested message
+        const nestedMessage = this.protoFile.messages.find(m => m.name === field.type);
+        if (nestedMessage) {
+          jsonField.items.type = 'object';
+          for (const nestedField of nestedMessage.fields) {
+            jsonField.items.children.push({
+              name: nestedField.name,
+              type: this.protoToJSONType(nestedField.type),
+              is_required: !nestedField.optional,
+              children: [],
+              items: { type: 'string', children: [] },
+              isExpanded: false,
+            });
+          }
+        } else {
+          jsonField.items.type = this.protoToJSONType(field.type);
+        }
+      }
+
+      const nestedMessage = this.protoFile.messages.find(m => m.name === field.type);
+      if (nestedMessage) {
+        for (const nestedField of nestedMessage.fields) {
+          jsonField.children.push({
+            name: nestedField.name,
+            type: this.protoToJSONType(nestedField.type),
+            is_required: !nestedField.optional,
+            children: [],
+            items: { type: 'string', children: [] },
+            isExpanded: false,
+          });
+        }
+      }
+
+
+      jsonFields.push(jsonField);
+    }
+
+    this.jsonFields = jsonFields;
+    this.jsonFieldsChange.emit(this.jsonFields);
+  }
+
+
   onToggleChange() {
     this.toggleValue = this.toggleChecked ? 'json' : 'protobuf';
     this.toggleValueChange.emit(this.toggleValue);
+
+    if (this.toggleValue === 'protobuf') {
+      this.convertJsonToProto();
+    } else {
+      this.convertProtoToJson();
+    }
+
     this.updateEditorContent();
   }
 
