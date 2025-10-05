@@ -1,66 +1,60 @@
+import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { AddMessageModalComponent } from '../add-message-modal/add-message-modal.component';
-
-export interface JsonField {
-  name: string;
-  is_required: boolean;
-  type: string;
-  pattern?: string;
-  minimum?: number;
-  maximum?: number;
-  enum?: any[];
-  digits?: number;
-  children: JsonField[];
-  items: {
-    type: string;
-    children: JsonField[];
-  };
-  isExpanded?: boolean;
-}
-
-export interface JsonSchemaProperty {
-  type: string;
-  format?: string;
-  pattern?: string;
-  minimum?: number;
-  maximum?: number;
-  enum?: any[];
-  properties?: { [key: string]: JsonSchemaProperty };
-  required?: string[];
-  items?: JsonSchemaProperty;
-  'x-digits'?: number;
-}
-
-interface MessageType {
-  id: number;
-  name: string;
-  payloadDefinition?: string;
-  json: any | null;
-  fields: JsonField[];
-}
+import { ApiService, MessageType } from '../../services/api.service';
+import { NotificationService } from '../../services/notification.service';
+import { JsonSchemaProperty } from '../definition-details/definition-details';
 
 @Component({
   selector: 'app-message-types',
-  imports: [CommonModule, AddMessageModalComponent],
+  standalone: true,
+  imports: [CommonModule, AddMessageModalComponent, FormsModule],
   templateUrl: './message-types.html',
-  styleUrl: './message-types.css',
+  styleUrls: ['./message-types.css'],
 })
-export class MessageTypes {
+export class MessageTypesComponent implements OnChanges {
+  @Input() specId!: string;
   @Input() messageTypes: MessageType[] = [];
+  @Input() selectedMessageId: string | null = null;
   @Output() edit = new EventEmitter<MessageType>();
+  @Output() add = new EventEmitter<void>();
   showAddMessageModal = false;
 
-  // Default select first message
   selectedMessage: MessageType | null = null;
 
-  ngOnInit() {
-    if (this.messageTypes.length > 0) {
-      this.selectedMessage = this.messageTypes[0];
+  constructor(
+    private apiService: ApiService,
+    private notificationService: NotificationService
+  ) {}
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['messageTypes'] || changes['selectedMessageId']) {
+      this.reselectCurrent();
     }
   }
 
-  selectMessage(msg: any) {
+  private reselectCurrent() {
+    if (this.messageTypes && this.messageTypes.length > 0) {
+      if (this.selectedMessageId) {
+        const byId = this.messageTypes.find(m => m.id === this.selectedMessageId);
+        if (byId) {
+          this.selectedMessage = byId;
+          return;
+        }
+      }
+      if (this.selectedMessage && this.selectedMessage.id) {
+        const currentId = this.selectedMessage.id;
+        this.selectedMessage = this.messageTypes.find(m => m.id === currentId) || this.messageTypes[0];
+      } else {
+        this.selectedMessage = this.messageTypes[0];
+      }
+    } else {
+      this.selectedMessage = null;
+    }
+  }
+
+  selectMessage(msg: MessageType) {
     this.selectedMessage = msg;
   }
 
@@ -76,83 +70,52 @@ export class MessageTypes {
     this.showAddMessageModal = false;
   }
 
-  handleSaveMessage(newMessage: { name: string; payloadDefinition: string }) {
-    const newId = Math.max(...this.messageTypes.map((m) => m.id)) + 1;
-    this.messageTypes.push({ ...newMessage, id: newId, json: null, fields: [] });
-    this.selectMessage(this.messageTypes[this.messageTypes.length - 1]);
+  handleSaveMessage(newMessage: { name: string; payloadDefinition: string, json_schema: any }) {
+    this.apiService.createMessageType(this.specId, newMessage).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success('Message Type Created', 'Successfully created message type.');
+          this.add.emit();
+          this.closeAddMessageModal();
+        } else {
+          this.notificationService.error('Create Failed', response.error || 'Failed to create message type.');
+        }
+      },
+      error: (error) => {
+        this.notificationService.error('Create Error', 'An unknown error occurred.');
+      }
+    });
   }
 
   editMessage(message: MessageType) {
     this.edit.emit(message);
   }
 
-  generateJson(fields: JsonField[]): any {
-    if (!fields || fields.length === 0) {
-      return null;
+  generateDemoJson(schema: any): any {
+    if (!schema || !schema.properties) {
+      return {};
     }
-
-    const buildSchema = (
-      fields: JsonField[]
-    ): { properties: { [key: string]: JsonSchemaProperty }; required: string[] } => {
-      const properties: { [key: string]: JsonSchemaProperty } = {};
-      const required: string[] = [];
-      for (const field of fields) {
-        if (!field.name) continue;
-        const property: JsonSchemaProperty = { type: field.type === 'time' ? 'string' : field.type };
-        if (field.type === 'time') property.format = 'date-time';
-        if (field.is_required) required.push(field.name);
-        if (field.type === 'string' && field.pattern) property.pattern = field.pattern;
-        if (field.type === 'number' || field.type === 'integer') {
-          if (field.minimum !== null && field.minimum !== undefined)
-            property.minimum = field.minimum;
-          if (field.maximum !== null && field.maximum !== undefined)
-            property.maximum = field.maximum;
-          if (field.digits)
-            property['x-digits'] = field.digits;
-        }
-        if (field.enum && field.enum.length > 0 && (field.enum.length > 1 || field.enum[0]))
-          property.enum = field.enum;
-        if (field.type === 'object') {
-          const nestedSchema = buildSchema(field.children);
-          property.properties = nestedSchema.properties;
-          if (nestedSchema.required.length > 0) property.required = nestedSchema.required;
-        } else if (field.type === 'array') {
-          const itemsSchema: JsonSchemaProperty = { type: field.items.type === 'time' ? 'string' : field.items.type };
-          if (field.items.type === 'time') itemsSchema.format = 'date-time';
-          if (field.items.type === 'object') {
-            const nestedSchema = buildSchema(field.items.children);
-            itemsSchema.properties = nestedSchema.properties;
-            if (nestedSchema.required.length > 0) itemsSchema.required = nestedSchema.required;
-          }
-          property.items = itemsSchema;
-        }
-        properties[field.name] = property;
-      }
-      return { properties, required };
-    };
-
-    const { properties } = buildSchema(fields);
     const demo: any = {};
-    Object.keys(properties).forEach((key) => {
-      demo[key] = this.getMockValue(properties[key], key);
+    const props = (schema.properties || {}) as { [key: string]: JsonSchemaProperty };
+    Object.keys(props).forEach((key) => {
+      demo[key] = this.generateMockForProperty(props[key], key);
     });
     return demo;
   }
 
-  private getMockValue(prop: JsonSchemaProperty, key: string): any {
+  private generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
     switch (prop.type) {
       case 'string': {
         if (prop.format === 'date-time') {
-          // Generate a valid ISO 8601 timestamp
           const now = new Date();
-          const randomOffset = Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000); // Random offset up to 1 year
+          const randomOffset = Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000);
           const randomDate = new Date(now.getTime() - randomOffset);
           return randomDate.toISOString();
         }
         if (prop.enum && prop.enum.length > 0) {
           return prop.enum[Math.floor(Math.random() * prop.enum.length)];
         }
-        if (prop.pattern && /^\[A-Z0-9\]{6}$/.test(prop.pattern)) {
+        if (prop.pattern && /^[A-Z0-9]{6}$/.test(prop.pattern)) {
           const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
           let result = '';
           for (let i = 0; i < 6; i++) {
@@ -162,7 +125,7 @@ export class MessageTypes {
         }
         const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let result = '';
-        const length = Math.floor(Math.random() * 8) + 5; // Random length between 5 and 12
+        const length = Math.floor(Math.random() * 8) + 5;
         for (let i = 0; i < length; i++) {
           result += chars.charAt(Math.floor(Math.random() * chars.length));
         }
@@ -195,16 +158,16 @@ export class MessageTypes {
         const child: any = {};
         const nestedProps = prop.properties || {};
         Object.keys(nestedProps).forEach((k) => {
-          child[k] = this.getMockValue(nestedProps[k], k);
+          child[k] = this.generateMockForProperty(nestedProps[k], k);
         });
         return child;
       }
       case 'array': {
         const itemSchema = prop.items || ({ type: 'string' } as JsonSchemaProperty);
-        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const itemCount = Math.floor(Math.random() * 3) + 1;
         const items = [];
         for (let i = 0; i < itemCount; i++) {
-          items.push(this.getMockValue(itemSchema, key));
+          items.push(this.generateMockForProperty(itemSchema, key));
         }
         return items;
       }

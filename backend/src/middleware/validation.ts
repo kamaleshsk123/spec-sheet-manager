@@ -114,6 +114,18 @@ export const updateSpecSchema = Joi.object({
     .optional(),
 });
 
+export const createMessageTypeSchema = Joi.object({
+  name: Joi.string().min(1).max(255).required(),
+  payload_definition: Joi.string().allow('').optional(),
+  json_schema: Joi.object().allow(null).optional(),
+});
+
+export const updateMessageTypeSchema = Joi.object({
+  name: Joi.string().min(1).max(255).optional(),
+  payload_definition: Joi.string().allow('').optional(),
+  json_schema: Joi.object().optional(),
+});
+
 // Validation middleware factory
 export const validate = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {

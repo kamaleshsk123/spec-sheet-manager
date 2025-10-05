@@ -67,7 +67,7 @@
         <div class="flex items-center justify-between" aria-label="Tabs">
           <nav class="-mb-px flex space-x-8">
             <button
-              (click)="activeTabIndex = 0"
+              (click)="onTabChange(0)"
               [class]="
                 activeTabIndex === 0
                   ? 'border-blue-500 text-blue-600'
@@ -78,7 +78,7 @@
               Specification Details
             </button>
             <!-- <button
-              (click)="activeTabIndex = 1"
+              (click)="setActiveTabIndex(1)"
               [class]="
                 activeTabIndex === 1
                   ? 'border-blue-500 text-blue-600'
@@ -89,18 +89,18 @@
               Definition Details
             </button> -->
             <button
-              (click)="activeTabIndex = 1"
+              (click)="onTabChange(1)"
               [class]="
                 activeTabIndex === 1
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:hover:border-gray-300'
               "
               class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
             >
               Message Envelope
             </button>
             <button
-              (click)="activeTabIndex = 2"
+              (click)="onTabChange(2)"
               [class]="
                 activeTabIndex === 2
                   ? 'border-blue-500 text-blue-600'
@@ -160,12 +160,12 @@
       <app-message-envelope></app-message-envelope>
     </div>
 
-          <div *ngIf="tabs[activeTabIndex].content === 'messageTypes'" class="p-4">
+          <div *ngIf="tabs[activeTabIndex].content === 'messageTypes' && currentSpecId" class="p-4">
             <div *ngIf="!editingMessage">
-              <app-message-types [messageTypes]="messageTypes" (edit)="handleEditMessage($event)"></app-message-types>
+              <app-message-types [specId]="currentSpecId" [messageTypes]="messageTypes" [selectedMessageId]="lastSelectedMessageId" (edit)="handleEditMessage($event)" (add)="handleAddMessage()"></app-message-types>
             </div>
             <div *ngIf="editingMessage">
-              <app-edit-message-type [message]="editingMessage" (done)="handleDoneEditing($event)"></app-edit-message-type>
+              <app-edit-message-type [message]="editingMessage" [specType]="specType" (done)="handleDoneEditing()"></app-edit-message-type>
             </div>
           </div>
 

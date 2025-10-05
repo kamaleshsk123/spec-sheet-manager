@@ -39,6 +39,16 @@ export interface Team {
   updated_at: Date;
 }
 
+export interface MessageType {
+  id?: string;
+  spec_id: string;
+  name: string;
+  payload_definition?: string;
+  json_schema?: any;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
 export interface SpecVersion {
   id: string;
   spec_id: string;
@@ -270,6 +280,37 @@ export class ApiService {
     return this.http.post<ApiResponse>(
       `${this.baseUrl}/specs/${specId}/push-to-branch`,
       { commitMessage },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // Message Type CRUD operations
+  getMessageTypes(specId: string): Observable<ApiResponse<MessageType[]>> {
+    return this.http.get<ApiResponse<MessageType[]>>(
+      `${this.baseUrl}/specs/${specId}/messagetypes`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  createMessageType(specId: string, data: Partial<MessageType>): Observable<ApiResponse<MessageType>> {
+    return this.http.post<ApiResponse<MessageType>>(
+      `${this.baseUrl}/specs/${specId}/messagetypes`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  updateMessageType(id: string, data: Partial<MessageType>): Observable<ApiResponse<MessageType>> {
+    return this.http.put<ApiResponse<MessageType>>(
+      `${this.baseUrl}/messagetypes/${id}`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  deleteMessageType(id: string): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(
+      `${this.baseUrl}/messagetypes/${id}`,
       { headers: this.getHeaders() }
     );
   }

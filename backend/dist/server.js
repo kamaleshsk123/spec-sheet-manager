@@ -13,6 +13,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const auth_1 = __importDefault(require("./routes/auth"));
 const specs_1 = __importDefault(require("./routes/specs"));
 const teams_1 = __importDefault(require("./routes/teams"));
+const messagetypes_1 = __importDefault(require("./routes/messagetypes"));
 // Load environment variables
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -44,6 +45,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', auth_1.default);
 app.use('/api/specs', specs_1.default);
 app.use('/api/teams', teams_1.default);
+app.use('/api', messagetypes_1.default);
 // 404 handler
 app.use('*', (req, res) => {
     res.status(404).json({

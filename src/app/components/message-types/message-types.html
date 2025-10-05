@@ -4,17 +4,6 @@
     <div class="col-span-1">
       <div class="flex justify-between items-center">
         <h3 class="text-lg font-bold mb-6 text-gray-800 flex items-center gap-3">
-          <!-- <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-7 w-7 text-blue-500"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
-          <path
-            d="M15 7v2a2 2 0 01-2 2h-2m-4-5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2h-2m-4-5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2h-2"
-          />
-        </svg> -->
           Message Types
         </h3>
         <button
@@ -124,7 +113,7 @@
         </div>
       </div>
 
-      <div *ngIf="selectedMessage && selectedMessage.json === null" class="h-full flex items-center justify-center">
+      <div *ngIf="selectedMessage && !selectedMessage.json_schema" class="h-full flex items-center justify-center">
         <div class="text-center p-12 border-2 border-dashed border-gray-300 rounded-lg">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -140,20 +129,21 @@
               d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <h3 class="mt-4 text-xl font-semibold text-gray-700">Create the JSON Schema</h3>
+          <h3 class="mt-4 text-xl font-semibold text-gray-700">No JSON Schema</h3>
           <p class="mt-2 text-gray-500">
-            Define the JSON structure for this message type.
+            Edit this message to define its JSON schema.
           </p>
           <button
             type="button"
+            (click)="editMessage(selectedMessage)"
             class="mt-4 inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
           >
-            Create
+            Edit Message
           </button>
         </div>
       </div>
 
-      <div *ngIf="selectedMessage && (selectedMessage.json !== null || selectedMessage.fields.length > 0)" class="h-full">
+      <div *ngIf="selectedMessage && selectedMessage.json_schema" class="h-full">
         <div class="flex justify-between items-center px-4">
           <div>
             <h3 class="text-lg font-bold text-gray-800">{{ selectedMessage.name }}</h3>
@@ -182,7 +172,7 @@
               class="flex justify-between items-center bg-gray-800 px-4 py-2 text-xs text-gray-400"
             >
               <span>payload.json</span>
-              <button class="flex items-center gap-1.5 hover:text-white transition-colors">
+              <button (click)="copyJson(selectedMessage.json_schema)" class="flex items-center gap-1.5 hover:text-white transition-colors">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   class="h-4 w-4"
@@ -201,7 +191,7 @@
               </button>
             </div>
             <div class="p-4 max-h-[630px] overflow-y-auto">
-              <pre class="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed font-mono">{{ (selectedMessage.fields && selectedMessage.fields.length > 0 ? generateJson(selectedMessage.fields) : selectedMessage.json) | json }}</pre>
+              <pre class="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed font-mono">{{ generateDemoJson(selectedMessage.json_schema) | json }}</pre>
             </div>
           </div>
         </div>
@@ -211,4 +201,3 @@
 </div>
 
 <app-add-message-modal *ngIf="showAddMessageModal" (close)="closeAddMessageModal()" (save)="handleSaveMessage($event)"></app-add-message-modal>
-

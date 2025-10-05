@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validate = exports.updateSpecSchema = exports.createSpecSchema = exports.loginSchema = exports.createUserSchema = void 0;
+exports.validate = exports.updateMessageTypeSchema = exports.createMessageTypeSchema = exports.updateSpecSchema = exports.createSpecSchema = exports.loginSchema = exports.createUserSchema = void 0;
 const joi_1 = __importDefault(require("joi"));
 // User validation schemas
 exports.createUserSchema = joi_1.default.object({
@@ -58,11 +58,30 @@ const protoFileDataSchema = joi_1.default.object({
     enums: joi_1.default.array().items(enumSchema).default([]),
     services: joi_1.default.array().items(serviceSchema).default([]),
 });
+const jsonSchemaPropertySchema = joi_1.default.object({
+    type: joi_1.default.string().valid('string', 'number', 'integer', 'boolean', 'object', 'array').required(),
+    pattern: joi_1.default.string().optional(),
+    minimum: joi_1.default.number().optional(),
+    maximum: joi_1.default.number().optional(),
+    enum: joi_1.default.array().items(joi_1.default.any()).optional(),
+    properties: joi_1.default.object().pattern(joi_1.default.string(), joi_1.default.link('#jsonSchemaPropertySchema')).optional(),
+    required: joi_1.default.array().items(joi_1.default.string()).optional(),
+    items: joi_1.default.link('#jsonSchemaPropertySchema').optional(),
+}).id('jsonSchemaPropertySchema');
+const jsonSchemaDataSchema = joi_1.default.object({
+    title: joi_1.default.string().required(),
+    type: joi_1.default.string().valid('object').required(),
+    properties: joi_1.default.object().pattern(joi_1.default.string(), jsonSchemaPropertySchema).required(),
+    required: joi_1.default.array().items(joi_1.default.string()).optional(),
+});
 exports.createSpecSchema = joi_1.default.object({
     title: joi_1.default.string().min(1).max(255).required(),
     version: joi_1.default.string().max(50).optional(),
-    description: joi_1.default.string().max(1000).optional(),
-    spec_data: protoFileDataSchema.required(),
+    description: joi_1.default.string().max(1000).allow('').optional(),
+    spec_type: joi_1.default.string().valid('protobuf', 'json').default('protobuf'),
+    spec_data: joi_1.default.alternatives()
+        .try(protoFileDataSchema, jsonSchemaDataSchema)
+        .required(),
     tags: joi_1.default.array().items(joi_1.default.string().max(50)).max(10).optional(),
     team_id: joi_1.default.string()
         .guid({ version: ['uuidv4', 'uuidv5'] })
@@ -72,8 +91,11 @@ exports.createSpecSchema = joi_1.default.object({
 exports.updateSpecSchema = joi_1.default.object({
     title: joi_1.default.string().min(1).max(255).optional(),
     version: joi_1.default.string().max(50).optional(),
-    description: joi_1.default.string().max(1000).optional(),
-    spec_data: protoFileDataSchema.optional(),
+    description: joi_1.default.string().max(1000).allow('').optional(),
+    spec_type: joi_1.default.string().valid('protobuf', 'json').optional(),
+    spec_data: joi_1.default.alternatives()
+        .try(protoFileDataSchema, jsonSchemaDataSchema)
+        .optional(),
     tags: joi_1.default.array().items(joi_1.default.string().max(50)).max(10).optional(),
     is_published: joi_1.default.boolean().optional(),
     github_repo_url: joi_1.default.string().uri().allow(null).optional(),
@@ -82,6 +104,16 @@ exports.updateSpecSchema = joi_1.default.object({
         .guid({ version: ['uuidv4', 'uuidv5'] })
         .allow(null)
         .optional(),
+});
+exports.createMessageTypeSchema = joi_1.default.object({
+    name: joi_1.default.string().min(1).max(255).required(),
+    payload_definition: joi_1.default.string().allow('').optional(),
+    json_schema: joi_1.default.object().allow(null).optional(),
+});
+exports.updateMessageTypeSchema = joi_1.default.object({
+    name: joi_1.default.string().min(1).max(255).optional(),
+    payload_definition: joi_1.default.string().allow('').optional(),
+    json_schema: joi_1.default.object().optional(),
 });
 // Validation middleware factory
 const validate = (schema) => {

@@ -14,7 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { NuMonacoEditorModule } from '@ng-util/monaco-editor';
 
 // Interfaces from editor.ts
-interface Field {
+export interface Field {
   type: string;
   name: string;
   number: number;
@@ -27,12 +27,12 @@ interface EnumValue {
   number: number;
 }
 
-interface Enum {
+export interface Enum {
   name: string;
   values: EnumValue[];
 }
 
-interface Service {
+export interface Service {
   name: string;
   methods: ServiceMethod[];
 }
@@ -47,7 +47,7 @@ interface ServiceMethod {
   };
 }
 
-interface Message {
+export interface Message {
   name: string;
   fields: Field[];
   nestedMessages?: Message[];

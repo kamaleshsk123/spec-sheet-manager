@@ -5,5 +5,6 @@ export declare class AuthController {
     static getProfile(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static githubAuth(req: Request, res: Response): Promise<void>;
     static githubCallback(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static githubDisconnect(req: Request, res: Response): Promise<void>;
 }
 //# sourceMappingURL=authController.d.ts.map
