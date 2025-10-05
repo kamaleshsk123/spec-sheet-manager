@@ -85,6 +85,18 @@ const createTables = async () => {
       ADD COLUMN IF NOT EXISTS json_fields JSONB;
     `);
 
+    console.log('Creating message_envelopes table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS message_envelopes (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        json_fields JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     await client.query('COMMIT');
     console.log('Database tables created successfully!');
   } catch (error) {

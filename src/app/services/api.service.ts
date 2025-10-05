@@ -316,6 +316,36 @@ export class ApiService {
     );
   }
 
+  getMessageEnvelopes(): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(
+      `${this.baseUrl}/message-envelopes`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  createMessageEnvelope(data: any): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.baseUrl}/message-envelopes`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  updateMessageEnvelope(id: string, data: any): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(
+      `${this.baseUrl}/message-envelopes/${id}`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  deleteMessageEnvelope(id: string): Observable<ApiResponse<any>> {
+    return this.http.delete<ApiResponse<any>>(
+      `${this.baseUrl}/message-envelopes/${id}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
   // Auth endpoints
   login(email: string, password: string): Observable<ApiResponse<{user: any, token: string}>> {
     return this.http.post<ApiResponse<{user: any, token: string}>>(

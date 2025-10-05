@@ -9,43 +9,21 @@ const helmet_1 = __importDefault(require("helmet"));
 const compression_1 = __importDefault(require("compression"));
 const morgan_1 = __importDefault(require("morgan"));
 const dotenv_1 = __importDefault(require("dotenv"));
-// Import routes
-const auth_1 = __importDefault(require("./routes/auth"));
-const specs_1 = __importDefault(require("./routes/specs"));
-const teams_1 = __importDefault(require("./routes/teams"));
 const messagetypes_1 = __importDefault(require("./routes/messagetypes"));
-// Load environment variables
-dotenv_1.default.config();
+const messageEnvelopes_1 = __importDefault(require("./routes/messageEnvelopes"));
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 3000;
-// Middleware
+app.use((0, cors_1.default)());
 app.use((0, helmet_1.default)());
 app.use((0, compression_1.default)());
-app.use((0, morgan_1.default)('combined'));
-// CORS configuration
-app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL || 'http://localhost:4200',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-// Body parsing middleware
-app.use(express_1.default.json({ limit: '10mb' }));
-app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Protobuf Spec API is running',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-    });
-});
-// API routes
-app.use('/api/auth', auth_1.default);
-app.use('/api/specs', specs_1.default);
-app.use('/api/teams', teams_1.default);
-app.use('/api', messagetypes_1.default);
+app.use((0, morgan_1.default)('dev'));
+app.use(express_1.default.json());
+app.use(express_1.default.urlencoded({ extended: true }));
+dotenv_1.default.config();
+app.use('/api/auth', authRouter);
+app.use('/api/specs', specsRouter);
+app.use('/api/teams', teamsRouter);
+app.use('/api/messagetypes', messagetypes_1.default);
+app.use('/api/message-envelopes', messageEnvelopes_1.default);
 // 404 handler
 app.use('*', (req, res) => {
     res.status(404).json({
