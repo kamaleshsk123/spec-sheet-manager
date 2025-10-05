@@ -107,11 +107,39 @@ export class MessageTypesComponent implements OnChanges {
   }
 
   private generateDemoJsonFromFields(fields: any[]): any {
-    if (!fields) return {};
     const demo: any = {};
-    fields.forEach(field => {
-      demo[field.name] = this.generateMockForProperty(field, field.name);
-    });
+    for (const field of fields) {
+      if (!field.name) continue;
+
+      if (field.value !== null && field.value !== undefined && field.value !== '') {
+        demo[field.name] = field.value;
+      } else if (field.type === 'object') {
+        demo[field.name] = this.generateDemoJsonFromFields(field.children);
+      } else if (field.type === 'array') {
+        const itemCount = Math.floor(Math.random() * 3) + 1;
+        const items = [];
+        for (let i = 0; i < itemCount; i++) {
+          if (field.items.type === 'object') {
+            items.push(this.generateDemoJsonFromFields(field.items.children));
+          } else {
+            const tempSchemaProp: JsonSchemaProperty = { type: field.items.type };
+            items.push(this.generateMockForProperty(tempSchemaProp, field.name));
+          }
+        }
+        demo[field.name] = items;
+      } else {
+        const tempSchemaProp: JsonSchemaProperty = {
+          type: field.type,
+          format: field.type === 'time' ? 'date-time' : undefined,
+          pattern: field.pattern,
+          minimum: field.minimum,
+          maximum: field.maximum,
+          enum: field.enum,
+          'x-digits': field.digits
+        };
+        demo[field.name] = this.generateMockForProperty(tempSchemaProp, field.name);
+      }
+    }
     return demo;
   }
 

@@ -7,9 +7,9 @@ import {
   JsonSchema,
   JsonField,
 } from '../definition-details/definition-details';
-import { ApiService } from '../../services/api.service';
 import { NotificationService } from '../../services/notification.service';
 import { MessageEnvelopeListComponent } from '../message-envelope-list/message-envelope-list.component';
+import { MessageEnvelopeService } from '../../services/message-envelope.service';
 
 @Component({
   selector: 'app-message-envelope',
@@ -50,10 +50,9 @@ export class MessageEnvelope implements OnInit {
   };
 
   selectedMessageEnvelope: any = null;
-  messageEnvelopes: any[] = [];
 
   constructor(
-    private apiService: ApiService,
+    private messageEnvelopeService: MessageEnvelopeService,
     private notificationService: NotificationService
   ) {}
 
@@ -77,15 +76,10 @@ export class MessageEnvelope implements OnInit {
     };
 
     if (this.selectedMessageEnvelope.id) {
-      this.apiService.updateMessageEnvelope(this.selectedMessageEnvelope.id, data).subscribe({
+      this.messageEnvelopeService.updateMessageEnvelope(this.selectedMessageEnvelope.id, data).subscribe({
         next: (response: any) => {
           if (response.success) {
             this.notificationService.success('Success', 'Message envelope saved successfully.');
-            const index = this.messageEnvelopes.findIndex(e => e.id === this.selectedMessageEnvelope.id);
-            if (index !== -1) {
-              this.messageEnvelopes[index] = response.data;
-              this.onEnvelopeSelected(this.messageEnvelopes[index]);
-            }
           } else {
             this.notificationService.error('Error', 'Failed to save message envelope.');
           }
@@ -95,12 +89,13 @@ export class MessageEnvelope implements OnInit {
         },
       });
     } else {
-      this.apiService.createMessageEnvelope(data).subscribe({
+      this.messageEnvelopeService.createMessageEnvelope(data).subscribe({
         next: (response: any) => {
           if (response.success && response.data) {
-            this.messageEnvelopes.push(response.data);
-            this.onEnvelopeSelected(response.data);
             this.notificationService.success('Success', 'Message envelope created successfully.');
+            // The service will reload the list, and the new item will appear.
+            // We select the newly created item.
+            this.onEnvelopeSelected(response.data);
           } else {
             this.notificationService.error('Error', 'Failed to create message envelope.');
           }

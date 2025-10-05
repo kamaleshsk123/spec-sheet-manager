@@ -1,6 +1,6 @@
 import { Component, OnInit, Output, EventEmitter, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ApiService } from '../../services/api.service';
+import { MessageEnvelopeService } from '../../services/message-envelope.service';
 import { NotificationService } from '../../services/notification.service';
 
 @Component({
@@ -18,28 +18,18 @@ export class MessageEnvelopeListComponent implements OnInit {
   selectedMessageEnvelope: any = null;
 
   constructor(
-    private apiService: ApiService,
+    private messageEnvelopeService: MessageEnvelopeService,
     private notificationService: NotificationService
   ) { }
 
   ngOnInit() {
-    this.loadMessageEnvelopes();
-  }
-
-  loadMessageEnvelopes() {
-    this.apiService.getMessageEnvelopes().subscribe({
-      next: (response) => {
-        if (response.success && response.data) {
-          this.messageEnvelopes = response.data;
-          if (this.messageEnvelopes.length > 0) {
-            this.selectMessageEnvelope(this.messageEnvelopes[0]);
-          }
-        }
-      },
-      error: (err) => {
-        this.notificationService.error('Error', 'Failed to load message envelopes.');
+    this.messageEnvelopeService.envelopes$.subscribe(envelopes => {
+      this.messageEnvelopes = envelopes;
+      if (!this.selectedMessageEnvelope && this.messageEnvelopes.length > 0) {
+        this.selectMessageEnvelope(this.messageEnvelopes[0]);
       }
     });
+    this.messageEnvelopeService.loadEnvelopes().subscribe();
   }
 
   selectMessageEnvelope(envelope: any) {
@@ -61,25 +51,19 @@ export class MessageEnvelopeListComponent implements OnInit {
         { name: 'cmd_id', type: 'number', is_required: true, children: [], items: { type: 'string', children: [] } },
       ]
     };
-    // We don't add it to the main list until it's saved.
-    // We just emit it so the parent can deal with it.
     this.envelopeSelected.emit(newEnvelope);
   }
 
   deleteMessageEnvelope(id: string) {
     if (confirm('Are you sure you want to delete this message envelope?')) {
-      this.apiService.deleteMessageEnvelope(id).subscribe({
+      this.messageEnvelopeService.deleteMessageEnvelope(id).subscribe({
         next: (response) => {
           if (response.success) {
-            const deletedIndex = this.messageEnvelopes.findIndex(e => e.id === id);
-            if (deletedIndex > -1) {
-              this.messageEnvelopes.splice(deletedIndex, 1);
-              if (this.selectedMessageEnvelope && this.selectedMessageEnvelope.id === id) {
-                const newSelection = this.messageEnvelopes.length > 0 ? this.messageEnvelopes[0] : null;
-                this.selectMessageEnvelope(newSelection);
-              }
-            }
             this.notificationService.success('Success', 'Message envelope deleted successfully.');
+            // The list will update automatically via the service
+            if (this.selectedMessageEnvelope && this.selectedMessageEnvelope.id === id) {
+              this.selectMessageEnvelope(this.messageEnvelopes.length > 0 ? this.messageEnvelopes[0] : null);
+            }
           } else {
             this.notificationService.error('Error', 'Failed to delete message envelope.');
           }

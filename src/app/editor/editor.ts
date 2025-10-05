@@ -820,4 +820,8 @@ export class EditorComponent implements OnInit {
 
     return service;
   }
+
+  showPdf() {
+    // Logic to be implemented
+  }
 }

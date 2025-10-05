@@ -88,6 +88,7 @@ export interface JsonField {
   name: string;
   is_required: boolean;
   type: string;
+  value?: any;
   pattern?: string;
   minimum?: number;
   maximum?: number;
@@ -134,6 +135,10 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
   ngOnInit() {
     this.toggleChecked = this.toggleValue === 'json';
     this.updateEditorContent();
+  }
+
+  shouldShowValueInput(type: string): boolean {
+    return ['string', 'number', 'integer', 'boolean'].includes(type);
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -435,7 +440,46 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
     this.jsonSchemaChange.emit(this.jsonSchema);
     this.code = JSON.stringify(this.jsonSchema, null, 2);
     this.codeChange.emit(this.code);
-    this.demoJsonText = this.generateDemoJson();
+    this.demoJsonText = JSON.stringify(this.generateDemoFromFields(this.jsonFields), null, 2);
+  }
+
+  private generateDemoFromFields(fields: JsonField[]): any {
+    const demo: any = {};
+    for (const field of fields) {
+      if (!field.name) continue;
+
+      if (field.value !== null && field.value !== undefined && field.value !== '') {
+        demo[field.name] = field.value;
+      } else if (field.type === 'object') {
+        demo[field.name] = this.generateDemoFromFields(field.children);
+      } else if (field.type === 'array') {
+        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const items = [];
+        for (let i = 0; i < itemCount; i++) {
+          if (field.items.type === 'object') {
+            items.push(this.generateDemoFromFields(field.items.children));
+          } else {
+            // Create a temporary JsonSchemaProperty for mock generation
+            const tempSchemaProp: JsonSchemaProperty = { type: field.items.type };
+            items.push(this.generateMockForProperty(tempSchemaProp, field.name));
+          }
+        }
+        demo[field.name] = items;
+      } else {
+        // Create a temporary JsonSchemaProperty for mock generation from the JsonField
+        const tempSchemaProp: JsonSchemaProperty = {
+          type: field.type,
+          format: field.type === 'time' ? 'date-time' : undefined,
+          pattern: field.pattern,
+          minimum: field.minimum,
+          maximum: field.maximum,
+          enum: field.enum,
+          'x-digits': field.digits
+        };
+        demo[field.name] = this.generateMockForProperty(tempSchemaProp, field.name);
+      }
+    }
+    return demo;
   }
 
   updateJsonEnum(event: string, field: JsonField) {
