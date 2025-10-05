@@ -1,199 +1,91 @@
-<div class="w-full h-full p-4 md:p-0">
-  <div class="grid grid-cols-2 md:grid-cols-2 gap-8">
-    <!-- Message Types List (Left 1/2) -->
-    <div class="col-span-1">
-      <div class="flex justify-between items-center">
-        <h3 class="text-lg font-bold mb-6 text-gray-800 flex items-center gap-3">
-          Message Types
-        </h3>
+<app-message-envelope-list [showNewButton]="false" [showDeleteButton]="false" (envelopeSelected)="onEnvelopeSelected($event)"></app-message-envelope-list>
+
+<div class="flex flex-row gap-8 mt-8">
+  <!-- Card 1: Message Types List -->
+  <div class="w-1/2 bg-white rounded-2xl shadow-md border border-gray-200 flex flex-col overflow-hidden" style="height: 70vh;">
+    <!-- Header -->
+    <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 flex-shrink-0">
+      <h3 class="text-xl font-semibold pl-4 text-gray-800 flex items-center gap-2">
+        
+        Message Types
+      </h3>
+      <button
+  (click)="openAddMessageModal()"
+  class="group flex items-center justify-center gap-0 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-2 py-2 transition-all duration-300 shadow-sm hover:shadow-md overflow-hidden"
+  title="Add New Message Type"
+>
+  <!-- Plus Icon -->
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+  </svg>
+
+  <!-- Hidden Text (appears on hover) -->
+  <span
+    class="max-w-0 opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden"
+  >
+    Add Message
+  </span>
+</button>
+
+    </div>
+  
+    <!-- List -->
+    <ul class="flex-grow overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+      <li *ngFor="let msg of messageTypes">
         <button
-          type="button"
-          (click)="openAddMessageModal()"
-          class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+          (click)="selectMessage(msg)"
+          class="w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center justify-between group"
+          [ngClass]="{
+            'bg-blue-100 text-blue-700 shadow-sm': msg === selectedMessage,
+            'hover:bg-gray-100 text-gray-800': msg !== selectedMessage
+          }"
         >
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            ></path>
+          <span class="font-medium truncate">{{ msg.name }}</span>
+          <svg
+            *ngIf="msg === selectedMessage"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 text-blue-600 opacity-80 group-hover:opacity-100"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          Add Message
+        </button>
+      </li>
+    </ul>
+  
+    <!-- Footer (Optional Placeholder) -->
+    <div class="p-3 border-t border-gray-200 bg-gray-50 text-sm text-gray-500 text-center">
+      {{ messageTypes.length || 0 }} message types
+    </div>
+  </div>
+  
+
+  <!-- Card 2: Details and Payload -->
+  <div class="w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col" style="height: 70vh;">
+    <div *ngIf="!selectedMessage" class="h-full flex items-center justify-center text-center p-8">
+      <div class="border-2 border-dashed border-gray-300 rounded-lg p-12">
+        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-4 text-xl font-semibold text-gray-700">Select a Message</h3>
+        <p class="mt-2 text-gray-500">Select a message type from the list to view its combined payload.</p>
+      </div>
+    </div>
+
+    <div *ngIf="selectedMessage" class="flex-grow flex flex-col h-full">
+      <div class="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+        <h3 class="text-lg font-semibold text-gray-900">{{ selectedMessage.name }}</h3>
+        <button (click)="editMessage(selectedMessage)" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500">
+          Edit Message
         </button>
       </div>
 
-      <ul class="space-y-3">
-        <li *ngFor="let msg of messageTypes; let i = index">
-          <button
-            (click)="selectMessage(msg)"
-            class="w-full flex items-center gap-4 p-4 rounded-lg border transition-all duration-300 ease-in-out group text-left"
-            [class.bg-white]="msg === selectedMessage"
-            [class.shadow-md]="msg === selectedMessage"
-            [class.border-blue-500]="msg === selectedMessage"
-            [class.border-gray-200]="msg !== selectedMessage"
-            [class.hover:border-blue-400]="msg !== selectedMessage"
-            [class.hover:bg-white]="msg !== selectedMessage"
-          >
-            <div
-              class="flex-shrink-0 h-12 w-12 flex items-center justify-center rounded-lg transition-colors duration-300"
-              [class.bg-blue-500]="msg === selectedMessage"
-              [class.text-white]="msg === selectedMessage"
-              [class.bg-gray-100]="msg !== selectedMessage"
-              [class.text-gray-500]="msg !== selectedMessage"
-              [class.group-hover:bg-blue-100]="msg !== selectedMessage"
-              [class.group-hover:text-blue-600]="msg !== selectedMessage"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                />
-              </svg>
-            </div>
-            <div class="flex-grow">
-              <p
-                class="font-semibold transition-colors duration-300"
-                [class.text-blue-600]="msg === selectedMessage"
-                [class.text-gray-700]="msg !== selectedMessage"
-                [class.group-hover:text-blue-600]="msg !== selectedMessage"
-              >
-                {{ msg.name }}
-              </p>
-              <p class="text-sm text-gray-500">Payload Definition</p>
-            </div>
-            <svg
-              *ngIf="msg === selectedMessage"
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5 text-blue-500 flex-shrink-0"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clip-rule="evenodd"
-              />
-            </svg>
-          </button>
-        </li>
-      </ul>
-    </div>
-
-    <!-- JSON Preview (Right 1/2) -->
-    <div class="col-span-1">
-      <div *ngIf="!selectedMessage" class="h-full flex items-center justify-center">
-        <div class="text-center p-12 border-2 border-dashed border-gray-300 rounded-lg">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <h3 class="mt-4 text-xl font-semibold text-gray-700">Select a Message</h3>
-          <p class="mt-2 text-gray-500">
-            Select a message type from the list to view its JSON structure.
-          </p>
-        </div>
-      </div>
-
-      <div *ngIf="selectedMessage && !selectedMessage.json_schema" class="h-full flex items-center justify-center">
-        <div class="text-center p-12 border-2 border-dashed border-gray-300 rounded-lg">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <h3 class="mt-4 text-xl font-semibold text-gray-700">No JSON Schema</h3>
-          <p class="mt-2 text-gray-500">
-            Edit this message to define its JSON schema.
-          </p>
-          <button
-            type="button"
-            (click)="editMessage(selectedMessage)"
-            class="mt-4 inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
-          >
-            Edit Message
-          </button>
-        </div>
-      </div>
-
-      <div *ngIf="selectedMessage && selectedMessage.json_schema" class="h-full">
-        <div class="flex justify-between items-center px-4">
-          <div>
-            <h3 class="text-lg font-bold text-gray-800">{{ selectedMessage.name }}</h3>
-            <p class="text-sm text-gray-500">JSON Payload</p>
-          </div>
-          <button
-            type="button"
-            (click)="editMessage(selectedMessage)"
-            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
-          >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              ></path>
-            </svg>
-            Edit
-          </button>
-        </div>
-
-        <div class="p-4">
-          <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
-            <div
-              class="flex justify-between items-center bg-gray-800 px-4 py-2 text-xs text-gray-400"
-            >
-              <span>payload.json</span>
-              <button (click)="copyJson(selectedMessage.json_schema)" class="flex items-center gap-1.5 hover:text-white transition-colors">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-                Copy
-              </button>
-            </div>
-            <div class="p-4 max-h-[630px] overflow-y-auto">
-              <pre class="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed font-mono">{{ generateDemoJson(selectedMessage.json_schema) | json }}</pre>
-            </div>
-          </div>
+      <div class="p-4 flex-grow flex flex-col">
+        <h4 class="text-md font-semibold text-gray-800 mb-2">Combined Payload</h4>
+        <div class="bg-gray-900 text-gray-100 rounded-lg p-4 flex-grow overflow-y-auto">
+          <pre class="text-sm whitespace-pre-wrap"><code>{{ combinedJson | json }}</code></pre>
         </div>
       </div>
     </div>

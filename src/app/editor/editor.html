@@ -160,7 +160,7 @@
       <app-message-envelope></app-message-envelope>
     </div>
 
-          <div *ngIf="tabs[activeTabIndex].content === 'messageTypes' && currentSpecId" class="p-4">
+          <div *ngIf="tabs[activeTabIndex].content === 'messageTypes' && currentSpecId" class="">
             <div *ngIf="!editingMessage">
               <app-message-types [specId]="currentSpecId" [messageTypes]="messageTypes" [selectedMessageId]="lastSelectedMessageId" (edit)="handleEditMessage($event)" (add)="handleAddMessage()"></app-message-types>
             </div>

@@ -9,11 +9,12 @@ import {
 } from '../definition-details/definition-details';
 import { ApiService } from '../../services/api.service';
 import { NotificationService } from '../../services/notification.service';
+import { MessageEnvelopeListComponent } from '../message-envelope-list/message-envelope-list.component';
 
 @Component({
   selector: 'app-message-envelope',
   standalone: true,
-  imports: [CommonModule, FormsModule, DefinitionDetailsComponent],
+  imports: [CommonModule, FormsModule, DefinitionDetailsComponent, MessageEnvelopeListComponent],
   templateUrl: './message-envelope.html',
   styleUrl: './message-envelope.css',
 })
@@ -48,84 +49,63 @@ export class MessageEnvelope implements OnInit {
     wordWrap: 'on' as const,
   };
 
-  messageEnvelope: any = {};
+  selectedMessageEnvelope: any = null;
+  messageEnvelopes: any[] = [];
 
   constructor(
     private apiService: ApiService,
     private notificationService: NotificationService
   ) {}
 
-  ngOnInit() {
-    this.loadMessageEnvelope();
-  }
+  ngOnInit() {}
 
-  loadMessageEnvelope() {
-    this.apiService.getMessageEnvelopes().subscribe({
-      next: (response) => {
-        if (response.success && response.data && response.data.length > 0) {
-          this.messageEnvelope = response.data[0];
-          this.jsonFields = this.messageEnvelope.json_fields;
-        } else {
-          // Create a default message envelope if none exists
-          this.apiService.createMessageEnvelope({
-            title: 'Default Message Envelope',
-            description: 'This is the default message envelope.',
-            json_fields: [
-              { name: 'imei', type: 'number', is_required: true, digits: 15, children: [], items: { type: 'string', children: [] } },
-              { name: 'event_ts', type: 'time', is_required: true, children: [], items: { type: 'string', children: [] } },
-              { name: 'message-type', type: 'number', is_required: true, children: [], items: { type: 'string', children: [] } },
-              { name: 'sequence', type: 'number', is_required: true, children: [], items: { type: 'string', children: [] } },
-              { name: 'csq-dbm', type: 'number', is_required: true, children: [], items: { type: 'string', children: [] } },
-              { name: 'rat_code', type: 'number', is_required: true, children: [], items: { type: 'string', children: [] } },
-              { name: 'cmd_id', type: 'number', is_required: true, children: [], items: { type: 'string', children: [] } },
-            ]
-          }).subscribe({
-            next: (response) => {
-              if (response.success && response.data) {
-                this.messageEnvelope = response.data;
-                this.jsonFields = this.messageEnvelope.json_fields;
-              }
-            }
-          });
-        }
-      },
-      error: (err) => {
-        this.notificationService.error('Error', 'Failed to load message envelope.');
-      },
-    });
+  onEnvelopeSelected(envelope: any) {
+    this.selectedMessageEnvelope = envelope;
+    this.jsonFields = envelope.json_fields || [];
   }
 
   saveMessageEnvelope() {
+    if (!this.selectedMessageEnvelope) {
+      this.notificationService.error('Error', 'No message envelope selected.');
+      return;
+    }
+
     const data = {
-      title: this.messageEnvelope.title,
-      description: this.messageEnvelope.description,
+      title: this.selectedMessageEnvelope.title,
+      description: this.selectedMessageEnvelope.description,
       json_fields: this.jsonFields,
     };
 
-    if (this.messageEnvelope.id) {
-      this.apiService.updateMessageEnvelope(this.messageEnvelope.id, data).subscribe({
-        next: (response) => {
+    if (this.selectedMessageEnvelope.id) {
+      this.apiService.updateMessageEnvelope(this.selectedMessageEnvelope.id, data).subscribe({
+        next: (response: any) => {
           if (response.success) {
             this.notificationService.success('Success', 'Message envelope saved successfully.');
+            const index = this.messageEnvelopes.findIndex(e => e.id === this.selectedMessageEnvelope.id);
+            if (index !== -1) {
+              this.messageEnvelopes[index] = response.data;
+              this.onEnvelopeSelected(this.messageEnvelopes[index]);
+            }
           } else {
             this.notificationService.error('Error', 'Failed to save message envelope.');
           }
         },
-        error: (err) => {
+        error: (err: any) => {
           this.notificationService.error('Error', 'Failed to save message envelope.');
         },
       });
     } else {
       this.apiService.createMessageEnvelope(data).subscribe({
-        next: (response) => {
+        next: (response: any) => {
           if (response.success && response.data) {
-            this.messageEnvelope = response.data; // Assign the new ID
+            this.messageEnvelopes.push(response.data);
+            this.onEnvelopeSelected(response.data);
             this.notificationService.success('Success', 'Message envelope created successfully.');
           } else {
             this.notificationService.error('Error', 'Failed to create message envelope.');
           }
         },
-        error: (err) => {
+        error: (err: any) => {
           this.notificationService.error('Error', 'Failed to create message envelope.');
         },
       });

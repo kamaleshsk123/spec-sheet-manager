@@ -1,0 +1,21 @@
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+  <h3 class="text-lg font-semibold text-gray-900 mb-4">All Message Envelopes</h3>
+  <div class="flex items-center space-x-2 mb-4">
+    <button *ngIf="showNewButton" (click)="newMessageEnvelope()" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200">
+      New Message Envelope
+    </button>
+  </div>
+  <ul class="space-y-2">
+    <li *ngFor="let envelope of messageEnvelopes" 
+        (click)="selectMessageEnvelope(envelope)"
+        [ngClass]="{'bg-blue-100 border-blue-500': selectedMessageEnvelope?.id === envelope.id, 'hover:bg-gray-100': selectedMessageEnvelope?.id !== envelope.id}"
+        class="p-3 rounded-lg border cursor-pointer flex justify-between items-center transition-colors duration-200">
+      <span class="font-medium text-gray-800">{{ envelope.title }}</span>
+      <button *ngIf="showDeleteButton" (click)="deleteMessageEnvelope(envelope.id); $event.stopPropagation()" class="text-gray-400 hover:text-red-600">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </li>
+  </ul>
+</div>

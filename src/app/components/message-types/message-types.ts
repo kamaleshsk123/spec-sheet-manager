@@ -5,11 +5,12 @@ import { AddMessageModalComponent } from '../add-message-modal/add-message-modal
 import { ApiService, MessageType } from '../../services/api.service';
 import { NotificationService } from '../../services/notification.service';
 import { JsonSchemaProperty } from '../definition-details/definition-details';
+import { MessageEnvelopeListComponent } from '../message-envelope-list/message-envelope-list.component';
 
 @Component({
   selector: 'app-message-types',
   standalone: true,
-  imports: [CommonModule, AddMessageModalComponent, FormsModule],
+  imports: [CommonModule, AddMessageModalComponent, FormsModule, MessageEnvelopeListComponent],
   templateUrl: './message-types.html',
   styleUrls: ['./message-types.css'],
 })
@@ -20,8 +21,11 @@ export class MessageTypesComponent implements OnChanges {
   @Output() edit = new EventEmitter<MessageType>();
   @Output() add = new EventEmitter<void>();
   showAddMessageModal = false;
+  
 
   selectedMessage: MessageType | null = null;
+  selectedMessageEnvelope: any = null;
+  combinedJson: any = null;
 
   constructor(
     private apiService: ApiService,
@@ -34,28 +38,34 @@ export class MessageTypesComponent implements OnChanges {
     }
   }
 
+  onEnvelopeSelected(envelope: any) {
+    this.selectedMessageEnvelope = envelope;
+    this.updateCombinedJson();
+  }
+
   private reselectCurrent() {
     if (this.messageTypes && this.messageTypes.length > 0) {
       if (this.selectedMessageId) {
         const byId = this.messageTypes.find(m => m.id === this.selectedMessageId);
         if (byId) {
-          this.selectedMessage = byId;
+          this.selectMessage(byId);
           return;
         }
       }
       if (this.selectedMessage && this.selectedMessage.id) {
         const currentId = this.selectedMessage.id;
-        this.selectedMessage = this.messageTypes.find(m => m.id === currentId) || this.messageTypes[0];
+        this.selectMessage(this.messageTypes.find(m => m.id === currentId) || this.messageTypes[0]);
       } else {
-        this.selectedMessage = this.messageTypes[0];
+        this.selectMessage(this.messageTypes[0]);
       }
     } else {
-      this.selectedMessage = null;
+      this.selectMessage(null);
     }
   }
 
-  selectMessage(msg: MessageType) {
+  selectMessage(msg: MessageType | null) {
     this.selectedMessage = msg;
+    this.updateCombinedJson();
   }
 
   copyJson(json: any) {
@@ -89,6 +99,36 @@ export class MessageTypesComponent implements OnChanges {
 
   editMessage(message: MessageType) {
     this.edit.emit(message);
+  }
+
+  private toCamelCase(str: string): string {
+    if (!str) return '';
+    return str.replace(/[^a-zA-Z0-9]+(.)?/g, (match, chr) => chr ? chr.toUpperCase() : '').replace(/^./, (match) => match.toLowerCase());
+  }
+
+  private generateDemoJsonFromFields(fields: any[]): any {
+    if (!fields) return {};
+    const demo: any = {};
+    fields.forEach(field => {
+      demo[field.name] = this.generateMockForProperty(field, field.name);
+    });
+    return demo;
+  }
+
+  private updateCombinedJson() {
+    if (!this.selectedMessageEnvelope || !this.selectedMessage) {
+      this.combinedJson = null;
+      return;
+    }
+
+    const envelopePayload = this.generateDemoJsonFromFields(this.selectedMessageEnvelope.json_fields);
+    const messagePayload = this.generateDemoJson(this.selectedMessage.json_schema);
+    const messageKey = this.toCamelCase(this.selectedMessage.name);
+
+    this.combinedJson = {
+      ...envelopePayload,
+      [messageKey]: messagePayload
+    };
   }
 
   generateDemoJson(schema: any): any {
