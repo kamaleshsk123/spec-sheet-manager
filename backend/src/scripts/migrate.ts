@@ -79,6 +79,12 @@ const createTables = async () => {
       CREATE INDEX IF NOT EXISTS idx_spec_versions_spec_id ON spec_versions(spec_id);
     `);
 
+    console.log('Adding json_fields column to message_types table...');
+    await client.query(`
+      ALTER TABLE message_types
+      ADD COLUMN IF NOT EXISTS json_fields JSONB;
+    `);
+
     await client.query('COMMIT');
     console.log('Database tables created successfully!');
   } catch (error) {
@@ -90,7 +96,7 @@ const createTables = async () => {
   }
 };
 
-// Run migration if called directly
+
 if (require.main === module) {
   createTables()
     .then(() => {
@@ -104,3 +110,22 @@ if (require.main === module) {
 }
 
 export default createTables;
+
+import addJsonFieldsToMessageTypes from './add-json-fields-to-message-types';
+
+const runMigrations = async () => {
+  await createTables();
+  await addJsonFieldsToMessageTypes();
+};
+
+if (require.main === module) {
+  runMigrations()
+    .then(() => {
+      console.log('All migrations completed successfully');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('Migrations failed:', error);
+      process.exit(1);
+    });
+}

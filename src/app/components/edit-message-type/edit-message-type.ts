@@ -75,9 +75,11 @@ export class EditMessageType implements OnInit, OnChanges {
       if (this.specType === 'protobuf') {
         this.protoFile.messages = [this.messageTypeToMessage(this.message)];
       } else {
-        // JSON editing path
-        if (this.message.json_schema) {
+        if (this.message.json_fields) {
+          this.jsonFields = this.message.json_fields;
+        } else if (this.message.json_schema) {
           this.jsonSchema = this.message.json_schema as any;
+          this.jsonFields = this.jsonSchemaToFields(this.jsonSchema);
         } else {
           this.jsonSchema = {
             title: this.message.name || this.jsonSchema.title || 'Message',
@@ -85,11 +87,11 @@ export class EditMessageType implements OnInit, OnChanges {
             properties: {},
             required: [],
           } as any;
+          this.jsonFields = [];
         }
         if (!this.jsonSchema.title || this.jsonSchema.title === 'StatusUpdate') {
           this.jsonSchema.title = this.message.name || 'Message';
         }
-        this.jsonFields = this.jsonSchemaToFields(this.jsonSchema);
       }
     }
   }
@@ -115,6 +117,7 @@ export class EditMessageType implements OnInit, OnChanges {
       updatedMessage = {
         name: this.message?.name || this.jsonSchema.title,
         json_schema: this.jsonSchema,
+        json_fields: this.jsonFields,
       };
     } else { // protobuf
       if (this.protoFile.messages.length > 0) {
@@ -283,7 +286,7 @@ export class EditMessageType implements OnInit, OnChanges {
           digits: prop['x-digits'],
           children: [],
           items: { type: 'string', children: [] },
-          isExpanded: true,
+          isExpanded: false,
         };
 
         if (type === 'object') {

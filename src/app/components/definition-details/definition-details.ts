@@ -348,7 +348,7 @@ export class DefinitionDetailsComponent implements OnInit, OnChanges {
       type: 'string',
       children: [],
       items: { type: 'string', children: [] },
-      isExpanded: true,
+      isExpanded: false,
     };
     if (parent) {
       if (isArrayItem) {

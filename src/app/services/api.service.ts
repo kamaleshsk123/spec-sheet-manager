@@ -45,6 +45,7 @@ export interface MessageType {
   name: string;
   payload_definition?: string;
   json_schema?: any;
+  json_fields?: any;
   created_at?: Date;
   updated_at?: Date;
 }
