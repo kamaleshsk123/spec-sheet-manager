@@ -1,26 +1,78 @@
-
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" (click)="closeOverlay()">
-  <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md mx-4" (click)="$event.stopPropagation()">
-    <div class="flex items-center justify-between p-4 border-b border-gray-100">
-      <h3 class="text-lg font-semibold text-gray-900">Preview PDF</h3>
-      <button (click)="closeOverlay()" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+<div
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+  (click)="closeOverlay()"
+>
+  <div
+    class="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg mx-4 overflow-hidden animate-fade-in"
+    (click)="$event.stopPropagation()"
+  >
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+      <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-5 h-5 text-blue-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6 5H3a2 2 0 01-2-2V5a2 2 0 012-2h12l6 6v12a2 2 0 01-2 2z" />
+        </svg>
+        Preview PDF
+      </h3>
+      <button
+        (click)="closeOverlay()"
+        class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          ></path>
         </svg>
       </button>
     </div>
-    <div class="p-6">
-      <ul>
-        <li *ngFor="let tab of tabs; let i = index" class="border-b border-gray-200">
-          <div class="py-3 px-4 hover:bg-gray-100 rounded-lg cursor-pointer flex justify-between items-center" (click)="toggleTab(i)">
-            <span>{{ tab.name }}</span>
-            <svg class="w-4 h-4 transition-transform" [class.rotate-180]="selectedTabIndex === i" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+
+    <!-- Body -->
+    <div class="p-6 max-h-[80vh] overflow-y-auto">
+      <ul class="divide-y divide-gray-200">
+        <li
+          *ngFor="let tab of tabs; let i = index"
+          class="py-2"
+        >
+          <!-- Accordion Header -->
+          <div
+            class="flex justify-between items-center cursor-pointer rounded-lg px-4 py-3 transition-all hover:bg-gray-50"
+            (click)="toggleTab(i)"
+          >
+            <span class="text-gray-900 font-medium">{{ tab.name }}</span>
+            <svg
+              class="w-5 h-5 text-gray-500 transition-transform duration-200"
+              [class.rotate-180]="selectedTabIndex === i"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              ></path>
             </svg>
           </div>
-          <div *ngIf="selectedTabIndex === i" class="p-4 bg-gray-50">
+
+          <!-- Accordion Content -->
+          <div
+            *ngIf="selectedTabIndex === i"
+            class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-5 transition-all"
+          >
+            <!-- Spec Details -->
             <div *ngIf="tab.content === 'spec'">
-              <div class="grid grid-cols-2 gap-4 text-sm">
+              <div class="grid grid-cols-2 gap-3 text-sm text-gray-700">
                 <div class="font-semibold">Title:</div><div>{{ specTitle }}</div>
                 <div class="font-semibold">Version:</div><div>{{ specVersion }}</div>
                 <div class="font-semibold">Description:</div><div>{{ specDescription }}</div>
@@ -30,42 +82,92 @@
                 <div class="font-semibold">Applicable To:</div><div>{{ applicableTo }}</div>
               </div>
             </div>
+
+            <!-- Message Envelopes -->
             <div *ngIf="tab.content === 'messageEnvelope'">
               <ul *ngIf="messageEnvelopes.length > 0; else noEnvelopes">
-                <li *ngFor="let envelope of messageEnvelopes" class="py-2 px-4 border-b border-gray-100 flex items-center">
-                  <input type="radio" name="messageEnvelope" [value]="envelope.id" [ngModel]="selectedEnvelopeId" (change)="selectEnvelope(envelope.id)" class="mr-2">
-                  <label>{{ envelope.title }}</label>
+                <li
+                  *ngFor="let envelope of messageEnvelopes"
+                  class="py-2 px-3 border border-gray-100 rounded-lg mb-2 hover:bg-gray-100 flex items-center transition"
+                >
+                  <input
+                    type="radio"
+                    name="messageEnvelope"
+                    [value]="envelope.id"
+                    [ngModel]="selectedEnvelopeId"
+                    (change)="selectEnvelope(envelope.id)"
+                    class="mr-3 accent-blue-600"
+                  />
+                  <label class="cursor-pointer">{{ envelope.title }}</label>
                 </li>
               </ul>
+
               <div *ngIf="selectedEnvelopeId" class="mt-4">
-                <h4 class="font-semibold mb-2">Demo JSON:</h4>
-                <pre class="bg-gray-100 p-4 rounded-lg text-sm"><code>{{ demoJsonText }}</code></pre>
+                <h4 class="font-semibold mb-2 text-gray-800">Demo JSON:</h4>
+                <pre
+                  class="bg-white border border-gray-200 p-4 rounded-lg text-sm text-gray-800 overflow-x-auto"
+                ><code>{{ demoJsonText }}</code></pre>
               </div>
+
               <ng-template #noEnvelopes>
-                <p>No message envelopes found.</p>
+                <p class="text-gray-500 italic">No message envelopes found.</p>
               </ng-template>
             </div>
+
+            <!-- Message Types -->
             <div *ngIf="tab.content === 'messageTypes'">
               <ul *ngIf="messageTypes.length > 0; else noMessageTypes">
-                <li *ngFor="let messageType of messageTypes; let j = index" class="border-b border-gray-100">
-                  <div class="py-3 px-4 hover:bg-gray-100 rounded-lg cursor-pointer flex justify-between items-center" (click)="toggleMessageType(j)">
-                    <span>{{ messageType.name }}</span>
-                    <svg class="w-4 h-4 transition-transform" [class.rotate-180]="selectedMessageTypeIndex === j" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                <li
+                  *ngFor="let messageType of messageTypes; let j = index"
+                  class="mb-2 border border-gray-100 rounded-lg"
+                >
+                  <div
+                    class="py-3 px-4 hover:bg-gray-100 cursor-pointer flex justify-between items-center rounded-lg transition"
+                    (click)="toggleMessageType(j, messageType)"
+                  >
+                    <span class="font-medium text-gray-900">{{ messageType.name }}</span>
+                    <svg
+                      class="w-4 h-4 text-gray-500 transition-transform duration-200"
+                      [class.rotate-180]="selectedMessageTypeIndex === j"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 9l-7 7-7-7"
+                      ></path>
                     </svg>
                   </div>
-                  <div *ngIf="selectedMessageTypeIndex === j" class="p-4 bg-gray-50">
-                    <h4 class="font-semibold mb-2">Combined Payload:</h4>
-                    <pre class="bg-gray-100 p-4 rounded-lg text-sm"><code>{{ messageType.payload_definition }}</code></pre>
+
+                  <div
+                    *ngIf="selectedMessageTypeIndex === j"
+                    class="p-4 bg-white border-t border-gray-100 rounded-b-lg"
+                  >
+                    <h4 class="font-semibold mb-2 text-gray-800">Combined Payload:</h4>
+                    <pre
+                      class="bg-gray-50 p-4 rounded-lg text-sm text-gray-800 overflow-x-auto"
+                    ><code>{{ combinedPayloadText }}</code></pre>
                   </div>
                 </li>
               </ul>
               <ng-template #noMessageTypes>
-                <p>No message types found.</p>
+                <p class="text-gray-500 italic">No message types found.</p>
               </ng-template>
             </div>
-            <div *ngIf="tab.content !== 'spec' && tab.content !== 'messageEnvelope' && tab.content !== 'messageTypes'">
-              <p>Data for this tab will be implemented in the next step.</p>
+
+            <!-- Default Placeholder -->
+            <div
+              *ngIf="
+                tab.content !== 'spec' &&
+                tab.content !== 'messageEnvelope' &&
+                tab.content !== 'messageTypes'
+              "
+              class="text-gray-500 italic"
+            >
+              Data for this tab will be implemented in the next step.
             </div>
           </div>
         </li>

@@ -126,6 +126,7 @@ export class EditorComponent implements OnInit {
   messageTypes: MessageType[] = [];
   messageEnvelopes: any[] = [];
   selectedEnvelopeId: string | null = null;
+  combinedPayloadText: string = '';
 
   showJsonDemoOverlay: boolean = false;
   demoJsonText: string = '';
@@ -876,6 +877,46 @@ export class EditorComponent implements OnInit {
     } else {
       this.demoJsonText = '';
     }
+  }
+
+  onMessageTypeSelected(messageType: MessageType) {
+    if (!this.selectedEnvelopeId) {
+      this.combinedPayloadText = '';
+      return;
+    }
+    const selectedEnvelope = this.messageEnvelopes.find(e => e.id === this.selectedEnvelopeId);
+    if (!selectedEnvelope) {
+      this.combinedPayloadText = '';
+      return;
+    }
+
+    const envelopePayload = this.generateDemoFromFields(selectedEnvelope.json_fields);
+    const messagePayload = this.generateDemoJson(messageType.json_schema);
+    const messageKey = this.toCamelCase(messageType.name);
+
+    const combinedJson = {
+      ...envelopePayload,
+      [messageKey]: messagePayload
+    };
+
+    this.combinedPayloadText = JSON.stringify(combinedJson, null, 2);
+  }
+
+  private toCamelCase(str: string): string {
+    if (!str) return '';
+    return str.replace(/[^a-zA-Z0-9]+(.)?/g, (match, chr) => chr ? chr.toUpperCase() : '').replace(/^./, (match) => match.toLowerCase());
+  }
+
+  private generateDemoJson(schema: any): any {
+    if (!schema || !schema.properties) {
+      return {};
+    }
+    const demo: any = {};
+    const props = (schema.properties || {}) as { [key: string]: JsonSchemaProperty };
+    Object.keys(props).forEach((key) => {
+      demo[key] = this.generateMockForProperty(props[key], key);
+    });
+    return demo;
   }
 
   private generateDemoFromFields(fields: JsonField[]): any {
