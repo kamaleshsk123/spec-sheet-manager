@@ -22,6 +22,7 @@ import {
 import { MessageEnvelope } from '../components/message-envelope/message-envelope';
 import { MessageTypesComponent } from '../components/message-types/message-types';
 import { EditMessageType } from '../components/edit-message-type/edit-message-type';
+import { TabListOverlayComponent } from '../components/tab-list-overlay/tab-list-overlay.component';
 
 @Component({
   selector: 'app-editor',
@@ -35,6 +36,7 @@ import { EditMessageType } from '../components/edit-message-type/edit-message-ty
     MessageEnvelope,
     MessageTypesComponent,
     EditMessageType,
+    TabListOverlayComponent,
   ],
   templateUrl: './editor.html',
   styleUrl: './editor.css',
@@ -49,6 +51,7 @@ export class EditorComponent implements OnInit {
   activeTabIndex = 0;
   showNewTabOverlay = false;
   newTabName = '';
+  showTabListOverlay = false;
 
   @ViewChild('fileInput') fileInput!: ElementRef;
   @ViewChild('downloadButton') downloadButton!: ElementRef;
@@ -70,6 +73,12 @@ export class EditorComponent implements OnInit {
   specVersion: string = '';
   specDescription: string = '';
   specTags: string = '';
+  deviceName: string = '';
+  protocols: string[] = [];
+  documentStatus: string = '';
+  forField: string = '';
+
+  isSavingDetails = false;
 
   toggleChecked = false;
   toggleValue: 'protobuf' | 'json' = 'protobuf';
@@ -193,6 +202,10 @@ export class EditorComponent implements OnInit {
           this.specVersion = spec.version;
           this.specDescription = spec.description || '';
           this.specTags = spec.tags?.join(', ') || '';
+          this.deviceName = spec.device_name || '';
+          this.protocols = spec.protocols || [];
+          this.documentStatus = spec.document_status || '';
+          this.forField = spec.for_field || '';
           this.isPublished = !!spec.github_repo_url;
 
           this.githubRepoUrl = spec.github_repo_url || null;
@@ -822,6 +835,47 @@ export class EditorComponent implements OnInit {
   }
 
   showPdf() {
-    // Logic to be implemented
+    this.showTabListOverlay = true;
+  }
+
+  closeTabListOverlay() {
+    this.showTabListOverlay = false;
+  }
+
+  saveSpecDetailsOnly() {
+    if (!this.currentSpecId) {
+      this.notificationService.warning('No Spec Loaded', 'Please load a specification before saving.');
+      return;
+    }
+
+    this.isSavingDetails = true;
+
+    const specDetails: Partial<ProtobufSpec> = {
+      title: this.specTitle,
+      version: this.specVersion,
+      description: this.specDescription,
+      tags: this.specTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+      device_name: this.deviceName,
+      protocols: this.protocols,
+      document_status: this.documentStatus,
+      for_field: this.forField,
+    };
+
+    console.log(specDetails);
+
+    this.apiService.updateSpecDetails(this.currentSpecId, specDetails).subscribe(
+      (updatedSpec) => {
+        this.isSavingDetails = false;
+        this.notificationService.success('Success', 'Specification details saved successfully!');
+        if (updatedSpec.data) {
+          this.currentSpec = updatedSpec.data;
+        }
+      },
+      (error) => {
+        this.isSavingDetails = false;
+        this.notificationService.error('Error', 'Error saving specification details.');
+        console.error('Error saving spec details:', error);
+      }
+    );
   }
 }

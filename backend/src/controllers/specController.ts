@@ -133,6 +133,10 @@ export class SpecController {
         github_repo_url: incoming_github_repo_url = null,
         github_repo_name: incoming_github_repo_name = null,
         team_id = null,
+        device_name = null,
+        protocols = [],
+        document_status = null,
+        for_field = null,
       }: CreateSpecRequest = req.body;
 
       // If team_id is provided, verify user is a member of that team
@@ -166,10 +170,10 @@ export class SpecController {
       }
 
       const result = await pool.query(
-        `INSERT INTO protobuf_specs (title, version, description, spec_data, spec_type, created_by, tags, github_repo_url, github_repo_name, team_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+        `INSERT INTO protobuf_specs (title, version, description, spec_data, spec_type, created_by, tags, github_repo_url, github_repo_name, team_id, device_name, protocols, document_status, for_field) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
          RETURNING *`,
-        [title, version, description, JSON.stringify(spec_data), spec_type, userId, tags, final_github_repo_url, final_github_repo_name, team_id]
+        [title, version, description, JSON.stringify(spec_data), spec_type, userId, tags, final_github_repo_url, final_github_repo_name, team_id, device_name, protocols, document_status, for_field]
       );
 
       const spec = result.rows[0];
@@ -362,6 +366,8 @@ export class SpecController {
       const userId = req.user!.id;
       const updateData: UpdateSpecRequest = req.body;
 
+      console.log('updateData:', updateData);
+
       const hasAccess = await checkSpecAccess(id, userId);
       if (!hasAccess) {
         return res.status(404).json({
@@ -407,7 +413,7 @@ export class SpecController {
 
       Object.entries(updateData).forEach(([key, value]) => {
         // Include field if it's not undefined, or if it's a GitHub field (to preserve null values)
-        if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id') {
+        if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id' || key === 'device_name' || key === 'protocols' || key === 'document_status' || key === 'for_field') {
           if (key === 'spec_data') {
             updateFields.push(`${key} = $${paramIndex++}`);
             queryParams.push(JSON.stringify(value));
@@ -427,6 +433,9 @@ export class SpecController {
         WHERE id = $${paramIndex}
         RETURNING *
       `;
+
+      console.log('updateQuery:', updateQuery);
+      console.log('queryParams:', queryParams);
 
       const result = await pool.query(updateQuery, queryParams);
 
@@ -816,6 +825,42 @@ export class SpecController {
         success: false,
         error: 'Internal server error',
       });
+    }
+  }
+
+  static async updateSpecDetails(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const { device_name, protocols, document_status, for_field } = req.body;
+
+      const hasAccess = await checkSpecAccess(id, userId);
+      if (!hasAccess) {
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found or access denied',
+        } as ApiResponse);
+      }
+
+      const result = await pool.query(
+        `UPDATE protobuf_specs
+         SET device_name = $1, protocols = $2, document_status = $3, for_field = $4, updated_at = NOW()
+         WHERE id = $5
+         RETURNING *`,
+        [device_name, protocols, document_status, for_field, id]
+      );
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+        message: 'Specification details updated successfully',
+      } as ApiResponse<ProtobufSpec>);
+    } catch (error) {
+      console.error('Update spec details error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
     }
   }
 }

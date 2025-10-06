@@ -142,14 +142,28 @@
 
     <!-- Tab Content -->
     <div [hidden]="tabs[activeTabIndex].content !== 'spec'">
-      <app-specification-details
-        [(specTitle)]="specTitle"
-        [(specVersion)]="specVersion"
-        [(specDescription)]="specDescription"
-        [(specTags)]="specTags"
+<app-specification-details
+        [specTitle]="specTitle"
+        [specVersion]="specVersion"
+        [specDescription]="specDescription"
+        [specTags]="specTags"
+        [deviceName]="deviceName"
+        [protocols]="protocols"
+        [documentStatus]="documentStatus"
+        [forField]="forField"
         [myTeams]="myTeams"
-        [(selectedTeamId)]="selectedTeamId"
-        [currentSpecId]="currentSpecId"
+        [selectedTeamId]="selectedTeamId"
+        [currentSpecId]="currentSpec?.id || null"
+        (specTitleChange)="specTitle = $event"
+        (specVersionChange)="specVersion = $event"
+        (specDescriptionChange)="specDescription = $event"
+        (specTagsChange)="specTags = $event"
+        (deviceNameChange)="deviceName = $event"
+        (protocolsChange)="protocols = $event"
+        (documentStatusChange)="documentStatus = $event"
+        (forFieldChange)="forField = $event"
+        (selectedTeamIdChange)="selectedTeamId = $event"
+        (saveSpecDetails)="saveSpecDetailsOnly()"
       ></app-specification-details>
     </div>
 
@@ -407,3 +421,16 @@
   (close)="closePushToBranchModal()"
   (push)="handlePushToBranch($event)"
 ></app-push-to-branch-modal>
+
+<app-tab-list-overlay
+  *ngIf="showTabListOverlay"
+  [tabs]="tabs"
+  (close)="closeTabListOverlay()"
+  [specTitle]="specTitle"
+  [specVersion]="specVersion"
+  [specDescription]="specDescription"
+  [deviceName]="currentSpec?.device_name"
+  [protocols]="currentSpec?.protocols"
+  [documentStatus]="currentSpec?.document_status"
+  [applicableTo]="currentSpec?.for_field"
+></app-tab-list-overlay>

@@ -38,6 +38,7 @@ export class SpecificationDetailsComponent {
   @Output() forFieldChange = new EventEmitter<string>();
 
   @Output() selectedTeamIdChange = new EventEmitter<string | 'personal'>();
+  @Output() saveSpecDetails = new EventEmitter<void>();
 
   isProtocolOpen = false;
   isStatusOpen = false;

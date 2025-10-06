@@ -88,6 +88,10 @@ export interface ProtobufSpec {
   github_repo_url?: string | null;
   github_repo_name?: string | null;
   team_id?: string | null;
+  device_name?: string | null;
+  protocols?: string[];
+  document_status?: string | null;
+  for_field?: string | null;
 }
 
 export interface CreateSpecRequest {
@@ -100,6 +104,10 @@ export interface CreateSpecRequest {
   github_repo_url?: string | null;
   github_repo_name?: string | null;
   team_id?: string | null;
+  device_name?: string | null;
+  protocols?: string[];
+  document_status?: string | null;
+  for_field?: string | null;
 }
 
 export interface UpdateSpecRequest {
@@ -113,6 +121,10 @@ export interface UpdateSpecRequest {
   github_repo_url?: string | null;
   github_repo_name?: string | null;
   team_id?: string | null;
+  device_name?: string | null;
+  protocols?: string[];
+  document_status?: string | null;
+  for_field?: string | null;
 }
 
 export interface SpecVersion {

@@ -29,6 +29,10 @@ export interface ProtobufSpec {
   github_repo_url?: string;
   github_repo_name?: string;
   team_id?: string | null;
+  device_name?: string;
+  protocols?: string[];
+  document_status?: string;
+  for_field?: string;
 }
 
 export interface Team {
@@ -242,6 +246,14 @@ export class ApiService {
   updateSpec(id: string, spec: Partial<ProtobufSpec>): Observable<ApiResponse<ProtobufSpec>> {
     return this.http.put<ApiResponse<ProtobufSpec>>(
       `${this.baseUrl}/specs/${id}`,
+      spec,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  updateSpecDetails(id: string, spec: Partial<ProtobufSpec>): Observable<ApiResponse<ProtobufSpec>> {
+    return this.http.put<ApiResponse<ProtobufSpec>>(
+      `${this.baseUrl}/specs/${id}/details`,
       spec,
       { headers: this.getHeaders() }
     );

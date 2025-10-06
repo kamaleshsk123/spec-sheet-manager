@@ -239,5 +239,25 @@
         <option *ngFor="let team of myTeams" [value]="team.id">{{ team.name }}</option>
       </select>
     </div>
+
+    <div class="flex justify-end mt-6">
+      <button
+        type="button"
+        (click)="saveSpecDetails.emit()"
+        class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg shadow-sm hover:from-green-600 hover:to-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200"
+      >
+        <svg
+          class="w-4 h-4 mr-2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save
+      </button>
+    </div>
   </div>
 </div>
