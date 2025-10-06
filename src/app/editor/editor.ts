@@ -18,6 +18,7 @@ import {
   Field,
   Enum,
   Service,
+  JsonSchemaProperty,
 } from '../components/definition-details/definition-details';
 import { MessageEnvelope } from '../components/message-envelope/message-envelope';
 import { MessageTypesComponent } from '../components/message-types/message-types';
@@ -123,6 +124,8 @@ export class EditorComponent implements OnInit {
   };
   jsonFields: JsonField[] = [];
   messageTypes: MessageType[] = [];
+  messageEnvelopes: any[] = [];
+  selectedEnvelopeId: string | null = null;
 
   showJsonDemoOverlay: boolean = false;
   demoJsonText: string = '';
@@ -149,11 +152,25 @@ export class EditorComponent implements OnInit {
   ngOnInit() {
     this.updateEditorContent();
     this.loadMyTeams();
+    this.loadMessageEnvelopes();
 
     this.route.queryParams.subscribe((params) => {
       if (params['id']) {
         this.loadSpec(params['id'], params['version']);
       }
+    });
+  }
+
+  loadMessageEnvelopes() {
+    this.apiService.getMessageEnvelopes().subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.messageEnvelopes = response.data;
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load message envelopes', err);
+      },
     });
   }
 
@@ -256,7 +273,7 @@ export class EditorComponent implements OnInit {
     });
   }
 
-  loadMessageTypes() {
+  loadMessageTypes(callback?: () => void) {
     if (this.currentSpecId) {
       this.apiService.getMessageTypes(this.currentSpecId).subscribe({
         next: (response) => {
@@ -301,12 +318,19 @@ export class EditorComponent implements OnInit {
               return { name: mt.name, fields };
             });
             this.updateProtoPreview();
+            if (callback) {
+              callback();
+            }
           }
         },
         error: (err) => {
           this.notificationService.error('Error', 'Failed to load message types.');
         },
       });
+    } else {
+      if (callback) {
+        callback();
+      }
     }
   }
 
@@ -835,11 +859,136 @@ export class EditorComponent implements OnInit {
   }
 
   showPdf() {
-    this.showTabListOverlay = true;
+    this.loadMessageTypes(() => {
+      this.showTabListOverlay = true;
+    });
   }
 
   closeTabListOverlay() {
     this.showTabListOverlay = false;
+  }
+
+  onEnvelopeSelected(envelopeId: string) {
+    this.selectedEnvelopeId = envelopeId;
+    const selectedEnvelope = this.messageEnvelopes.find(e => e.id === envelopeId);
+    if (selectedEnvelope) {
+      this.demoJsonText = JSON.stringify(this.generateDemoFromFields(selectedEnvelope.json_fields), null, 2);
+    } else {
+      this.demoJsonText = '';
+    }
+  }
+
+  private generateDemoFromFields(fields: JsonField[]): any {
+    const demo: any = {};
+    for (const field of fields) {
+      if (!field.name) continue;
+
+      if (field.value !== null && field.value !== undefined && field.value !== '') {
+        demo[field.name] = field.value;
+      } else if (field.type === 'object') {
+        demo[field.name] = this.generateDemoFromFields(field.children);
+      } else if (field.type === 'array') {
+        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const items = [];
+        for (let i = 0; i < itemCount; i++) {
+          if (field.items.type === 'object') {
+            items.push(this.generateDemoFromFields(field.items.children));
+          } else {
+            // Create a temporary JsonSchemaProperty for mock generation
+            const tempSchemaProp: JsonSchemaProperty = { type: field.items.type };
+            items.push(this.generateMockForProperty(tempSchemaProp, field.name));
+          }
+        }
+        demo[field.name] = items;
+      } else {
+        // Create a temporary JsonSchemaProperty for mock generation from the JsonField
+        const tempSchemaProp: JsonSchemaProperty = {
+          type: field.type,
+          format: field.type === 'time' ? 'date-time' : undefined,
+          pattern: field.pattern,
+          minimum: field.minimum,
+          maximum: field.maximum,
+          enum: field.enum,
+          'x-digits': field.digits
+        };
+        demo[field.name] = this.generateMockForProperty(tempSchemaProp, field.name);
+      }
+    }
+    return demo;
+  }
+
+  private generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
+    switch (prop.type) {
+      case 'string': {
+        if (prop.format === 'date-time') {
+          // Generate a valid ISO 8601 timestamp
+          const now = new Date();
+          const randomOffset = Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000); // Random offset up to 1 year
+          const randomDate = new Date(now.getTime() - randomOffset);
+          return randomDate.toISOString();
+        }
+        if (prop.enum && prop.enum.length > 0) {
+          return prop.enum[Math.floor(Math.random() * prop.enum.length)];
+        }
+        if (prop.pattern && /^\[A-Z0-9\]{6}$/.test(prop.pattern)) {
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+          let result = '';
+          for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          return result;
+        }
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        const length = Math.floor(Math.random() * 8) + 5; // Random length between 5 and 12
+        for (let i = 0; i < length; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+      }
+      case 'integer': {
+        if (prop['x-digits']) {
+          const min = Math.pow(10, prop['x-digits'] - 1);
+          const max = Math.pow(10, prop['x-digits']) - 1;
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        const min = prop.minimum ?? 0;
+        const max = prop.maximum ?? min + 100;
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+      case 'number': {
+        if (prop['x-digits']) {
+          const min = Math.pow(10, prop['x-digits'] - 1);
+          const max = Math.pow(10, prop['x-digits']) - 1;
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        const min = prop.minimum ?? 0;
+        const max = prop.maximum ?? min + 100;
+        const randomNum = Math.random() * (max - min) + min;
+        return Math.round(randomNum * 100) / 100;
+      }
+      case 'boolean':
+        return Math.random() < 0.5;
+      case 'object': {
+        const child: any = {};
+        const nestedProps = prop.properties || {};
+        Object.keys(nestedProps).forEach((k) => {
+          child[k] = this.generateMockForProperty(nestedProps[k], k);
+        });
+        return child;
+      }
+      case 'array': {
+        const itemSchema = prop.items || ({ type: 'string' } as JsonSchemaProperty);
+        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const items = [];
+        for (let i = 0; i < itemCount; i++) {
+          items.push(this.generateMockForProperty(itemSchema, key));
+        }
+        return items;
+      }
+      default:
+        return null;
+    }
   }
 
   saveSpecDetailsOnly() {

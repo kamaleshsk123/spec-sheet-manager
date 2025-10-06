@@ -1,91 +1,19 @@
+import { Injectable } from '@angular/core';
+import { JsonField, JsonSchemaProperty } from '../components/definition-details/definition-details';
 
-import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Team } from '../../services/api.service';
-import { JsonField, JsonSchemaProperty } from '../definition-details/definition-details';
-
-@Component({
-  selector: 'app-tab-list-overlay',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: './tab-list-overlay.component.html',
-  styleUrls: ['./tab-list-overlay.component.css']
+@Injectable({
+  providedIn: 'root'
 })
-export class TabListOverlayComponent {
-  @Input() tabs: { name: string, content: string }[] = [];
-  @Input() specTitle: string = '';
-  @Input() specVersion: string = '';
-  @Input() specDescription: string = '';
-  @Input() deviceName: string | undefined = '';
-  @Input() protocols: string[] | undefined = [];
-  @Input() documentStatus: string | undefined = '';
-  @Input() applicableTo: string | undefined = '';
-  @Input() messageEnvelopes: any[] = [];
-  @Input() selectedEnvelopeId: string | null = null;
-  @Input() demoJsonText: string = '';
-  @Input() messageTypes: any[] = [];
+export class JsonGeneratorService {
 
-  @Output() close = new EventEmitter<void>();
-  @Output() envelopeSelected = new EventEmitter<string>();
+  constructor() { }
 
-  selectedTabIndex: number | null = null;
-  selectedMessageTypeIndex: number | null = null;
-
-  constructor() {}
-
-  closeOverlay() {
-    this.close.emit();
-  }
-
-  toggleTab(index: number) {
-    if (this.selectedTabIndex === index) {
-      this.selectedTabIndex = null;
-    } else {
-      this.selectedTabIndex = index;
-    }
-  }
-
-  selectEnvelope(envelopeId: string) {
-    this.envelopeSelected.emit(envelopeId);
-  }
-
-  toggleMessageType(index: number) {
-    if (this.selectedMessageTypeIndex === index) {
-      this.selectedMessageTypeIndex = null;
-    }
-    else {
-      this.selectedMessageTypeIndex = index;
-    }
-  }
-
-  getCombinedPayload(messageType: any): string {
-    if (!this.selectedEnvelopeId) {
-      return '';
-    }
-    const selectedEnvelope = this.messageEnvelopes.find(e => e.id === this.selectedEnvelopeId);
-    if (!selectedEnvelope) {
-      return '';
-    }
-
-    const envelopePayload = this.generateDemoJsonFromFields(selectedEnvelope.json_fields);
-    const messagePayload = this.generateDemoJson(messageType.json_schema);
-    const messageKey = this.toCamelCase(messageType.name);
-
-    const combinedJson = {
-      ...envelopePayload,
-      [messageKey]: messagePayload
-    };
-
-    return JSON.stringify(combinedJson, null, 2);
-  }
-
-  private toCamelCase(str: string): string {
+  public toCamelCase(str: string): string {
     if (!str) return '';
     return str.replace(/[^a-zA-Z0-9]+(.)?/g, (match, chr) => chr ? chr.toUpperCase() : '').replace(/^./, (match) => match.toLowerCase());
   }
 
-  private generateDemoJsonFromFields(fields: JsonField[]): any {
+  public generateDemoJsonFromFields(fields: any[]): any {
     const demo: any = {};
     for (const field of fields) {
       if (!field.name) continue;
@@ -95,20 +23,18 @@ export class TabListOverlayComponent {
       } else if (field.type === 'object') {
         demo[field.name] = this.generateDemoJsonFromFields(field.children);
       } else if (field.type === 'array') {
-        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const itemCount = Math.floor(Math.random() * 3) + 1;
         const items = [];
         for (let i = 0; i < itemCount; i++) {
           if (field.items.type === 'object') {
             items.push(this.generateDemoJsonFromFields(field.items.children));
           } else {
-            // Create a temporary JsonSchemaProperty for mock generation
             const tempSchemaProp: JsonSchemaProperty = { type: field.items.type };
             items.push(this.generateMockForProperty(tempSchemaProp, field.name));
           }
         }
         demo[field.name] = items;
       } else {
-        // Create a temporary JsonSchemaProperty for mock generation from the JsonField
         const tempSchemaProp: JsonSchemaProperty = {
           type: field.type,
           format: field.type === 'time' ? 'date-time' : undefined,
@@ -124,7 +50,7 @@ export class TabListOverlayComponent {
     return demo;
   }
 
-  private generateDemoJson(schema: any): any {
+  public generateDemoJson(schema: any): any {
     if (!schema || !schema.properties) {
       return {};
     }
@@ -136,13 +62,12 @@ export class TabListOverlayComponent {
     return demo;
   }
 
-  private generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
+  public generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
     switch (prop.type) {
       case 'string': {
         if (prop.format === 'date-time') {
-          // Generate a valid ISO 8601 timestamp
           const now = new Date();
-          const randomOffset = Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000); // Random offset up to 1 year
+          const randomOffset = Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000);
           const randomDate = new Date(now.getTime() - randomOffset);
           return randomDate.toISOString();
         }
@@ -159,7 +84,7 @@ export class TabListOverlayComponent {
         }
         const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let result = '';
-        const length = Math.floor(Math.random() * 8) + 5; // Random length between 5 and 12
+        const length = Math.floor(Math.random() * 8) + 5;
         for (let i = 0; i < length; i++) {
           result += chars.charAt(Math.floor(Math.random() * chars.length));
         }
@@ -198,7 +123,7 @@ export class TabListOverlayComponent {
       }
       case 'array': {
         const itemSchema = prop.items || ({ type: 'string' } as JsonSchemaProperty);
-        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const itemCount = Math.floor(Math.random() * 3) + 1;
         const items = [];
         for (let i = 0; i < itemCount; i++) {
           items.push(this.generateMockForProperty(itemSchema, key));
@@ -210,4 +135,3 @@ export class TabListOverlayComponent {
     }
   }
 }
-

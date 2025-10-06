@@ -433,4 +433,9 @@
   [protocols]="currentSpec?.protocols"
   [documentStatus]="currentSpec?.document_status"
   [applicableTo]="currentSpec?.for_field"
+  [messageEnvelopes]="messageEnvelopes"
+  [selectedEnvelopeId]="selectedEnvelopeId"
+  (envelopeSelected)="onEnvelopeSelected($event)"
+  [demoJsonText]="demoJsonText"
+  [messageTypes]="messageTypes"
 ></app-tab-list-overlay>

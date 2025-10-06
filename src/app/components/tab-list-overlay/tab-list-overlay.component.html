@@ -30,7 +30,41 @@
                 <div class="font-semibold">Applicable To:</div><div>{{ applicableTo }}</div>
               </div>
             </div>
-            <div *ngIf="tab.content !== 'spec'">
+            <div *ngIf="tab.content === 'messageEnvelope'">
+              <ul *ngIf="messageEnvelopes.length > 0; else noEnvelopes">
+                <li *ngFor="let envelope of messageEnvelopes" class="py-2 px-4 border-b border-gray-100 flex items-center">
+                  <input type="radio" name="messageEnvelope" [value]="envelope.id" [ngModel]="selectedEnvelopeId" (change)="selectEnvelope(envelope.id)" class="mr-2">
+                  <label>{{ envelope.title }}</label>
+                </li>
+              </ul>
+              <div *ngIf="selectedEnvelopeId" class="mt-4">
+                <h4 class="font-semibold mb-2">Demo JSON:</h4>
+                <pre class="bg-gray-100 p-4 rounded-lg text-sm"><code>{{ demoJsonText }}</code></pre>
+              </div>
+              <ng-template #noEnvelopes>
+                <p>No message envelopes found.</p>
+              </ng-template>
+            </div>
+            <div *ngIf="tab.content === 'messageTypes'">
+              <ul *ngIf="messageTypes.length > 0; else noMessageTypes">
+                <li *ngFor="let messageType of messageTypes; let j = index" class="border-b border-gray-100">
+                  <div class="py-3 px-4 hover:bg-gray-100 rounded-lg cursor-pointer flex justify-between items-center" (click)="toggleMessageType(j)">
+                    <span>{{ messageType.name }}</span>
+                    <svg class="w-4 h-4 transition-transform" [class.rotate-180]="selectedMessageTypeIndex === j" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </div>
+                  <div *ngIf="selectedMessageTypeIndex === j" class="p-4 bg-gray-50">
+                    <h4 class="font-semibold mb-2">Combined Payload:</h4>
+                    <pre class="bg-gray-100 p-4 rounded-lg text-sm"><code>{{ messageType.payload_definition }}</code></pre>
+                  </div>
+                </li>
+              </ul>
+              <ng-template #noMessageTypes>
+                <p>No message types found.</p>
+              </ng-template>
+            </div>
+            <div *ngIf="tab.content !== 'spec' && tab.content !== 'messageEnvelope' && tab.content !== 'messageTypes'">
               <p>Data for this tab will be implemented in the next step.</p>
             </div>
           </div>
