@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { MessageTypes } from './message-types';
+import { MessageTypesComponent } from './message-types';
 
-describe('MessageTypes', () => {
-  let component: MessageTypes;
-  let fixture: ComponentFixture<MessageTypes>;
+describe('MessageTypesComponent', () => {
+  let component: MessageTypesComponent;
+  let fixture: ComponentFixture<MessageTypesComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MessageTypes]
+      imports: [MessageTypesComponent]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(MessageTypes);
+    fixture = TestBed.createComponent(MessageTypesComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

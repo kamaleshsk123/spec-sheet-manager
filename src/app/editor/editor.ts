@@ -863,6 +863,7 @@ export class EditorComponent implements OnInit {
     this.loadMessageTypes(() => {
       this.showTabListOverlay = true;
     });
+    console.log("Kamalesh")
   }
 
   closeTabListOverlay() {

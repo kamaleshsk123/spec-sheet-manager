@@ -1,0 +1,66 @@
+<!-- PDF Template Preview Page -->
+<div class="preview-container">
+
+  <!-- Loading State -->
+  <div *ngIf="isLoadingSpec" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading specification data...</p>
+  </div>
+
+  <!-- Control Panel -->
+  <div class="control-panel" *ngIf="!isLoadingSpec">
+    <h1 class="preview-title">📄 PDF Template Preview</h1>
+    <p class="preview-description" *ngIf="!currentSpec">
+      This is a standalone preview of the PDF template component.
+      You can see exactly how your PDF will look and test different customizations.
+    </p>
+    <p class="preview-description" *ngIf="currentSpec">
+      Previewing specification: <strong>{{ currentSpec.title }}</strong> (v{{ currentSpec.version }})
+    </p>
+
+    <div class="control-buttons">
+      <button class="btn btn-primary" (click)="generatePdf()" title="Generate and download PDF with enhanced styling">
+        📥 Generate PDF (Enhanced)
+      </button>
+
+      <button class="btn btn-primary-alt" (click)="generatePdfOriginal()" title="Generate PDF using original method">
+        📥 Generate PDF (Original)
+      </button>
+
+      <button class="btn btn-secondary" (click)="printPreview()" title="Open browser print dialog">
+        🖨️ Print Preview
+      </button>
+
+      <button class="btn btn-info" (click)="updateSampleData()" title="Update sample data to test reactivity">
+        🔄 Update Data
+      </button>
+    </div>
+
+    <div class="info-panel">
+      <h3>📝 PDF Generation Tips:</h3>
+      <ul>
+        <li><strong>Enhanced Method:</strong> Better styling preservation</li>
+        <li><strong>Original Method:</strong> Faster but may have style differences</li>
+        <li><strong>Print Preview:</strong> Shows how browser would print</li>
+        <li><strong>Differences:</strong> PDF may look different due to font rendering</li>
+      </ul>
+
+      <h3>🎨 Customization Tips:</h3>
+      <ul>
+        <li><strong>Colors:</strong> Edit <code>pdf-template.component.css</code></li>
+        <li><strong>Layout:</strong> Modify <code>pdf-template.component.html</code></li>
+        <li><strong>Content:</strong> Update the HTML structure</li>
+        <li><strong>Fonts:</strong> Use web-safe fonts for consistency</li>
+        <li><strong>Branding:</strong> Add logos in the header section</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- PDF Template Preview -->
+  <div class="pdf-preview" *ngIf="!isLoadingSpec">
+    <div class="preview-frame">
+      <app-pdf-template [data]="sampleData"></app-pdf-template>
+    </div>
+  </div>
+
+</div>

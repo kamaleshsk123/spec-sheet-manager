@@ -1,36 +1,19 @@
 <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-  <input
-    type="file"
-    #fileInput
-    style="display: none"
-    (change)="handleFileSelect($event)"
-    accept=".proto"
-  />
+  <input type="file" #fileInput style="display: none" (change)="handleFileSelect($event)" accept=".proto" />
   <!-- Header -->
   <header class="bg-white shadow-lg border-b border-gray-200">
     <div class="container mx-auto px-6 py-4">
       <div class="flex justify-between items-center">
         <div class="flex items-center space-x-3">
-          <div
-            (click)="goToDashboard()"
-            class="w-12 h-12 rounded-lg cursor-pointer flex items-center justify-center"
-          >
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 32 32"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
+          <div (click)="goToDashboard()" class="w-12 h-12 rounded-lg cursor-pointer flex items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect width="32" height="32" rx="16" fill="white" />
               <path
                 d="M15.1403 21.6395H10.8435L9.2653 25.6951H6.87546L8.45412 21.6395H5.07812L5.47279 19.4473H9.30771L10.7985 15.6548H7.42378L7.81844 13.4625H11.6534L13.2099 9.47266H15.5993L14.0427 13.4625H18.3396L19.8962 9.47266H22.2855L20.7292 13.4625H23.6447L23.2501 15.6548H19.8758L18.3855 19.4473H21.3009L20.9062 21.6395H17.5297L15.9515 25.6951H13.5617L15.1403 21.6395ZM17.486 15.6548H13.1891L11.6981 19.4473H15.9952L17.486 15.6548Z"
-                fill="black"
-              />
+                fill="black" />
               <path
                 d="M23.7714 6.92359C23.7714 6.20384 24.3077 5.58594 25.4008 5.58594C26.4939 5.58594 27.0305 6.2107 27.0305 6.92359C27.0305 7.45311 26.7258 7.84016 26.3242 8.03699C26.8266 8.22721 27.1593 8.66835 27.1593 9.25908C27.1593 10.1622 26.4261 10.7461 25.4008 10.7461C24.3824 10.7461 23.6484 10.1619 23.6484 9.25908C23.6484 8.66175 23.9811 8.22035 24.4769 8.03699C24.0566 7.8267 23.7714 7.47343 23.7714 6.92359ZM24.3893 9.23191C24.3893 9.73425 24.7702 10.101 25.4008 10.101C26.0256 10.101 26.3989 9.72765 26.3989 9.23191C26.3989 8.67521 25.9847 8.37654 25.4008 8.37654C24.8314 8.37705 24.3893 8.65489 24.3893 9.23191ZM26.2902 7.01857C26.2902 6.51064 25.9441 6.23127 25.4013 6.23127C24.8718 6.23127 24.5188 6.50276 24.5188 7.02568C24.5188 7.47368 24.8855 7.79292 25.4013 7.79292C25.9171 7.79292 26.2902 7.46683 26.2902 7.01857Z"
-                fill="black"
-              />
+                fill="black" />
             </svg>
           </div>
           <div>
@@ -41,17 +24,11 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <button
-            (click)="goToDashboard()"
-            class="inline-flex items-center px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
-          >
+          <button (click)="goToDashboard()"
+            class="inline-flex items-center px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              ></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+              </path>
             </svg>
             Dashboard
           </button>
@@ -66,15 +43,11 @@
       <div class="border-b border-gray-200">
         <div class="flex items-center justify-between" aria-label="Tabs">
           <nav class="-mb-px flex space-x-8">
-            <button
-              (click)="onTabChange(0)"
-              [class]="
+            <button (click)="onTabChange(0)" [class]="
                 activeTabIndex === 0
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              "
-              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-            >
+              " class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
               Specification Details
             </button>
             <!-- <button
@@ -88,51 +61,37 @@
             >
               Definition Details
             </button> -->
-            <button
-              (click)="onTabChange(1)"
-              [class]="
+            <button (click)="onTabChange(1)" [class]="
                 activeTabIndex === 1
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:hover:border-gray-300'
-              "
-              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-            >
+              " class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
               Message Envelope
             </button>
-            <button
-              (click)="onTabChange(2)"
-              [class]="
+            <button (click)="onTabChange(2)" [class]="
                 activeTabIndex === 2
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              "
-              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-            >
+              " class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
               Message Types
             </button>
           </nav>
           <div class="flex items-center space-x-2">
-            <button
-              (click)="openNewTabDialog()"
+            <button (click)="openNewTabDialog()"
               class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-800 transition-all duration-200"
-              aria-label="Add new tab"
-            >
+              aria-label="Add new tab">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                ></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                </path>
               </svg>
             </button>
-            <button
-              (click)="showPdf()"
+            <button (click)="showPdf()"
               class="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white hover:bg-purple-700 transition-all duration-200"
-              aria-label="Show PDF"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              aria-label="Show PDF">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </button>
           </div>
@@ -142,29 +101,15 @@
 
     <!-- Tab Content -->
     <div [hidden]="tabs[activeTabIndex].content !== 'spec'">
-<app-specification-details
-        [specTitle]="specTitle"
-        [specVersion]="specVersion"
-        [specDescription]="specDescription"
-        [specTags]="specTags"
-        [deviceName]="deviceName"
-        [protocols]="protocols"
-        [documentStatus]="documentStatus"
-        [forField]="forField"
-        [myTeams]="myTeams"
-        [selectedTeamId]="selectedTeamId"
-        [currentSpecId]="currentSpec?.id || null"
-        (specTitleChange)="specTitle = $event"
-        (specVersionChange)="specVersion = $event"
-        (specDescriptionChange)="specDescription = $event"
-        (specTagsChange)="specTags = $event"
-        (deviceNameChange)="deviceName = $event"
-        (protocolsChange)="protocols = $event"
-        (documentStatusChange)="documentStatus = $event"
-        (forFieldChange)="forField = $event"
-        (selectedTeamIdChange)="selectedTeamId = $event"
-        (saveSpecDetails)="saveSpecDetailsOnly()"
-      ></app-specification-details>
+      <app-specification-details [specTitle]="specTitle" [specVersion]="specVersion" [specDescription]="specDescription"
+        [specTags]="specTags" [deviceName]="deviceName" [protocols]="protocols" [documentStatus]="documentStatus"
+        [forField]="forField" [myTeams]="myTeams" [selectedTeamId]="selectedTeamId"
+        [currentSpecId]="currentSpec?.id || null" (specTitleChange)="specTitle = $event"
+        (specVersionChange)="specVersion = $event" (specDescriptionChange)="specDescription = $event"
+        (specTagsChange)="specTags = $event" (deviceNameChange)="deviceName = $event"
+        (protocolsChange)="protocols = $event" (documentStatusChange)="documentStatus = $event"
+        (forFieldChange)="forField = $event" (selectedTeamIdChange)="selectedTeamId = $event"
+        (saveSpecDetails)="saveSpecDetailsOnly()"></app-specification-details>
     </div>
 
     <!-- <div [hidden]="tabs[activeTabIndex].content !== 'definitions'">
@@ -185,54 +130,41 @@
       <app-message-envelope></app-message-envelope>
     </div>
 
-          <div *ngIf="tabs[activeTabIndex].content === 'messageTypes' && currentSpecId" class="">
-            <div *ngIf="!editingMessage">
-              <app-message-types [specId]="currentSpecId" [messageTypes]="messageTypes" [selectedMessageId]="lastSelectedMessageId" (edit)="handleEditMessage($event)" (add)="handleAddMessage()"></app-message-types>
-            </div>
-            <div *ngIf="editingMessage">
-              <app-edit-message-type [message]="editingMessage" [specType]="specType" (done)="handleDoneEditing()"></app-edit-message-type>
-            </div>
-          </div>
+    <div *ngIf="tabs[activeTabIndex].content === 'messageTypes' && currentSpecId" class="">
+      <div *ngIf="!editingMessage">
+        <app-message-types [specId]="currentSpecId" [messageTypes]="messageTypes"
+          [selectedMessageId]="lastSelectedMessageId" (edit)="handleEditMessage($event)"
+          (add)="handleAddMessage()"></app-message-types>
+      </div>
+      <div *ngIf="editingMessage">
+        <app-edit-message-type [message]="editingMessage" [specType]="specType"
+          (done)="handleDoneEditing()"></app-edit-message-type>
+      </div>
+    </div>
 
     <!-- Action Buttons -->
     <div hidden class="flex justify-between items-center p-6 pt-0 border-t border-gray-100 mt-8">
       <!-- Changes Indicator -->
       <div class="flex items-center space-x-2">
         <!-- Auto-increment warning (only when user forgot to change version) -->
-        <div
-          *ngIf="shouldAutoIncrementVersion()"
-          class="flex items-center space-x-2 text-amber-600"
-        >
+        <div *ngIf="shouldAutoIncrementVersion()" class="flex items-center space-x-2 text-amber-600">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-            ></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z">
+            </path>
           </svg>
-          <span class="text-sm font-medium"
-            >Changes detected but version unchanged - will auto-increment to
-            {{ getNextVersion() }}</span
-          >
+          <span class="text-sm font-medium">Changes detected but version unchanged - will auto-increment to
+            {{ getNextVersion() }}</span>
         </div>
 
         <!-- Changes detected but version manually updated -->
-        <div
-          *ngIf="hasSpecDataChanged() && currentSpecId && !shouldAutoIncrementVersion()"
-          class="flex items-center space-x-2 text-green-600"
-        >
+        <div *ngIf="hasSpecDataChanged() && currentSpecId && !shouldAutoIncrementVersion()"
+          class="flex items-center space-x-2 text-green-600">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <span class="text-sm font-medium"
-            >Changes detected - version manually updated to {{ specVersion }}</span
-          >
+          <span class="text-sm font-medium">Changes detected - version manually updated to {{ specVersion }}</span>
         </div>
       </div>
 
@@ -367,40 +299,23 @@
       <h3 class="text-lg font-semibold text-gray-900">Create New Tab</h3>
       <button (click)="closeNewTabDialog()" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          ></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
       </button>
     </div>
     <div class="p-6">
       <label for="newTabName" class="block text-sm font-medium text-gray-700 mb-2">Tab Name</label>
-      <input
-        type="text"
-        id="newTabName"
-        [(ngModel)]="newTabName"
-        name="newTabName"
+      <input type="text" id="newTabName" [(ngModel)]="newTabName" name="newTabName"
         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
-        placeholder="Enter tab name..."
-        (keyup.enter)="addNewTab()"
-      />
+        placeholder="Enter tab name..." (keyup.enter)="addNewTab()" />
     </div>
-    <div
-      class="flex items-center justify-end gap-4 p-4 bg-gray-50 rounded-b-xl border-t border-gray-100"
-    >
-      <button
-        (click)="closeNewTabDialog()"
-        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all duration-200"
-      >
+    <div class="flex items-center justify-end gap-4 p-4 bg-gray-50 rounded-b-xl border-t border-gray-100">
+      <button (click)="closeNewTabDialog()"
+        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all duration-200">
         Cancel
       </button>
-      <button
-        (click)="addNewTab()"
-        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
-      >
+      <button (click)="addNewTab()"
+        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200">
         Add Tab
       </button>
     </div>
@@ -408,36 +323,16 @@
 </div>
 }
 
-<app-publish-modal
-  *ngIf="showPublishModal"
-  [spec]="currentSpec"
-  (close)="closePublishModal()"
-  (publish)="handlePublish($event)"
-></app-publish-modal>
+<app-publish-modal *ngIf="showPublishModal" [spec]="currentSpec" (close)="closePublishModal()"
+  (publish)="handlePublish($event)"></app-publish-modal>
 
-<app-push-to-branch-modal
-  *ngIf="showPushToBranchModal"
-  [spec]="currentSpec"
-  (close)="closePushToBranchModal()"
-  (push)="handlePushToBranch($event)"
-></app-push-to-branch-modal>
+<app-push-to-branch-modal *ngIf="showPushToBranchModal" [spec]="currentSpec" (close)="closePushToBranchModal()"
+  (push)="handlePushToBranch($event)"></app-push-to-branch-modal>
 
-<app-tab-list-overlay
-  *ngIf="showTabListOverlay"
-  [tabs]="tabs"
-  (close)="closeTabListOverlay()"
-  [specTitle]="specTitle"
-  [specVersion]="specVersion"
-  [specDescription]="specDescription"
-  [deviceName]="currentSpec?.device_name"
-  [protocols]="currentSpec?.protocols"
-  [documentStatus]="currentSpec?.document_status"
-  [applicableTo]="currentSpec?.for_field"
-  [messageEnvelopes]="messageEnvelopes"
-  [selectedEnvelopeId]="selectedEnvelopeId"
-  (envelopeSelected)="onEnvelopeSelected($event)"
-  [demoJsonText]="demoJsonText"
-  [messageTypes]="messageTypes"
-  [combinedPayloadText]="combinedPayloadText"
-  (messageTypeSelected)="onMessageTypeSelected($event)"
-></app-tab-list-overlay>
+<app-tab-list-overlay *ngIf="showTabListOverlay" [tabs]="tabs" (close)="closeTabListOverlay()" [specTitle]="specTitle"
+  [specVersion]="specVersion" [specDescription]="specDescription" [deviceName]="currentSpec?.device_name"
+  [protocols]="currentSpec?.protocols" [documentStatus]="currentSpec?.document_status"
+  [applicableTo]="currentSpec?.for_field" [messageEnvelopes]="messageEnvelopes"
+  [selectedEnvelopeId]="selectedEnvelopeId" (envelopeSelected)="onEnvelopeSelected($event)"
+  [demoJsonText]="demoJsonText" [messageTypes]="messageTypes" [combinedPayloadText]="combinedPayloadText"
+  (messageTypeSelected)="onMessageTypeSelected($event)"></app-tab-list-overlay>

@@ -43,6 +43,20 @@
             </svg>
             New Spec
           </button>
+          <!-- <button
+            (click)="openPdfTemplatePreview()"
+            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
+            </svg>
+            📄 PDF Preview
+          </button> -->
           <div class="relative">
             <button
               (click)="toggleDropdown()"
@@ -445,6 +459,25 @@
                             Compare
                           </button>
                           <button
+                            (click)="openSpecPreview(spec)"
+                            class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <svg
+                              class="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              ></path>
+                            </svg>
+                            Show Preview
+                          </button>
+                          <button
                             *ngIf="!spec.github_repo_url"
                             (click)="openPublishModal(spec)"
                             class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -666,6 +699,25 @@
                         ></path>
                       </svg>
                       Compare
+                    </button>
+                    <button
+                      (click)="openSpecPreview(spec)"
+                      class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        ></path>
+                      </svg>
+                      Show Preview
                     </button>
                     <button
                       *ngIf="!spec.github_repo_url"
@@ -1261,3 +1313,23 @@
   (push)="handlePushToBranch($event)"
 >
 </app-push-to-branch-modal>
+
+<app-tab-list-overlay
+  *ngIf="showTabListOverlay"
+  [tabs]="tabs"
+  (close)="closeTabListOverlay()"
+  [specTitle]="previewSpec?.title || ''"
+  [specVersion]="previewSpec?.version || ''"
+  [specDescription]="previewSpec?.description || ''"
+  [deviceName]="previewSpec?.device_name"
+  [protocols]="previewSpec?.protocols"
+  [documentStatus]="previewSpec?.document_status"
+  [applicableTo]="previewSpec?.for_field"
+  [messageEnvelopes]="messageEnvelopes"
+  [selectedEnvelopeId]="selectedEnvelopeId"
+  (envelopeSelected)="onEnvelopeSelected($event)"
+  [demoJsonText]="demoJsonText"
+  [messageTypes]="messageTypes"
+  [combinedPayloadText]="combinedPayloadText"
+  (messageTypeSelected)="onMessageTypeSelected($event)"
+></app-tab-list-overlay>
