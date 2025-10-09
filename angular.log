@@ -124,3 +124,21 @@ main.js             | main  | 954.60 kB |
 Application bundle generation complete. [1.821 seconds] - 2025-10-09T11:20:41.089Z
 
 Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 954.60 kB | 
+
+Application bundle generation complete. [0.928 seconds] - 2025-10-09T11:24:22.341Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names  |  Raw size
+main.js             | main   | 954.69 kB | 
+styles.css          | styles |  22.22 kB | 
+
+Application bundle generation complete. [0.993 seconds] - 2025-10-09T11:24:37.195Z
+
+Stylesheet update sent to client(s).
+Component update sent to client(s).
