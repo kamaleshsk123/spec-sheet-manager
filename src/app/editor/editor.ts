@@ -1103,7 +1103,13 @@ export class EditorComponent implements OnInit {
       return;
     }
 
-    // Check if version was manually changed
+    // For new specs (no currentSpecId), save directly without version increment modal
+    if (!this.currentSpecId) {
+      this.performSaveAll();
+      return;
+    }
+
+    // For existing specs, check if version was manually changed
     if (this.hasVersionChanged()) {
       // Version was manually changed, proceed with save
       this.performSaveAll();

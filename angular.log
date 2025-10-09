@@ -116,3 +116,11 @@ polyfills.js        | polyfills     |  95 bytes |
 Application bundle generation complete. [0.627 seconds] - 2025-10-09T11:15:38.917Z
 
 Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 954.60 kB | 
+
+Application bundle generation complete. [1.821 seconds] - 2025-10-09T11:20:41.089Z
+
+Page reload sent to client(s).
