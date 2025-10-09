@@ -59,7 +59,7 @@ export class EditorComponent implements OnInit {
   showVersionIncrementModal = false;
   selectedVersionIncrement: 'patch' | 'minor' | 'major' | 'custom' | null = null;
   customVersion = '';
-  
+
   // Change tracking
   originalSpecData: any = null;
   originalMessageEnvelopes: any[] = [];
@@ -159,7 +159,7 @@ export class EditorComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private notificationService: NotificationService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.updateEditorContent();
@@ -348,7 +348,7 @@ export class EditorComponent implements OnInit {
 
   goToDashboard() {
     // Force dashboard to reload by navigating with a timestamp query param
-    this.router.navigate(['/'], { 
+    this.router.navigate(['/'], {
       queryParams: { refresh: Date.now() },
       queryParamsHandling: 'replace' // Use replace instead of merge to ensure clean navigation
     });
@@ -532,9 +532,9 @@ export class EditorComponent implements OnInit {
       spec_data: this.toggleValue === 'protobuf' ? this.protoFile : this.jsonSchema,
       tags: this.specTags
         ? this.specTags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter((tag) => tag)
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter((tag) => tag)
         : [],
       device_name: this.deviceName || '',
       protocols: this.protocols || [],
@@ -568,7 +568,7 @@ export class EditorComponent implements OnInit {
           // Update original data to reflect the saved state
           this.initializeOriginalData();
           this.originalVersion = finalVersion;
-          
+
           // If this was a new spec, update the URL to include the spec ID
           if (wasNewSpec) {
             this.router.navigate([], {
@@ -1074,15 +1074,15 @@ export class EditorComponent implements OnInit {
         this.isSavingDetails = false;
         const versionChanged = this.hasVersionChanged();
         this.notificationService.success(
-          'Success', 
-          versionChanged 
+          'Success',
+          versionChanged
             ? `Created new version "${this.specTitle}" v${this.specVersion} with your changes!`
             : 'Specification details saved successfully!'
         );
-        
+
         // Update original data to reflect current state
         this.updateOriginalData();
-        
+
         // Refresh the current spec to ensure we have the latest data
         if (this.currentSpecId) {
           this.refreshCurrentSpec();
@@ -1121,9 +1121,9 @@ export class EditorComponent implements OnInit {
   }
 
   hasAnyChanges(): boolean {
-    return this.hasSpecificationDetailsChanges() || 
-           this.hasMessageEnvelopeChanges() || 
-           this.hasMessageTypesChanges();
+    return this.hasSpecificationDetailsChanges() ||
+      this.hasMessageEnvelopeChanges() ||
+      this.hasMessageTypesChanges();
   }
 
   hasSpecificationDetailsChanges(): boolean {
@@ -1131,16 +1131,16 @@ export class EditorComponent implements OnInit {
       // For new specs, consider any non-empty title as a change
       return this.specTitle.trim() !== '';
     }
-    
+
     const hasChanges = this.specTitle !== this.originalSpecData.title ||
-           this.specVersion !== this.originalSpecData.version ||
-           this.specDescription !== this.originalSpecData.description ||
-           this.specTags !== (this.originalSpecData.tags || []).join(', ') ||
-           this.deviceName !== this.originalSpecData.device_name ||
-           JSON.stringify(this.protocols) !== JSON.stringify(this.originalSpecData.protocols || []) ||
-           this.documentStatus !== this.originalSpecData.document_status ||
-           this.forField !== this.originalSpecData.for_field;
-           
+      this.specVersion !== this.originalSpecData.version ||
+      this.specDescription !== this.originalSpecData.description ||
+      this.specTags !== (this.originalSpecData.tags || []).join(', ') ||
+      this.deviceName !== this.originalSpecData.device_name ||
+      JSON.stringify(this.protocols) !== JSON.stringify(this.originalSpecData.protocols || []) ||
+      this.documentStatus !== this.originalSpecData.document_status ||
+      this.forField !== this.originalSpecData.for_field;
+
     return hasChanges;
   }
 
@@ -1193,7 +1193,7 @@ export class EditorComponent implements OnInit {
   getIncrementedVersion(type: 'patch' | 'minor' | 'major'): string {
     const currentVersion = this.specVersion || '1.0.0';
     const parts = currentVersion.split('.').map(Number);
-    
+
     // Ensure we have at least 3 parts
     while (parts.length < 3) {
       parts.push(0);
@@ -1235,17 +1235,17 @@ export class EditorComponent implements OnInit {
 
     // Update the version
     this.specVersion = newVersion;
-    
+
     // Close modal
     this.closeVersionIncrementModal();
-    
+
     // Perform the save
     this.performSaveAll();
   }
 
   performSaveAll() {
     this.isSaving = true;
-    
+
     // For new specs (no currentSpecId), use the regular saveSpec method first
     if (!this.currentSpecId) {
       this.saveSpecForNewSpec()
@@ -1286,7 +1286,7 @@ export class EditorComponent implements OnInit {
       }
 
       let finalVersion = this.specVersion || '1.0.0';
-      
+
       const teamIdToSend = this.selectedTeamId !== 'personal' ? this.selectedTeamId : undefined;
 
       const specData: any = {
@@ -1297,9 +1297,9 @@ export class EditorComponent implements OnInit {
         spec_data: this.toggleValue === 'protobuf' ? this.protoFile : this.jsonSchema,
         tags: this.specTags
           ? this.specTags
-              .split(',')
-              .map((tag) => tag.trim())
-              .filter((tag) => tag)
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter((tag) => tag)
           : [],
         device_name: this.deviceName || '',
         protocols: this.protocols || [],
@@ -1316,14 +1316,14 @@ export class EditorComponent implements OnInit {
             this.currentSpecId = response.data.id!;
             this.currentSpec = response.data;
             this.originalVersion = finalVersion;
-            
+
             // Update the URL to include the spec ID
             this.router.navigate([], {
               relativeTo: this.route,
               queryParams: { id: this.currentSpecId },
               queryParamsHandling: 'merge'
             });
-            
+
             resolve();
           } else {
             reject(response.error || 'Failed to save specification');
@@ -1338,27 +1338,27 @@ export class EditorComponent implements OnInit {
 
   private saveRemainingComponents(): Promise<void> {
     const promises: Promise<void>[] = [];
-    
+
     // Save message envelopes if changed
     if (this.hasMessageEnvelopeChanges()) {
       promises.push(this.saveMessageEnvelopes());
     }
-    
+
     // Save message types if changed
     if (this.hasMessageTypesChanges()) {
       promises.push(this.saveMessageTypes());
     }
-    
-    return Promise.all(promises).then(() => {});
+
+    return Promise.all(promises).then(() => { });
   }
 
   private completeSaveAll(wasNewSpec: boolean) {
     this.isSaving = false;
     const versionChanged = this.hasVersionChanged();
-    
+
     let title = 'All Changes Saved';
     let message = '';
-    
+
     if (wasNewSpec) {
       title = 'Specification Created';
       message = `Created "${this.specTitle}" v${this.specVersion}. Dashboard will show the new specification.`;
@@ -1368,12 +1368,12 @@ export class EditorComponent implements OnInit {
     } else {
       message = `Updated "${this.specTitle}" v${this.specVersion}. Dashboard will show updated data when you return.`;
     }
-    
+
     this.notificationService.success(title, message);
-    
+
     // Update original data to reflect current state
     this.updateOriginalData();
-    
+
     // Refresh the current spec to ensure we have the latest data
     if (this.currentSpecId) {
       this.refreshCurrentSpec();
@@ -1410,7 +1410,7 @@ export class EditorComponent implements OnInit {
       // Check if version has changed - if so, create new version, otherwise update existing
       const versionChanged = this.hasVersionChanged();
       console.log('Version changed:', versionChanged, 'Current:', this.specVersion, 'Original:', this.originalSpecData?.version);
-      
+
       if (versionChanged) {
         // Version changed - create new spec version
         // Copy ALL data from current spec to preserve everything
@@ -1447,7 +1447,7 @@ export class EditorComponent implements OnInit {
             if (response.success && response.data) {
               const newSpecId = response.data.id!;
               const oldSpecId = this.currentSpecId;
-              
+
               // Update current spec reference to the new version
               this.currentSpecId = newSpecId;
               this.currentSpec = response.data;
@@ -1460,7 +1460,7 @@ export class EditorComponent implements OnInit {
                 title: response.data.title,
                 version: response.data.version
               });
-              
+
               // Copy message types from old version to new version
               console.log('About to copy message types. Current message types:', this.messageTypes?.length || 0);
               console.log('Current message types data:', this.messageTypes);
@@ -1489,7 +1489,7 @@ export class EditorComponent implements OnInit {
               } else {
                 console.log('No old spec ID available, skipping message type copying');
               }
-              
+
               // Update the URL to reflect the new spec ID
               this.router.navigate([], {
                 relativeTo: this.route,
@@ -1497,7 +1497,7 @@ export class EditorComponent implements OnInit {
                 queryParamsHandling: 'merge',
                 replaceUrl: true
               });
-              
+
               // Reload the spec to ensure all form fields are properly populated
               // Wait longer to ensure message types are fully copied
               setTimeout(() => {
@@ -1577,7 +1577,7 @@ export class EditorComponent implements OnInit {
       document_status: this.documentStatus,
       for_field: this.forField,
     };
-    
+
     this.originalMessageEnvelopes = JSON.parse(JSON.stringify(this.messageEnvelopes));
     this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
   }
@@ -1592,14 +1592,14 @@ export class EditorComponent implements OnInit {
     this.protocols = [];
     this.documentStatus = 'Draft';
     this.forField = '';
-    
+
     // Initialize empty arrays for new spec
     this.messageEnvelopes = [];
     this.messageTypes = [];
-    
+
     // Initialize original data to enable change detection
     this.initializeOriginalData();
-    
+
     this.notificationService.info(
       'New Specification',
       'Creating a new specification. Fill in the details and save when ready.'
@@ -1617,18 +1617,18 @@ export class EditorComponent implements OnInit {
       document_status: this.documentStatus,
       for_field: this.forField,
     };
-    
+
     // Initialize message envelopes and types (will be updated when they're loaded)
     this.originalMessageEnvelopes = JSON.parse(JSON.stringify(this.messageEnvelopes));
     this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
-    
+
     // Reset change flags
     this.messageEnvelopeHasChanges = false;
   }
 
   private refreshCurrentSpec(): void {
     if (!this.currentSpecId) return;
-    
+
     // Silently refresh the current spec data to ensure we have the latest version
     this.apiService.getSpec(this.currentSpecId).subscribe({
       next: (response) => {
@@ -1667,25 +1667,25 @@ export class EditorComponent implements OnInit {
     // Copy all message types from the old version to the new version
     if (this.messageTypes && this.messageTypes.length > 0) {
       console.log(`Copying ${this.messageTypes.length} message types to new version`);
-      
+
       // Copy each message type one by one
       let copiedCount = 0;
       const totalCount = this.messageTypes.length;
-      
+
       this.messageTypes.forEach((messageType, index) => {
         const newMessageType = {
           name: messageType.name,
           json_schema: messageType.json_schema
         };
-        
+
         console.log(`Copying message type ${index + 1}/${totalCount}:`, messageType.name);
-        
+
         this.apiService.createMessageType(newSpecId, newMessageType).subscribe({
           next: (response) => {
             if (response.success) {
               copiedCount++;
               console.log(`Successfully copied message type: ${messageType.name} (${copiedCount}/${totalCount})`);
-              
+
               // If this is the last one, just log completion
               if (copiedCount === totalCount) {
                 console.log('All message types copied successfully!');
