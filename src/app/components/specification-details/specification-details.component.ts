@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ElementRef, HostListener } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { Team } from '../../services/api.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -44,7 +44,10 @@ export class SpecificationDetailsComponent {
   isStatusOpen = false;
   statusOptions = ['Draft', 'In Review', 'Approved', 'Released', 'Deprecated', 'Retired'];
 
-  constructor(private eRef: ElementRef) {}
+  @ViewChild('protocolDropdown') protocolDropdown!: ElementRef;
+  @ViewChild('statusDropdown') statusDropdown!: ElementRef;
+
+  constructor() {}
 
   toggleProtocol(option: string) {
     if (this.protocols.includes(option)) {
@@ -73,8 +76,11 @@ export class SpecificationDetailsComponent {
   // 👇 Detect outside clicks and close dropdowns
   @HostListener('document:click', ['$event'])
   onClickOutside(event: Event) {
-    if (!this.eRef.nativeElement.contains(event.target)) {
+    if (this.protocolDropdown && this.protocolDropdown.nativeElement && !this.protocolDropdown.nativeElement.contains(event.target)) {
       this.isProtocolOpen = false;
+    }
+
+    if (this.statusDropdown && this.statusDropdown.nativeElement && !this.statusDropdown.nativeElement.contains(event.target)) {
       this.isStatusOpen = false;
     }
   }

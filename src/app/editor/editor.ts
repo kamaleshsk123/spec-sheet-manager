@@ -64,6 +64,7 @@ export class EditorComponent implements OnInit {
   originalSpecData: any = null;
   originalMessageEnvelopes: any[] = [];
   originalMessageTypes: any[] = [];
+  messageEnvelopeHasChanges: boolean = false;
 
   @ViewChild('fileInput') fileInput!: ElementRef;
   @ViewChild('downloadButton') downloadButton!: ElementRef;
@@ -167,23 +168,34 @@ export class EditorComponent implements OnInit {
     this.route.queryParams.subscribe((params) => {
       if (params['id']) {
         this.loadSpec(params['id'], params['version']);
+      } else {
+        // Initialize for new spec creation
+        this.initializeForNewSpec();
       }
     });
   }
 
   loadMessageEnvelopes(callback?: () => void) {
-    this.apiService.getMessageEnvelopes().subscribe({
-      next: (response) => {
-        if (response.success && response.data) {
-          this.messageEnvelopes = response.data;
-        }
-        if (callback) callback();
-      },
-      error: (err) => {
-        console.error('Failed to load message envelopes', err);
-        if (callback) callback();
-      },
-    });
+    // Only load message envelopes if we have a current spec ID
+    // For new specs, start with empty envelopes
+    if (this.currentSpecId) {
+      this.apiService.getMessageEnvelopes().subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.messageEnvelopes = response.data;
+          }
+          if (callback) callback();
+        },
+        error: (err) => {
+          console.error('Failed to load message envelopes', err);
+          if (callback) callback();
+        },
+      });
+    } else {
+      // For new specs, start with empty message envelopes
+      this.messageEnvelopes = [];
+      if (callback) callback();
+    }
   }
 
   openNewTabDialog() {
@@ -524,6 +536,10 @@ export class EditorComponent implements OnInit {
             .map((tag) => tag.trim())
             .filter((tag) => tag)
         : [],
+      device_name: this.deviceName || '',
+      protocols: this.protocols || [],
+      document_status: this.documentStatus || 'Draft',
+      for_field: this.forField || '',
       team_id: teamIdToSend,
       github_repo_url: this.githubRepoUrl,
       github_repo_name: this.githubRepoName,
@@ -545,14 +561,22 @@ export class EditorComponent implements OnInit {
       next: (response) => {
         this.isSaving = false;
         if (response.success && response.data) {
+          const wasNewSpec = !this.currentSpecId;
           this.currentSpecId = response.data.id!;
+          this.currentSpec = response.data;
 
-          if (this.toggleValue === 'json') {
-            this.originalSpecData = JSON.parse(JSON.stringify(this.jsonSchema));
-          } else {
-            // Not storing original protofile data as messages are fetched separately
-          }
+          // Update original data to reflect the saved state
+          this.initializeOriginalData();
           this.originalVersion = finalVersion;
+          
+          // If this was a new spec, update the URL to include the spec ID
+          if (wasNewSpec) {
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: { id: this.currentSpecId },
+              queryParamsHandling: 'merge'
+            });
+          }
 
           let title: string = '';
           let message: string = '';
@@ -1097,9 +1121,12 @@ export class EditorComponent implements OnInit {
   }
 
   hasSpecificationDetailsChanges(): boolean {
-    if (!this.originalSpecData) return false;
+    if (!this.originalSpecData) {
+      // For new specs, consider any non-empty title as a change
+      return this.specTitle.trim() !== '';
+    }
     
-    return this.specTitle !== this.originalSpecData.title ||
+    const hasChanges = this.specTitle !== this.originalSpecData.title ||
            this.specVersion !== this.originalSpecData.version ||
            this.specDescription !== this.originalSpecData.description ||
            this.specTags !== (this.originalSpecData.tags || []).join(', ') ||
@@ -1107,11 +1134,13 @@ export class EditorComponent implements OnInit {
            JSON.stringify(this.protocols) !== JSON.stringify(this.originalSpecData.protocols || []) ||
            this.documentStatus !== this.originalSpecData.document_status ||
            this.forField !== this.originalSpecData.for_field;
+           
+    return hasChanges;
   }
 
   hasMessageEnvelopeChanges(): boolean {
-    // Compare current message envelopes with original
-    return JSON.stringify(this.messageEnvelopes) !== JSON.stringify(this.originalMessageEnvelopes);
+    // Use the flag to track changes from the message envelope component
+    return this.messageEnvelopeHasChanges;
   }
 
   hasMessageTypesChanges(): boolean {
@@ -1123,6 +1152,7 @@ export class EditorComponent implements OnInit {
     // This method is called when the message envelope component emits dataChanged
     // It triggers change detection for the message envelope tab
     console.log('Message envelope data changed');
+    this.messageEnvelopeHasChanges = true;
   }
 
   onMessageTypesChanged(): void {
@@ -1210,45 +1240,138 @@ export class EditorComponent implements OnInit {
   performSaveAll() {
     this.isSaving = true;
     
-    // Save specification details first
-    this.saveSpecificationDetails()
-      .then(() => {
-        // Then save message envelopes if changed
-        if (this.hasMessageEnvelopeChanges()) {
-          return this.saveMessageEnvelopes();
-        }
-        return Promise.resolve();
-      })
-      .then(() => {
-        // Then save message types if changed
-        if (this.hasMessageTypesChanges()) {
-          return this.saveMessageTypes();
-        }
-        return Promise.resolve();
-      })
-      .then(() => {
-        this.isSaving = false;
-        const versionChanged = this.hasVersionChanged();
-        this.notificationService.success(
-          'All Changes Saved', 
-          versionChanged 
-            ? `Created new version "${this.specTitle}" v${this.specVersion}. Dashboard will show the new version.`
-            : `Updated "${this.specTitle}" v${this.specVersion}. Dashboard will show updated data when you return.`
-        );
-        
-        // Update original data to reflect current state
-        this.updateOriginalData();
-        
-        // Refresh the current spec to ensure we have the latest data
-        if (this.currentSpecId) {
-          this.refreshCurrentSpec();
-        }
-      })
-      .catch((error) => {
-        this.isSaving = false;
-        this.notificationService.error('Error', 'Failed to save some changes. Please try again.');
-        console.error('Save all error:', error);
+    // For new specs (no currentSpecId), use the regular saveSpec method first
+    if (!this.currentSpecId) {
+      this.saveSpecForNewSpec()
+        .then(() => {
+          // After saving the spec and getting an ID, save other components
+          return this.saveRemainingComponents();
+        })
+        .then(() => {
+          this.completeSaveAll(true); // true indicates it was a new spec
+        })
+        .catch((error) => {
+          this.isSaving = false;
+          this.notificationService.error('Error', 'Failed to save specification. Please try again.');
+          console.error('Save all error:', error);
+        });
+    } else {
+      // For existing specs, save components individually
+      this.saveSpecificationDetails()
+        .then(() => {
+          return this.saveRemainingComponents();
+        })
+        .then(() => {
+          this.completeSaveAll(false); // false indicates it was an update
+        })
+        .catch((error) => {
+          this.isSaving = false;
+          this.notificationService.error('Error', 'Failed to save some changes. Please try again.');
+          console.error('Save all error:', error);
+        });
+    }
+  }
+
+  private saveSpecForNewSpec(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.specTitle.trim()) {
+        reject('Title Required');
+        return;
+      }
+
+      let finalVersion = this.specVersion || '1.0.0';
+      
+      const teamIdToSend = this.selectedTeamId !== 'personal' ? this.selectedTeamId : undefined;
+
+      const specData: any = {
+        title: this.specTitle.trim(),
+        version: finalVersion,
+        description: this.specDescription || '',
+        spec_type: this.toggleValue,
+        spec_data: this.toggleValue === 'protobuf' ? this.protoFile : this.jsonSchema,
+        tags: this.specTags
+          ? this.specTags
+              .split(',')
+              .map((tag) => tag.trim())
+              .filter((tag) => tag)
+          : [],
+        device_name: this.deviceName || '',
+        protocols: this.protocols || [],
+        document_status: this.documentStatus || 'Draft',
+        for_field: this.forField || '',
+        team_id: teamIdToSend,
+        github_repo_url: this.githubRepoUrl,
+        github_repo_name: this.githubRepoName,
+      };
+
+      this.apiService.createSpec(specData).subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.currentSpecId = response.data.id!;
+            this.currentSpec = response.data;
+            this.originalVersion = finalVersion;
+            
+            // Update the URL to include the spec ID
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: { id: this.currentSpecId },
+              queryParamsHandling: 'merge'
+            });
+            
+            resolve();
+          } else {
+            reject(response.error || 'Failed to save specification');
+          }
+        },
+        error: (error) => {
+          reject(error);
+        },
       });
+    });
+  }
+
+  private saveRemainingComponents(): Promise<void> {
+    const promises: Promise<void>[] = [];
+    
+    // Save message envelopes if changed
+    if (this.hasMessageEnvelopeChanges()) {
+      promises.push(this.saveMessageEnvelopes());
+    }
+    
+    // Save message types if changed
+    if (this.hasMessageTypesChanges()) {
+      promises.push(this.saveMessageTypes());
+    }
+    
+    return Promise.all(promises).then(() => {});
+  }
+
+  private completeSaveAll(wasNewSpec: boolean) {
+    this.isSaving = false;
+    const versionChanged = this.hasVersionChanged();
+    
+    let title = 'All Changes Saved';
+    let message = '';
+    
+    if (wasNewSpec) {
+      title = 'Specification Created';
+      message = `Created "${this.specTitle}" v${this.specVersion}. Dashboard will show the new specification.`;
+    } else if (versionChanged) {
+      title = 'New Version Created';
+      message = `Created new version "${this.specTitle}" v${this.specVersion}. Dashboard will show the new version.`;
+    } else {
+      message = `Updated "${this.specTitle}" v${this.specVersion}. Dashboard will show updated data when you return.`;
+    }
+    
+    this.notificationService.success(title, message);
+    
+    // Update original data to reflect current state
+    this.updateOriginalData();
+    
+    // Refresh the current spec to ensure we have the latest data
+    if (this.currentSpecId) {
+      this.refreshCurrentSpec();
+    }
   }
 
   private saveSpecificationDetails(): Promise<void> {
@@ -1403,13 +1526,37 @@ export class EditorComponent implements OnInit {
   }
 
   private saveMessageEnvelopes(): Promise<void> {
-    // This would need to be implemented based on your message envelope save logic
-    return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      if (!this.currentSpecId) {
+        reject('No spec ID for message envelopes');
+        return;
+      }
+
+      // For now, we'll just reset the change flag since message envelopes
+      // are typically saved individually when edited
+      this.messageEnvelopeHasChanges = false;
+      resolve();
+    });
   }
 
   private saveMessageTypes(): Promise<void> {
-    // This would need to be implemented based on your message types save logic
-    return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      if (!this.currentSpecId) {
+        reject('No spec ID for message types');
+        return;
+      }
+
+      // Message types are typically saved individually when edited
+      // For now, just update the original data to match current state
+      this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
+      resolve();
+    });
+  }
+
+  markAsChanged() {
+    // This method is called when form inputs change
+    // The change detection is handled by the hasSpecificationDetailsChanges() method
+    // which compares current values with original data
   }
 
   private updateOriginalData() {
@@ -1429,6 +1576,30 @@ export class EditorComponent implements OnInit {
     this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
   }
 
+  private initializeForNewSpec() {
+    // Set default values for new spec
+    this.specTitle = '';
+    this.specVersion = '1.0.0';
+    this.specDescription = '';
+    this.specTags = '';
+    this.deviceName = '';
+    this.protocols = [];
+    this.documentStatus = 'Draft';
+    this.forField = '';
+    
+    // Initialize empty arrays for new spec
+    this.messageEnvelopes = [];
+    this.messageTypes = [];
+    
+    // Initialize original data to enable change detection
+    this.initializeOriginalData();
+    
+    this.notificationService.info(
+      'New Specification',
+      'Creating a new specification. Fill in the details and save when ready.'
+    );
+  }
+
   private initializeOriginalData() {
     this.originalSpecData = {
       title: this.specTitle,
@@ -1444,6 +1615,9 @@ export class EditorComponent implements OnInit {
     // Initialize message envelopes and types (will be updated when they're loaded)
     this.originalMessageEnvelopes = JSON.parse(JSON.stringify(this.messageEnvelopes));
     this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
+    
+    // Reset change flags
+    this.messageEnvelopeHasChanges = false;
   }
 
   private refreshCurrentSpec(): void {

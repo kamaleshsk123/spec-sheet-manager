@@ -17,13 +17,28 @@ const messagetypes_1 = __importDefault(require("./routes/messagetypes"));
 const messageEnvelopes_1 = __importDefault(require("./routes/messageEnvelopes"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3000;
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: [
+        'http://localhost:4200',
+        /https:\/\/.*\.ngrok-free\.app/
+    ],
+    credentials: true
+}));
 app.use((0, helmet_1.default)());
 app.use((0, compression_1.default)());
 app.use((0, morgan_1.default)('dev'));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 dotenv_1.default.config();
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Server is running',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
 app.use('/api/auth', auth_1.default);
 app.use('/api/specs', specs_1.default);
 app.use('/api/teams', teams_1.default);

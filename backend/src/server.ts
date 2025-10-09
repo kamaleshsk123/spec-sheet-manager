@@ -15,7 +15,13 @@ import messageEnvelopesRouter from './routes/messageEnvelopes';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:4200',
+    /https:\/\/.*\.ngrok-free\.app/
+  ],
+  credentials: true
+}));
 app.use(helmet());
 app.use(compression());
 app.use(morgan('dev'));
@@ -23,6 +29,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 dotenv.config();
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/specs', specRoutes);

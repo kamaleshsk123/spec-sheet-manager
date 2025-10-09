@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -50,6 +50,12 @@ export class MessageEnvelope implements OnInit {
   };
 
   selectedMessageEnvelope: any = null;
+  
+  @Output() dataChanged = new EventEmitter<void>();
+  
+  // Track original values for change detection
+  private originalTitle: string = '';
+  private originalDescription: string = '';
 
   constructor(
     private messageEnvelopeService: MessageEnvelopeService,
@@ -61,6 +67,28 @@ export class MessageEnvelope implements OnInit {
   onEnvelopeSelected(envelope: any) {
     this.selectedMessageEnvelope = envelope;
     this.jsonFields = envelope.json_fields || [];
+    
+    // Store original values for change detection
+    this.originalTitle = envelope?.title || '';
+    this.originalDescription = envelope?.description || '';
+  }
+  
+  // Method to check if title or description has changed
+  onTitleOrDescriptionChange() {
+    if (this.selectedMessageEnvelope) {
+      const titleChanged = this.selectedMessageEnvelope.title !== this.originalTitle;
+      const descriptionChanged = this.selectedMessageEnvelope.description !== this.originalDescription;
+      
+      if (titleChanged || descriptionChanged) {
+        this.dataChanged.emit();
+      }
+    }
+  }
+
+  // Method called when the envelope list changes (add/delete)
+  onListDataChanged() {
+    // Emit dataChanged when envelopes are added or deleted
+    this.dataChanged.emit();
   }
 
   saveMessageEnvelope() {

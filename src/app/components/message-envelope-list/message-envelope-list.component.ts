@@ -12,6 +12,7 @@ import { NotificationService } from '../../services/notification.service';
 })
 export class MessageEnvelopeListComponent implements OnInit {
   @Output() envelopeSelected = new EventEmitter<any>();
+  @Output() dataChanged = new EventEmitter<void>();
   @Input() showNewButton: boolean = true;
   @Input() showDeleteButton: boolean = true;
   messageEnvelopes: any[] = [];
@@ -52,6 +53,8 @@ export class MessageEnvelopeListComponent implements OnInit {
       ]
     };
     this.envelopeSelected.emit(newEnvelope);
+    // Emit dataChanged when a new envelope is added
+    this.dataChanged.emit();
   }
 
   deleteMessageEnvelope(id: string) {
@@ -64,6 +67,8 @@ export class MessageEnvelopeListComponent implements OnInit {
             if (this.selectedMessageEnvelope && this.selectedMessageEnvelope.id === id) {
               this.selectMessageEnvelope(this.messageEnvelopes.length > 0 ? this.messageEnvelopes[0] : null);
             }
+            // Emit dataChanged when an envelope is successfully deleted
+            this.dataChanged.emit();
           } else {
             this.notificationService.error('Error', 'Failed to delete message envelope.');
           }

@@ -72,7 +72,10 @@
               "buildTarget": "spec-sheet-manager:build:production"
             },
             "development": {
-              "buildTarget": "spec-sheet-manager:build:development"
+              "buildTarget": "spec-sheet-manager:build:development",
+              "allowedHosts": [
+                ".ngrok-free.app"
+              ]
             }
           },
           "defaultConfiguration": "development"

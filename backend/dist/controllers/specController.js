@@ -121,7 +121,6 @@ class SpecController {
                     final_github_repo_name = existingPublishedSpec.rows[0].github_repo_name;
                 }
             }
-            console.log('DEBUG: Parameters for INSERT:', [title, version, description, spec_type, userId, tags, final_github_repo_url, final_github_repo_name, team_id, device_name, protocols, document_status, for_field]);
             const result = await database_1.default.query(`INSERT INTO protobuf_specs (title, version, description, spec_data, spec_type, created_by, tags, github_repo_url, github_repo_name, team_id, device_name, protocols, document_status, for_field) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
          RETURNING *`, [title, version, description, JSON.stringify(spec_data), spec_type, userId, tags, final_github_repo_url, final_github_repo_name, team_id, device_name, protocols, document_status, for_field]);

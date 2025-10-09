@@ -1,0 +1,118 @@
+nohup: ignoring input
+
+Warning: This is a simple server for use in testing or debugging Angular applications
+locally. It hasn't been reviewed for security issues.
+
+Binding this server to an open connection can result in compromising your application or
+computer. Using a different host than the one passed to the "--host" flag might result in
+websocket connection issues.
+    
+❯ Building...
+✔ Building...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 954.50 kB | 
+styles.css          | styles        |  21.97 kB | 
+polyfills.js        | polyfills     |  95 bytes | 
+
+                    | Initial total | 976.57 kB
+
+Application bundle generation complete. [7.296 seconds] - 2025-10-09T11:00:26.552Z
+
+Watch mode enabled. Watching for file changes...
+NOTE: Raw file sizes do not reflect development server per-request transformations.
+  ➜  Local:   http://localhost:4200/
+  ➜  Network: http://10.0.0.63:4200/
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 954.50 kB | 
+
+Application bundle generation complete. [4.068 seconds] - 2025-10-09T11:04:18.399Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 953.59 kB | 
+
+Application bundle generation complete. [0.430 seconds] - 2025-10-09T11:09:33.120Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 953.64 kB | 
+
+Application bundle generation complete. [0.521 seconds] - 2025-10-09T11:13:05.399Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 953.68 kB | 
+
+Application bundle generation complete. [0.600 seconds] - 2025-10-09T11:13:49.143Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+
+No output file changes.
+
+Application bundle generation complete. [0.544 seconds] - 2025-10-09T11:13:58.610Z
+
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Application bundle generation failed. [0.536 seconds] - 2025-10-09T11:14:19.466Z
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2564: Property 'protocolDropdown' has no initializer and is not definitely assigned in the constructor.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/components/specification-details/specification-details.component.ts:47:33:
+[37m      47 │   @ViewChild('protocolDropdown') [32mprotocolDropdown[37m: ElementRef;
+         ╵                                  [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2564: Property 'statusDropdown' has no initializer and is not definitely assigned in the constructor.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/components/specification-details/specification-details.component.ts:48:31:
+[37m      48 │   @ViewChild('statusDropdown') [32mstatusDropdown[37m: ElementRef;
+         ╵                                [32m~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'eRef' does not exist on type 'SpecificationDetailsComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/components/specification-details/specification-details.component.ts:79:14:
+[37m      79 │     if (!this.[32meRef[37m.nativeElement.contains(event.target)) {
+         ╵               [32m~~~~[0m
+
+
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Application bundle generation failed. [0.552 seconds] - 2025-10-09T11:14:42.570Z
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2564: Property 'protocolDropdown' has no initializer and is not definitely assigned in the constructor.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/components/specification-details/specification-details.component.ts:47:33:
+[37m      47 │   @ViewChild('protocolDropdown') [32mprotocolDropdown[37m: ElementRef;
+         ╵                                  [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2564: Property 'statusDropdown' has no initializer and is not definitely assigned in the constructor.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/components/specification-details/specification-details.component.ts:48:31:
+[37m      48 │   @ViewChild('statusDropdown') [32mstatusDropdown[37m: ElementRef;
+         ╵                                [32m~~~~~~~~~~~~~~[0m
+
+
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 954.52 kB | 
+styles.css          | styles        |  21.97 kB | 
+polyfills.js        | polyfills     |  95 bytes | 
+
+                    | Initial total | 976.59 kB
+
+Application bundle generation complete. [0.627 seconds] - 2025-10-09T11:15:38.917Z
+
+Page reload sent to client(s).

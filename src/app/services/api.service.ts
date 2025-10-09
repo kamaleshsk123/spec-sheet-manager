@@ -115,6 +115,11 @@ export class ApiService {
       headers = headers.set('Authorization', `Bearer ${token}`);
     }
 
+    // Add ngrok header if using ngrok URL
+    if (this.baseUrl.includes('ngrok-free.app')) {
+      headers = headers.set('ngrok-skip-browser-warning', 'true');
+    }
+
     return headers;
   }
 
@@ -370,14 +375,16 @@ export class ApiService {
   login(email: string, password: string): Observable<ApiResponse<{user: any, token: string}>> {
     return this.http.post<ApiResponse<{user: any, token: string}>>(
       `${this.baseUrl}/auth/login`,
-      { email, password }
+      { email, password },
+      { headers: this.getHeaders() }
     );
   }
 
   register(email: string, name: string, password: string): Observable<ApiResponse<{user: any, token: string}>> {
     return this.http.post<ApiResponse<{user: any, token: string}>>(
       `${this.baseUrl}/auth/register`,
-      { email, name, password }
+      { email, name, password },
+      { headers: this.getHeaders() }
     );
   }
 
@@ -390,6 +397,6 @@ export class ApiService {
 
   // Health check
   healthCheck(): Observable<ApiResponse> {
-    return this.http.get<ApiResponse>(`${this.baseUrl}/health`);
+    return this.http.get<ApiResponse>(`${this.baseUrl}/health`, { headers: this.getHeaders() });
   }
 }
