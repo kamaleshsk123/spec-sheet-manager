@@ -149,3 +149,35 @@ No output file changes.
 
 Application bundle generation complete. [1.830 seconds] - 2025-10-09T11:25:56.305Z
 
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 954.67 kB | 
+
+Application bundle generation complete. [3.592 seconds] - 2025-10-09T11:32:30.096Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 954.69 kB | 
+
+Application bundle generation complete. [2.128 seconds] - 2025-10-09T11:32:32.235Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 954.85 kB | 
+
+Application bundle generation complete. [1.857 seconds] - 2025-10-09T11:32:34.099Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 954.86 kB | 
+
+Application bundle generation complete. [1.998 seconds] - 2025-10-09T11:32:38.485Z
+
+Component update sent to client(s).
