@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, NavigationEnd, RouterModule } from '@angular/router';
+import { Router, NavigationEnd, RouterModule, ActivatedRoute } from '@angular/router';
 import { ApiService, ProtobufSpec, User, SpecVersion, Team } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
@@ -73,17 +73,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   messageTypes: any[] = [];
   combinedPayloadText: string = '';
 
-  private routerSubscription: Subscription;
+  private routerSubscription: Subscription = new Subscription();
+  private queryParamsSubscription: Subscription = new Subscription();
   public githubAuthUrl: string;
 
   constructor(
     private apiService: ApiService,
     private router: Router,
+    private route: ActivatedRoute,
     private notificationService: NotificationService
   ) {
     this.githubAuthUrl = `${environment.apiUrl}/auth/github`;
     this.routerSubscription = this.router.events
-      .pipe(filter((event) => event instanceof NavigationEnd && event.url === '/'))
+      .pipe(filter((event) => event instanceof NavigationEnd && (event.url === '/' || event.url.startsWith('/?'))))
       .subscribe(() => {
         this.loadData();
       });
@@ -92,20 +94,62 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.loadData();
     this.loadUserProfile();
+    
+    // Subscribe to query params to detect refresh requests
+    this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
+      if (params['refresh']) {
+        // Show a brief notification that we're refreshing
+        this.notificationService.info('Refreshing', 'Loading latest data...');
+        
+        // Force complete refresh when refresh param is present
+        this.forceRefresh();
+        
+        // Clean up the URL by removing the refresh param
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { refresh: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true
+        });
+      }
+    });
   }
 
   ngOnDestroy() {
     if (this.routerSubscription) {
       this.routerSubscription.unsubscribe();
     }
+    if (this.queryParamsSubscription) {
+      this.queryParamsSubscription.unsubscribe();
+    }
   }
 
   // --- Data Loading and Processing ---
+  forceRefresh() {
+    // Clear all cached data and force a complete reload
+    this.allSpecs = [];
+    this.personalSpecs = [];
+    this.teamWorkspaces = [];
+    this.specs = [];
+    this.specVersions = {};
+    this.loadData();
+  }
+
   loadData() {
     this.isLoading = true;
     this.error = '';
+    
+    // Clear existing data to prevent showing stale data
+    this.allSpecs = [];
+    this.personalSpecs = [];
+    this.teamWorkspaces = [];
+    this.specs = [];
+    
+    // Add cache-busting timestamp to ensure fresh data
+    const cacheBuster = Date.now();
+    
     forkJoin({
-      specsResponse: this.apiService.getSpecs({ limit: 200 }),
+      specsResponse: this.apiService.getSpecs({ limit: 200, _t: cacheBuster }),
       teamsResponse: this.apiService.getTeams(),
     }).subscribe({
       next: ({ specsResponse, teamsResponse }) => {
@@ -497,6 +541,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // --- Versioning & Comparison Helpers ---
   getLatestVersionsOnly(allSpecs: ProtobufSpec[]): ProtobufSpec[] {
+    console.log('Processing specs for latest versions:', allSpecs.length);
     const specGroups = new Map<string, ProtobufSpec[]>();
     allSpecs.forEach((spec) => {
       const key = `${spec.title}_${spec.team_id || 'personal'}`;
@@ -508,6 +553,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const latestSpecs: ProtobufSpec[] = [];
     specGroups.forEach((specs, title) => {
       const sortedSpecs = specs.sort((a, b) => this.compareVersions(b.version, a.version));
+      console.log(`Spec group "${title}":`, specs.map(s => `v${s.version} (${s.id})`), '-> Latest:', `v${sortedSpecs[0].version} (${sortedSpecs[0].id})`);
       latestSpecs.push(sortedSpecs[0]);
     });
     return latestSpecs;

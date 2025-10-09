@@ -87,6 +87,10 @@ exports.createSpecSchema = joi_1.default.object({
         .guid({ version: ['uuidv4', 'uuidv5'] })
         .allow(null)
         .optional(),
+    device_name: joi_1.default.string().max(255).allow(null).optional(),
+    protocols: joi_1.default.array().items(joi_1.default.string().max(100)).optional(),
+    document_status: joi_1.default.string().max(50).allow(null).optional(),
+    for_field: joi_1.default.string().max(255).allow(null).optional(),
 });
 exports.updateSpecSchema = joi_1.default.object({
     title: joi_1.default.string().min(1).max(255).optional(),

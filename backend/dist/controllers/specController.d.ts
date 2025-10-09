@@ -12,5 +12,6 @@ export declare class SpecController {
     static getDashboardStats(req: AuthRequest, res: Response): Promise<void>;
     static publishToGithub(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static pushToBranch(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static updateSpecDetails(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }
 //# sourceMappingURL=specController.d.ts.map

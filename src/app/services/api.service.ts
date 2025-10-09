@@ -198,6 +198,7 @@ export class ApiService {
     limit?: number;
     search?: string;
     tags?: string[];
+    _t?: number; // Cache-busting timestamp
   }): Observable<ApiResponse<PaginatedResponse<ProtobufSpec>>> {
     let httpParams = new HttpParams();
     
@@ -205,6 +206,7 @@ export class ApiService {
       if (params.page) httpParams = httpParams.set('page', params.page.toString());
       if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
       if (params.search) httpParams = httpParams.set('search', params.search);
+      if (params._t) httpParams = httpParams.set('_t', params._t.toString());
       if (params.tags) {
         params.tags.forEach(tag => {
           httpParams = httpParams.append('tags', tag);
@@ -212,10 +214,16 @@ export class ApiService {
       }
     }
 
+    // Add cache-busting headers
+    const headers = this.getHeaders()
+      .set('Cache-Control', 'no-cache, no-store, must-revalidate')
+      .set('Pragma', 'no-cache')
+      .set('Expires', '0');
+
     return this.http.get<ApiResponse<PaginatedResponse<ProtobufSpec>>>(
       `${this.baseUrl}/specs`,
       { 
-        headers: this.getHeaders(),
+        headers: headers,
         params: httpParams
       }
     );

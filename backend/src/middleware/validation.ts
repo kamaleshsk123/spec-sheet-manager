@@ -94,6 +94,10 @@ export const createSpecSchema = Joi.object({
     .guid({ version: ['uuidv4', 'uuidv5'] })
     .allow(null)
     .optional(),
+  device_name: Joi.string().max(255).allow(null).optional(),
+  protocols: Joi.array().items(Joi.string().max(100)).optional(),
+  document_status: Joi.string().max(50).allow(null).optional(),
+  for_field: Joi.string().max(255).allow(null).optional(),
 });
 
 export const updateSpecSchema = Joi.object({

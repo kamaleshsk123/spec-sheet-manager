@@ -100,7 +100,7 @@ class SpecController {
     static async createSpec(req, res) {
         try {
             const userId = req.user.id;
-            const { title, version = '1.0.0', description, spec_data, spec_type = 'protobuf', tags = [], github_repo_url: incoming_github_repo_url = null, github_repo_name: incoming_github_repo_name = null, team_id = null, } = req.body;
+            const { title, version = '1.0.0', description, spec_data, spec_type = 'protobuf', tags = [], github_repo_url: incoming_github_repo_url = null, github_repo_name: incoming_github_repo_name = null, team_id = null, device_name = null, protocols = [], document_status = null, for_field = null, } = req.body;
             // If team_id is provided, verify user is a member of that team
             if (team_id) {
                 const memberCheck = await database_1.default.query('SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2', [team_id, userId]);
@@ -121,9 +121,10 @@ class SpecController {
                     final_github_repo_name = existingPublishedSpec.rows[0].github_repo_name;
                 }
             }
-            const result = await database_1.default.query(`INSERT INTO protobuf_specs (title, version, description, spec_data, spec_type, created_by, tags, github_repo_url, github_repo_name, team_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-         RETURNING *`, [title, version, description, JSON.stringify(spec_data), spec_type, userId, tags, final_github_repo_url, final_github_repo_name, team_id]);
+            console.log('DEBUG: Parameters for INSERT:', [title, version, description, spec_type, userId, tags, final_github_repo_url, final_github_repo_name, team_id, device_name, protocols, document_status, for_field]);
+            const result = await database_1.default.query(`INSERT INTO protobuf_specs (title, version, description, spec_data, spec_type, created_by, tags, github_repo_url, github_repo_name, team_id, device_name, protocols, document_status, for_field) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
+         RETURNING *`, [title, version, description, JSON.stringify(spec_data), spec_type, userId, tags, final_github_repo_url, final_github_repo_name, team_id, device_name, protocols, document_status, for_field]);
             const spec = result.rows[0];
             // Create initial version
             await database_1.default.query(`INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by) 
@@ -277,6 +278,7 @@ class SpecController {
             const { id } = req.params;
             const userId = req.user.id;
             const updateData = req.body;
+            console.log('updateData:', updateData);
             const hasAccess = await checkSpecAccess(id, userId);
             if (!hasAccess) {
                 return res.status(404).json({
@@ -311,7 +313,7 @@ class SpecController {
             let paramIndex = 1;
             Object.entries(updateData).forEach(([key, value]) => {
                 // Include field if it's not undefined, or if it's a GitHub field (to preserve null values)
-                if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id') {
+                if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id' || key === 'device_name' || key === 'protocols' || key === 'document_status' || key === 'for_field') {
                     if (key === 'spec_data') {
                         updateFields.push(`${key} = $${paramIndex++}`);
                         queryParams.push(JSON.stringify(value));
@@ -330,6 +332,8 @@ class SpecController {
         WHERE id = $${paramIndex}
         RETURNING *
       `;
+            console.log('updateQuery:', updateQuery);
+            console.log('queryParams:', queryParams);
             const result = await database_1.default.query(updateQuery, queryParams);
             // Create new version if spec_data was updated
             if (updateData.spec_data) {
@@ -629,6 +633,36 @@ class SpecController {
         }
         catch (error) {
             console.error('GitHub push to branch error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error',
+            });
+        }
+    }
+    static async updateSpecDetails(req, res) {
+        try {
+            const { id } = req.params;
+            const userId = req.user.id;
+            const { device_name, protocols, document_status, for_field } = req.body;
+            const hasAccess = await checkSpecAccess(id, userId);
+            if (!hasAccess) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Specification not found or access denied',
+                });
+            }
+            const result = await database_1.default.query(`UPDATE protobuf_specs
+         SET device_name = $1, protocols = $2, document_status = $3, for_field = $4, updated_at = NOW()
+         WHERE id = $5
+         RETURNING *`, [device_name, protocols, document_status, for_field, id]);
+            res.json({
+                success: true,
+                data: result.rows[0],
+                message: 'Specification details updated successfully',
+            });
+        }
+        catch (error) {
+            console.error('Update spec details error:', error);
             res.status(500).json({
                 success: false,
                 error: 'Internal server error',

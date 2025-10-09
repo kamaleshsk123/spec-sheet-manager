@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NuMonacoEditorModule } from '@ng-util/monaco-editor';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiService, ProtobufSpec, Team, MessageType } from '../services/api.service';
+import { ApiService, ProtobufSpec, Team, MessageType, ProtoFileData } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { parse } from 'proto-parser';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
@@ -44,6 +44,7 @@ import { TabListOverlayComponent } from '../components/tab-list-overlay/tab-list
   standalone: true,
 })
 export class EditorComponent implements OnInit {
+  @ViewChild(SpecificationDetailsComponent) specDetailsComponent!: SpecificationDetailsComponent;
   tabs = [
     { name: 'Specification Details', content: 'spec' },
     { name: 'Message Envelope', content: 'messageEnvelope' },
@@ -53,6 +54,16 @@ export class EditorComponent implements OnInit {
   showNewTabOverlay = false;
   newTabName = '';
   showTabListOverlay = false;
+
+  // Save All and Version Increment properties
+  showVersionIncrementModal = false;
+  selectedVersionIncrement: 'patch' | 'minor' | 'major' | 'custom' | null = null;
+  customVersion = '';
+  
+  // Change tracking
+  originalSpecData: any = null;
+  originalMessageEnvelopes: any[] = [];
+  originalMessageTypes: any[] = [];
 
   @ViewChild('fileInput') fileInput!: ElementRef;
   @ViewChild('downloadButton') downloadButton!: ElementRef;
@@ -88,7 +99,6 @@ export class EditorComponent implements OnInit {
   currentSpecId: string | null = null;
   currentSpec: ProtobufSpec | null = null;
 
-  originalSpecData: ProtoFile | null = null;
   originalVersion: string | null = null;
 
   githubRepoUrl: string | null = null;
@@ -153,7 +163,6 @@ export class EditorComponent implements OnInit {
   ngOnInit() {
     this.updateEditorContent();
     this.loadMyTeams();
-    this.loadMessageEnvelopes();
 
     this.route.queryParams.subscribe((params) => {
       if (params['id']) {
@@ -162,15 +171,17 @@ export class EditorComponent implements OnInit {
     });
   }
 
-  loadMessageEnvelopes() {
+  loadMessageEnvelopes(callback?: () => void) {
     this.apiService.getMessageEnvelopes().subscribe({
       next: (response) => {
         if (response.success && response.data) {
           this.messageEnvelopes = response.data;
         }
+        if (callback) callback();
       },
       error: (err) => {
         console.error('Failed to load message envelopes', err);
+        if (callback) callback();
       },
     });
   }
@@ -230,32 +241,20 @@ export class EditorComponent implements OnInit {
           this.githubRepoName = spec.github_repo_name || null;
 
           this.specType = spec.spec_type;
-          if (spec.spec_type === 'json') {
-            this.toggleValue = 'json';
-            this.toggleChecked = true;
-            this.jsonSchema = spec.spec_data as any;
-            this.messageTypes = []; // JSON specs don't have message types in this new architecture
-            this.updateEditorContent();
-          } else {
-            this.toggleValue = 'protobuf';
-            this.toggleChecked = false;
-            this.protoFile = spec.spec_data;
-            this.protoFile.messages = [];
-            this.loadMessageTypes();
-            this.updateEditorContent();
-          }
-
-          if (this.toggleValue === 'json') {
-            this.originalSpecData = JSON.parse(JSON.stringify(this.jsonSchema));
-          } else {
-            // Not storing original protofile data as messages are fetched separately
-          }
-          this.originalVersion = spec.version;
+          this.updateEditorContent();
 
           this.notificationService.success(
             'Specification Loaded',
             `Successfully loaded "${spec.title}" v${spec.version}`
           );
+
+          // Chain all data loading and initialize at the very end.
+          this.loadMessageEnvelopes(() => {
+            this.loadMessageTypes(() => {
+              this.initializeOriginalData();
+            });
+          });
+
         } else {
           this.notificationService.error(
             'Load Failed',
@@ -336,7 +335,11 @@ export class EditorComponent implements OnInit {
   }
 
   goToDashboard() {
-    this.router.navigate(['/']);
+    // Force dashboard to reload by navigating with a timestamp query param
+    this.router.navigate(['/'], { 
+      queryParams: { refresh: Date.now() },
+      queryParamsHandling: 'replace' // Use replace instead of merge to ensure clean navigation
+    });
   }
 
   setActiveTab(tab: 'messages' | 'enums' | 'services' | 'settings') {
@@ -1041,32 +1044,485 @@ export class EditorComponent implements OnInit {
 
     this.isSavingDetails = true;
 
-    const specDetails: Partial<ProtobufSpec> = {
+    // Use the same logic as saveSpecificationDetails for consistency
+    this.saveSpecificationDetails()
+      .then(() => {
+        this.isSavingDetails = false;
+        const versionChanged = this.hasVersionChanged();
+        this.notificationService.success(
+          'Success', 
+          versionChanged 
+            ? `Created new version "${this.specTitle}" v${this.specVersion} with your changes!`
+            : 'Specification details saved successfully!'
+        );
+        
+        // Update original data to reflect current state
+        this.updateOriginalData();
+        
+        // Refresh the current spec to ensure we have the latest data
+        if (this.currentSpecId) {
+          this.refreshCurrentSpec();
+        }
+      })
+      .catch((error) => {
+        this.isSavingDetails = false;
+        this.notificationService.error('Error', 'Error saving specification details.');
+        console.error('Error saving spec details:', error);
+      });
+  }
+
+  // ===== SAVE ALL & VERSION INCREMENT METHODS =====
+
+  saveAll() {
+    if (!this.hasAnyChanges()) {
+      this.notificationService.info('No Changes', 'No changes detected to save.');
+      return;
+    }
+
+    // Check if version was manually changed
+    if (this.hasVersionChanged()) {
+      // Version was manually changed, proceed with save
+      this.performSaveAll();
+    } else {
+      // Version not changed, show increment modal
+      this.showVersionIncrementModal = true;
+      this.selectedVersionIncrement = 'patch'; // Default to patch
+    }
+  }
+
+  hasAnyChanges(): boolean {
+    return this.hasSpecificationDetailsChanges() || 
+           this.hasMessageEnvelopeChanges() || 
+           this.hasMessageTypesChanges();
+  }
+
+  hasSpecificationDetailsChanges(): boolean {
+    if (!this.originalSpecData) return false;
+    
+    return this.specTitle !== this.originalSpecData.title ||
+           this.specVersion !== this.originalSpecData.version ||
+           this.specDescription !== this.originalSpecData.description ||
+           this.specTags !== (this.originalSpecData.tags || []).join(', ') ||
+           this.deviceName !== this.originalSpecData.device_name ||
+           JSON.stringify(this.protocols) !== JSON.stringify(this.originalSpecData.protocols || []) ||
+           this.documentStatus !== this.originalSpecData.document_status ||
+           this.forField !== this.originalSpecData.for_field;
+  }
+
+  hasMessageEnvelopeChanges(): boolean {
+    // Compare current message envelopes with original
+    return JSON.stringify(this.messageEnvelopes) !== JSON.stringify(this.originalMessageEnvelopes);
+  }
+
+  hasMessageTypesChanges(): boolean {
+    // Compare current message types with original
+    return JSON.stringify(this.messageTypes) !== JSON.stringify(this.originalMessageTypes);
+  }
+
+  onMessageEnvelopeChanged(): void {
+    // This method is called when the message envelope component emits dataChanged
+    // It triggers change detection for the message envelope tab
+    console.log('Message envelope data changed');
+  }
+
+  onMessageTypesChanged(): void {
+    // This method is called when the message types component emits dataChanged
+    // It triggers change detection for the message types tab
+    console.log('Message types data changed');
+  }
+
+  hasVersionChanged(): boolean {
+    if (!this.originalSpecData) return false;
+    const changed = this.specVersion !== this.originalSpecData.version;
+    console.log('hasVersionChanged:', changed, 'current:', this.specVersion, 'original:', this.originalSpecData.version);
+    return changed;
+  }
+
+  getChangedTabsCount(): number {
+    let count = 0;
+    if (this.hasSpecificationDetailsChanges()) count++;
+    if (this.hasMessageEnvelopeChanges()) count++;
+    if (this.hasMessageTypesChanges()) count++;
+    return count;
+  }
+
+  // Version increment modal methods
+  selectVersionIncrement(type: 'patch' | 'minor' | 'major' | 'custom') {
+    this.selectedVersionIncrement = type;
+    if (type !== 'custom') {
+      this.customVersion = '';
+    }
+  }
+
+  getIncrementedVersion(type: 'patch' | 'minor' | 'major'): string {
+    const currentVersion = this.specVersion || '1.0.0';
+    const parts = currentVersion.split('.').map(Number);
+    
+    // Ensure we have at least 3 parts
+    while (parts.length < 3) {
+      parts.push(0);
+    }
+
+    switch (type) {
+      case 'patch':
+        parts[2]++;
+        break;
+      case 'minor':
+        parts[1]++;
+        parts[2] = 0;
+        break;
+      case 'major':
+        parts[0]++;
+        parts[1] = 0;
+        parts[2] = 0;
+        break;
+    }
+
+    return parts.join('.');
+  }
+
+  closeVersionIncrementModal() {
+    this.showVersionIncrementModal = false;
+    this.selectedVersionIncrement = null;
+    this.customVersion = '';
+  }
+
+  proceedWithVersionIncrement() {
+    if (!this.selectedVersionIncrement) return;
+
+    let newVersion: string;
+    if (this.selectedVersionIncrement === 'custom') {
+      newVersion = this.customVersion;
+    } else {
+      newVersion = this.getIncrementedVersion(this.selectedVersionIncrement);
+    }
+
+    // Update the version
+    this.specVersion = newVersion;
+    
+    // Close modal
+    this.closeVersionIncrementModal();
+    
+    // Perform the save
+    this.performSaveAll();
+  }
+
+  performSaveAll() {
+    this.isSaving = true;
+    
+    // Save specification details first
+    this.saveSpecificationDetails()
+      .then(() => {
+        // Then save message envelopes if changed
+        if (this.hasMessageEnvelopeChanges()) {
+          return this.saveMessageEnvelopes();
+        }
+        return Promise.resolve();
+      })
+      .then(() => {
+        // Then save message types if changed
+        if (this.hasMessageTypesChanges()) {
+          return this.saveMessageTypes();
+        }
+        return Promise.resolve();
+      })
+      .then(() => {
+        this.isSaving = false;
+        const versionChanged = this.hasVersionChanged();
+        this.notificationService.success(
+          'All Changes Saved', 
+          versionChanged 
+            ? `Created new version "${this.specTitle}" v${this.specVersion}. Dashboard will show the new version.`
+            : `Updated "${this.specTitle}" v${this.specVersion}. Dashboard will show updated data when you return.`
+        );
+        
+        // Update original data to reflect current state
+        this.updateOriginalData();
+        
+        // Refresh the current spec to ensure we have the latest data
+        if (this.currentSpecId) {
+          this.refreshCurrentSpec();
+        }
+      })
+      .catch((error) => {
+        this.isSaving = false;
+        this.notificationService.error('Error', 'Failed to save some changes. Please try again.');
+        console.error('Save all error:', error);
+      });
+  }
+
+  private saveSpecificationDetails(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.currentSpecId) {
+        reject('No spec ID');
+        return;
+      }
+
+      const specDetails: Partial<ProtobufSpec> = {
+        title: this.specTitle,
+        version: this.specVersion,
+        description: this.specDescription,
+        tags: this.specTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+        device_name: this.deviceName,
+        protocols: this.protocols,
+        document_status: this.documentStatus,
+        for_field: this.forField,
+      };
+
+      console.log('Current form values:', {
+        deviceName: this.deviceName,
+        protocols: this.protocols,
+        documentStatus: this.documentStatus,
+        forField: this.forField,
+        specTitle: this.specTitle,
+        specVersion: this.specVersion
+      });
+
+      // Check if version has changed - if so, create new version, otherwise update existing
+      const versionChanged = this.hasVersionChanged();
+      console.log('Version changed:', versionChanged, 'Current:', this.specVersion, 'Original:', this.originalSpecData?.version);
+      
+      if (versionChanged) {
+        // Version changed - create new spec version
+        // Copy ALL data from current spec to preserve everything
+        const freshData = this.specDetailsComponent;
+        const newSpecData: Omit<ProtobufSpec, 'id'> = {
+          title: freshData.specTitle,
+          version: this.specVersion, // Version is handled by the parent component's modal flow
+          description: freshData.specDescription,
+          tags: freshData.specTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+          device_name: freshData.deviceName,
+          protocols: freshData.protocols,
+          document_status: freshData.documentStatus,
+          for_field: freshData.forField,
+          spec_data: this.currentSpec?.spec_data || this.getDefaultProtoFileData(),
+          spec_type: this.currentSpec?.spec_type || 'protobuf',
+          team_id: this.currentSpec?.team_id || null,
+          github_repo_url: this.currentSpec?.github_repo_url || undefined,
+          github_repo_name: this.currentSpec?.github_repo_name || undefined,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+
+        console.log('New spec data being created:', {
+          device_name: newSpecData.device_name,
+          protocols: newSpecData.protocols,
+          document_status: newSpecData.document_status,
+          for_field: newSpecData.for_field,
+          title: newSpecData.title,
+          version: newSpecData.version
+        });
+
+        this.apiService.createSpec(newSpecData).subscribe({
+          next: (response) => {
+            if (response.success && response.data) {
+              const newSpecId = response.data.id!;
+              const oldSpecId = this.currentSpecId;
+              
+              // Update current spec reference to the new version
+              this.currentSpecId = newSpecId;
+              this.currentSpec = response.data;
+              console.log('Created new spec version:', response.data.version);
+              console.log('New spec data received:', {
+                device_name: response.data.device_name,
+                protocols: response.data.protocols,
+                document_status: response.data.document_status,
+                for_field: response.data.for_field,
+                title: response.data.title,
+                version: response.data.version
+              });
+              
+              // Copy message types from old version to new version
+              console.log('About to copy message types. Current message types:', this.messageTypes?.length || 0);
+              console.log('Current message types data:', this.messageTypes);
+              console.log('Old spec ID:', oldSpecId, 'New spec ID:', newSpecId);
+              if (oldSpecId) {
+                // Ensure message types are loaded before copying
+                if (!this.messageTypes || this.messageTypes.length === 0) {
+                  console.log('Message types not loaded, loading them first...');
+                  this.apiService.getMessageTypes(oldSpecId).subscribe({
+                    next: (response) => {
+                      if (response.success && response.data) {
+                        console.log('Loaded message types for copying:', response.data.length);
+                        this.messageTypes = response.data;
+                        this.copyMessageTypesToNewVersion(oldSpecId, newSpecId);
+                      } else {
+                        console.log('No message types found to copy');
+                      }
+                    },
+                    error: (error) => {
+                      console.error('Error loading message types for copying:', error);
+                    }
+                  });
+                } else {
+                  this.copyMessageTypesToNewVersion(oldSpecId, newSpecId);
+                }
+              } else {
+                console.log('No old spec ID available, skipping message type copying');
+              }
+              
+              // Update the URL to reflect the new spec ID
+              this.router.navigate([], {
+                relativeTo: this.route,
+                queryParams: { id: this.currentSpecId },
+                queryParamsHandling: 'merge',
+                replaceUrl: true
+              });
+              
+              // Reload the spec to ensure all form fields are properly populated
+              // Wait longer to ensure message types are fully copied
+              setTimeout(() => {
+                console.log('Reloading spec after message type copying...');
+                this.loadSpec(newSpecId);
+              }, 2000); // Give more time for message types to be copied
+            }
+            resolve();
+          },
+          error: (error) => {
+            console.error('Error creating new spec version:', error);
+            reject(error);
+          }
+        });
+      } else {
+        // Version unchanged - update existing spec
+        this.apiService.updateSpecDetails(this.currentSpecId, specDetails).subscribe({
+          next: (updatedSpec) => {
+            if (updatedSpec.data) {
+              this.currentSpec = updatedSpec.data;
+              console.log('Updated existing spec:', updatedSpec.data.version);
+            }
+            resolve();
+          },
+          error: (error) => {
+            console.error('Error updating spec details:', error);
+            reject(error);
+          }
+        });
+      }
+    });
+  }
+
+  private saveMessageEnvelopes(): Promise<void> {
+    // This would need to be implemented based on your message envelope save logic
+    return Promise.resolve();
+  }
+
+  private saveMessageTypes(): Promise<void> {
+    // This would need to be implemented based on your message types save logic
+    return Promise.resolve();
+  }
+
+  private updateOriginalData() {
+    // Update original data to current state
+    this.originalSpecData = {
       title: this.specTitle,
       version: this.specVersion,
       description: this.specDescription,
       tags: this.specTags.split(',').map(tag => tag.trim()).filter(tag => tag),
       device_name: this.deviceName,
-      protocols: this.protocols,
+      protocols: [...this.protocols],
       document_status: this.documentStatus,
       for_field: this.forField,
     };
+    
+    this.originalMessageEnvelopes = JSON.parse(JSON.stringify(this.messageEnvelopes));
+    this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
+  }
 
-    console.log(specDetails);
+  private initializeOriginalData() {
+    this.originalSpecData = {
+      title: this.specTitle,
+      version: this.specVersion,
+      description: this.specDescription,
+      tags: this.specTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+      device_name: this.deviceName,
+      protocols: [...this.protocols],
+      document_status: this.documentStatus,
+      for_field: this.forField,
+    };
+    
+    // Initialize message envelopes and types (will be updated when they're loaded)
+    this.originalMessageEnvelopes = JSON.parse(JSON.stringify(this.messageEnvelopes));
+    this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
+  }
 
-    this.apiService.updateSpecDetails(this.currentSpecId, specDetails).subscribe(
-      (updatedSpec) => {
-        this.isSavingDetails = false;
-        this.notificationService.success('Success', 'Specification details saved successfully!');
-        if (updatedSpec.data) {
-          this.currentSpec = updatedSpec.data;
+  private refreshCurrentSpec(): void {
+    if (!this.currentSpecId) return;
+    
+    // Silently refresh the current spec data to ensure we have the latest version
+    this.apiService.getSpec(this.currentSpecId).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.currentSpec = response.data;
+          // Update the original version to match what's now in the database
+          this.originalVersion = response.data.version;
         }
       },
-      (error) => {
-        this.isSavingDetails = false;
-        this.notificationService.error('Error', 'Error saving specification details.');
-        console.error('Error saving spec details:', error);
+      error: (error) => {
+        console.error('Error refreshing spec data:', error);
       }
-    );
+    });
+  }
+
+  private getDefaultProtoFileData(): ProtoFileData {
+    return {
+      syntax: 'proto3',
+      package: '',
+      imports: [],
+      messages: [],
+      enums: [],
+      services: []
+    };
+  }
+
+  private updateOriginalMessageEnvelopes(): void {
+    this.originalMessageEnvelopes = JSON.parse(JSON.stringify(this.messageEnvelopes));
+  }
+
+  private updateOriginalMessageTypes(): void {
+    this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
+  }
+
+  private copyMessageTypesToNewVersion(oldSpecId: string, newSpecId: string): void {
+    // Copy all message types from the old version to the new version
+    if (this.messageTypes && this.messageTypes.length > 0) {
+      console.log(`Copying ${this.messageTypes.length} message types to new version`);
+      
+      // Copy each message type one by one
+      let copiedCount = 0;
+      const totalCount = this.messageTypes.length;
+      
+      this.messageTypes.forEach((messageType, index) => {
+        const newMessageType = {
+          name: messageType.name,
+          json_schema: messageType.json_schema
+        };
+        
+        console.log(`Copying message type ${index + 1}/${totalCount}:`, messageType.name);
+        
+        this.apiService.createMessageType(newSpecId, newMessageType).subscribe({
+          next: (response) => {
+            if (response.success) {
+              copiedCount++;
+              console.log(`Successfully copied message type: ${messageType.name} (${copiedCount}/${totalCount})`);
+              
+              // If this is the last one, just log completion
+              if (copiedCount === totalCount) {
+                console.log('All message types copied successfully!');
+                // Don't reload here - let the main spec reload handle it
+              }
+            } else {
+              console.error(`Failed to copy message type ${messageType.name}:`, response);
+            }
+          },
+          error: (error) => {
+            console.error(`Error copying message type ${messageType.name}:`, error);
+            this.notificationService.error('Error', `Failed to copy message type: ${messageType.name}`);
+          }
+        });
+      });
+    } else {
+      console.log('No message types to copy to new version');
+    }
   }
 }

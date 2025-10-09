@@ -47,8 +47,10 @@
                 activeTabIndex === 0
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              " class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+              " class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative">
               Specification Details
+              <span *ngIf="hasSpecificationDetailsChanges()"
+                class="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full"></span>
             </button>
             <!-- <button
               (click)="setActiveTabIndex(1)"
@@ -65,15 +67,19 @@
                 activeTabIndex === 1
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:hover:border-gray-300'
-              " class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+              " class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative">
               Message Envelope
+              <span *ngIf="hasMessageEnvelopeChanges()"
+                class="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full"></span>
             </button>
             <button (click)="onTabChange(2)" [class]="
                 activeTabIndex === 2
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              " class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+              " class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative">
               Message Types
+              <span *ngIf="hasMessageTypesChanges()"
+                class="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full"></span>
             </button>
           </nav>
           <div class="flex items-center space-x-2">
@@ -84,6 +90,29 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
                 </path>
               </svg>
+            </button>
+            <button (click)="saveAll()" [disabled]="isSaving || !hasAnyChanges()"
+              class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Save All Changes">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12">
+                </path>
+              </svg>
+              <span *ngIf="!isSaving">Save All</span>
+              <span *ngIf="isSaving" class="flex items-center">
+                <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                  </path>
+                </svg>
+                Saving...
+              </span>
+              <span *ngIf="getChangedTabsCount() > 0"
+                class="ml-2 px-2 text-gray-500 py-1 bg-white bg-opacity-20 rounded-full text-xs">
+                {{ getChangedTabsCount() }}
+              </span>
             </button>
             <button (click)="showPdf()"
               class="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white hover:bg-purple-700 transition-all duration-200"
@@ -127,14 +156,14 @@
     </div> -->
 
     <div [hidden]="tabs[activeTabIndex].content !== 'messageEnvelope'">
-      <app-message-envelope></app-message-envelope>
+      <app-message-envelope (dataChanged)="onMessageEnvelopeChanged()"></app-message-envelope>
     </div>
 
     <div *ngIf="tabs[activeTabIndex].content === 'messageTypes' && currentSpecId" class="">
       <div *ngIf="!editingMessage">
         <app-message-types [specId]="currentSpecId" [messageTypes]="messageTypes"
-          [selectedMessageId]="lastSelectedMessageId" (edit)="handleEditMessage($event)"
-          (add)="handleAddMessage()"></app-message-types>
+          [selectedMessageId]="lastSelectedMessageId" (edit)="handleEditMessage($event)" (add)="handleAddMessage()"
+          (dataChanged)="onMessageTypesChanged()"></app-message-types>
       </div>
       <div *ngIf="editingMessage">
         <app-edit-message-type [message]="editingMessage" [specType]="specType"
@@ -336,3 +365,83 @@
   [selectedEnvelopeId]="selectedEnvelopeId" (envelopeSelected)="onEnvelopeSelected($event)"
   [demoJsonText]="demoJsonText" [messageTypes]="messageTypes" [combinedPayloadText]="combinedPayloadText"
   (messageTypeSelected)="onMessageTypeSelected($event)"></app-tab-list-overlay>
+
+<!-- Version Increment Modal -->
+@if (showVersionIncrementModal) {
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+  <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md mx-4">
+    <div class="flex items-center justify-between p-4 border-b border-gray-100">
+      <h3 class="text-lg font-semibold text-gray-900">Version Increment Required</h3>
+      <button (click)="closeVersionIncrementModal()" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="p-6">
+      <p class="text-sm text-gray-600 mb-4">
+        Changes detected across {{ getChangedTabsCount() }} tab(s). Please select how to increment the version:
+      </p>
+      <div class="space-y-3">
+        <div
+          class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+          (click)="selectVersionIncrement('patch')">
+          <div>
+            <div class="font-medium text-gray-900">Patch ({{ getIncrementedVersion('patch') }})</div>
+            <div class="text-sm text-gray-500">Bug fixes, minor changes</div>
+          </div>
+          <input type="radio" name="versionIncrement" value="patch" [(ngModel)]="selectedVersionIncrement"
+            class="text-blue-600">
+        </div>
+        <div
+          class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+          (click)="selectVersionIncrement('minor')">
+          <div>
+            <div class="font-medium text-gray-900">Minor ({{ getIncrementedVersion('minor') }})</div>
+            <div class="text-sm text-gray-500">New features, backwards compatible</div>
+          </div>
+          <input type="radio" name="versionIncrement" value="minor" [(ngModel)]="selectedVersionIncrement"
+            class="text-blue-600">
+        </div>
+        <div
+          class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+          (click)="selectVersionIncrement('major')">
+          <div>
+            <div class="font-medium text-gray-900">Major ({{ getIncrementedVersion('major') }})</div>
+            <div class="text-sm text-gray-500">Breaking changes</div>
+          </div>
+          <input type="radio" name="versionIncrement" value="major" [(ngModel)]="selectedVersionIncrement"
+            class="text-blue-600">
+        </div>
+        <div
+          class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+          (click)="selectVersionIncrement('custom')">
+          <div>
+            <div class="font-medium text-gray-900">Custom Version</div>
+            <div class="text-sm text-gray-500">Specify your own version</div>
+          </div>
+          <input type="radio" name="versionIncrement" value="custom" [(ngModel)]="selectedVersionIncrement"
+            class="text-blue-600">
+        </div>
+      </div>
+      <div *ngIf="selectedVersionIncrement === 'custom'" class="mt-4">
+        <label for="customVersion" class="block text-sm font-medium text-gray-700 mb-2">Custom Version</label>
+        <input type="text" id="customVersion" [(ngModel)]="customVersion" name="customVersion"
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+          placeholder="e.g., 2.0.0-beta.1" />
+      </div>
+    </div>
+    <div class="flex items-center justify-end gap-4 p-4 bg-gray-50 rounded-b-xl border-t border-gray-100">
+      <button (click)="closeVersionIncrementModal()"
+        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all duration-200">
+        Cancel
+      </button>
+      <button (click)="proceedWithVersionIncrement()"
+        [disabled]="!selectedVersionIncrement || (selectedVersionIncrement === 'custom' && !customVersion)"
+        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+        Save with New Version
+      </button>
+    </div>
+  </div>
+</div>
+}

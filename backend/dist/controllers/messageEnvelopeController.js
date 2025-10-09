@@ -19,7 +19,7 @@ class MessageEnvelopeController {
     static async createMessageEnvelope(req, res) {
         try {
             const { title, description, json_fields } = req.body;
-            const result = await database_1.default.query('INSERT INTO message_envelopes (title, description, json_fields) VALUES ($1, $2, $3) RETURNING *', [title, description, json_fields]);
+            const result = await database_1.default.query('INSERT INTO message_envelopes (title, description, json_fields) VALUES ($1, $2, $3) RETURNING *', [title, description, JSON.stringify(json_fields)]);
             res.status(201).json({ success: true, data: result.rows[0], message: 'Message envelope created successfully' });
         }
         catch (error) {
@@ -31,7 +31,7 @@ class MessageEnvelopeController {
         try {
             const { id } = req.params;
             const { title, description, json_fields } = req.body;
-            const result = await database_1.default.query('UPDATE message_envelopes SET title = $1, description = $2, json_fields = $3, updated_at = NOW() WHERE id = $4 RETURNING *', [title, description, json_fields, id]);
+            const result = await database_1.default.query('UPDATE message_envelopes SET title = $1, description = $2, json_fields = $3, updated_at = NOW() WHERE id = $4 RETURNING *', [title, description, JSON.stringify(json_fields), id]);
             if (result.rowCount === 0) {
                 return res.status(404).json({ success: false, error: 'Message envelope not found' });
             }
