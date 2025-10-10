@@ -12,6 +12,7 @@ import {
 } from '../models/types';
 import { AuthRequest } from '../middleware/auth';
 import { Octokit } from 'octokit';
+import { incrementVersion, determineChangeType } from '../utils/versioning';
 
 // Helper to check if a user has access to a spec (is owner or team member)
 async function checkSpecAccess(specId: string, userId: string): Promise<boolean> {
@@ -33,8 +34,9 @@ async function checkSpecAccess(specId: string, userId: string): Promise<boolean>
 
 // Helper function to generate .proto content from spec data
 const generateProtoContent = (specData: ProtoFileData): string => {
-  if (!specData) {
-    return '// No content available';
+  if (!specData || !('syntax' in specData)) {
+    // If it's a JSON schema or invalid data, return a comment
+    return '// Not a Protobuf schema';
   }
 
   let protoContent = `syntax = "${specData.syntax || 'proto3'}";\n\n`;
@@ -126,10 +128,15 @@ export class SpecController {
         version = '1.0.0',
         description,
         spec_data,
+        spec_type = 'protobuf',
         tags = [],
         github_repo_url: incoming_github_repo_url = null,
         github_repo_name: incoming_github_repo_name = null,
         team_id = null,
+        device_name = null,
+        protocols = [],
+        document_status = null,
+        for_field = null,
       }: CreateSpecRequest = req.body;
 
       // If team_id is provided, verify user is a member of that team
@@ -156,28 +163,24 @@ export class SpecController {
           [title]
         );
 
-        console.log('Existing published spec query result:', existingPublishedSpec.rows); // <--- ADDED THIS LINE
-
         if (existingPublishedSpec.rows.length > 0) {
           final_github_repo_url = existingPublishedSpec.rows[0].github_repo_url;
           final_github_repo_name = existingPublishedSpec.rows[0].github_repo_name;
         }
       }
 
-      console.log('Final GitHub info before insert:', { url: final_github_repo_url, name: final_github_repo_name }); // <--- ADDED THIS LINE
-
       const result = await pool.query(
-        `INSERT INTO protobuf_specs (title, version, description, spec_data, created_by, tags, github_repo_url, github_repo_name, team_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+        `INSERT INTO protobuf_specs (title, version, description, spec_data, spec_type, created_by, tags, github_repo_url, github_repo_name, team_id, device_name, protocols, document_status, for_field) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
          RETURNING *`,
-        [title, version, description, JSON.stringify(spec_data), userId, tags, final_github_repo_url, final_github_repo_name, team_id]
+        [title, version, description, JSON.stringify(spec_data), spec_type, userId, tags, final_github_repo_url, final_github_repo_name, team_id, device_name, protocols, document_status, for_field]
       );
 
       const spec = result.rows[0];
 
       // Create initial version
       await pool.query(
-        `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
+        `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by) 
          VALUES ($1, $2, $3, $4)`,
         [spec.id, version, JSON.stringify(spec.spec_data), userId]
       );
@@ -344,8 +347,6 @@ export class SpecController {
         }
       }
 
-      console.log('Backend getSpec result:', spec); // <--- ADDED THIS LINE
-
       res.json({
         success: true,
         data: spec,
@@ -365,12 +366,44 @@ export class SpecController {
       const userId = req.user!.id;
       const updateData: UpdateSpecRequest = req.body;
 
+      console.log('updateData:', updateData);
+
       const hasAccess = await checkSpecAccess(id, userId);
       if (!hasAccess) {
         return res.status(404).json({
           success: false,
           error: 'Specification not found or access denied',
         } as ApiResponse);
+      }
+
+      // Get current spec data to compare changes
+      const currentSpecResult = await pool.query(
+        'SELECT version, spec_data FROM protobuf_specs WHERE id = $1',
+        [id]
+      );
+      
+      if (currentSpecResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found',
+        } as ApiResponse);
+      }
+
+      const currentSpec = currentSpecResult.rows[0];
+      let newVersion = currentSpec.version;
+
+      // Check if spec_data is being updated
+      if (updateData.spec_data) {
+        // Parse the current and new spec data for comparison
+        const currentData = currentSpec.spec_data;
+        const newData = updateData.spec_data;
+        
+        // Determine the type of change and increment version accordingly
+        const changeType = determineChangeType(currentData, newData);
+        newVersion = incrementVersion(currentSpec.version, changeType);
+        
+        // Update the version in the update data
+        updateData.version = newVersion;
       }
 
       // Build update query dynamically
@@ -380,8 +413,7 @@ export class SpecController {
 
       Object.entries(updateData).forEach(([key, value]) => {
         // Include field if it's not undefined, or if it's a GitHub field (to preserve null values)
-        if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id') {
-          console.log(`Including field ${key} with value:`, value);
+        if (value !== undefined || key === 'github_repo_url' || key === 'github_repo_name' || key === 'team_id' || key === 'device_name' || key === 'protocols' || key === 'document_status' || key === 'for_field') {
           if (key === 'spec_data') {
             updateFields.push(`${key} = $${paramIndex++}`);
             queryParams.push(JSON.stringify(value));
@@ -389,8 +421,6 @@ export class SpecController {
             updateFields.push(`${key} = $${paramIndex++}`);
             queryParams.push(value);
           }
-        } else {
-          console.log(`Skipping field ${key} with value:`, value);
         }
       });
 
@@ -399,23 +429,23 @@ export class SpecController {
 
       const updateQuery = `
         UPDATE protobuf_specs 
-        SET ${updateFields.join(
-        ', '
-      )}
-        WHERE id = $${paramIndex++}
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
         RETURNING *
       `;
 
+      console.log('updateQuery:', updateQuery);
+      console.log('queryParams:', queryParams);
+
       const result = await pool.query(updateQuery, queryParams);
 
-      // If version or spec_data changed, create new version
-      if (updateData.version || updateData.spec_data) {
+      // Create new version if spec_data was updated
+      if (updateData.spec_data) {
         const spec = result.rows[0];
         await pool.query(
           `INSERT INTO spec_versions (spec_id, version_number, spec_data, created_by)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (spec_id, version_number) DO NOTHING`,
-          [spec.id, spec.version, JSON.stringify(spec.spec_data), userId]
+           VALUES ($1, $2, $3, $4)`,
+          [spec.id, newVersion, JSON.stringify(spec.spec_data), userId]
         );
       }
 
@@ -795,6 +825,42 @@ export class SpecController {
         success: false,
         error: 'Internal server error',
       });
+    }
+  }
+
+  static async updateSpecDetails(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const { device_name, protocols, document_status, for_field } = req.body;
+
+      const hasAccess = await checkSpecAccess(id, userId);
+      if (!hasAccess) {
+        return res.status(404).json({
+          success: false,
+          error: 'Specification not found or access denied',
+        } as ApiResponse);
+      }
+
+      const result = await pool.query(
+        `UPDATE protobuf_specs
+         SET device_name = $1, protocols = $2, document_status = $3, for_field = $4, updated_at = NOW()
+         WHERE id = $5
+         RETURNING *`,
+        [device_name, protocols, document_status, for_field, id]
+      );
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+        message: 'Specification details updated successfully',
+      } as ApiResponse<ProtobufSpec>);
+    } catch (error) {
+      console.error('Update spec details error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      } as ApiResponse);
     }
   }
 }

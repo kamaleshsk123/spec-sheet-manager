@@ -19,6 +19,7 @@ export interface ProtobufSpec {
   version: string;
   description?: string;
   spec_data: ProtoFileData;
+  spec_type: 'protobuf' | 'json';
   created_at?: Date;
   updated_at?: Date;
   created_by?: string;
@@ -28,6 +29,10 @@ export interface ProtobufSpec {
   github_repo_url?: string;
   github_repo_name?: string;
   team_id?: string | null;
+  device_name?: string;
+  protocols?: string[];
+  document_status?: string;
+  for_field?: string;
 }
 
 export interface Team {
@@ -36,6 +41,17 @@ export interface Team {
   owner_id: string;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface MessageType {
+  id?: string;
+  spec_id: string;
+  name: string;
+  payload_definition?: string;
+  json_schema?: any;
+  json_fields?: any;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 export interface SpecVersion {
@@ -78,7 +94,7 @@ export interface User {
   providedIn: 'root'
 })
 export class ApiService {
-  private readonly baseUrl = 'http://localhost:3000/api';
+  private readonly baseUrl = environment.apiUrl;
   private authToken = new BehaviorSubject<string | null>(null);
 
   constructor(private http: HttpClient) {
@@ -97,6 +113,11 @@ export class ApiService {
 
     if (token) {
       headers = headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    // Add ngrok header if using ngrok URL
+    if (this.baseUrl.includes('ngrok-free.app')) {
+      headers = headers.set('ngrok-skip-browser-warning', 'true');
     }
 
     return headers;
@@ -182,6 +203,7 @@ export class ApiService {
     limit?: number;
     search?: string;
     tags?: string[];
+    _t?: number; // Cache-busting timestamp
   }): Observable<ApiResponse<PaginatedResponse<ProtobufSpec>>> {
     let httpParams = new HttpParams();
     
@@ -189,6 +211,7 @@ export class ApiService {
       if (params.page) httpParams = httpParams.set('page', params.page.toString());
       if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
       if (params.search) httpParams = httpParams.set('search', params.search);
+      if (params._t) httpParams = httpParams.set('_t', params._t.toString());
       if (params.tags) {
         params.tags.forEach(tag => {
           httpParams = httpParams.append('tags', tag);
@@ -196,10 +219,16 @@ export class ApiService {
       }
     }
 
+    // Add cache-busting headers
+    const headers = this.getHeaders()
+      .set('Cache-Control', 'no-cache, no-store, must-revalidate')
+      .set('Pragma', 'no-cache')
+      .set('Expires', '0');
+
     return this.http.get<ApiResponse<PaginatedResponse<ProtobufSpec>>>(
       `${this.baseUrl}/specs`,
       { 
-        headers: this.getHeaders(),
+        headers: headers,
         params: httpParams
       }
     );
@@ -230,6 +259,14 @@ export class ApiService {
   updateSpec(id: string, spec: Partial<ProtobufSpec>): Observable<ApiResponse<ProtobufSpec>> {
     return this.http.put<ApiResponse<ProtobufSpec>>(
       `${this.baseUrl}/specs/${id}`,
+      spec,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  updateSpecDetails(id: string, spec: Partial<ProtobufSpec>): Observable<ApiResponse<ProtobufSpec>> {
+    return this.http.put<ApiResponse<ProtobufSpec>>(
+      `${this.baseUrl}/specs/${id}/details`,
       spec,
       { headers: this.getHeaders() }
     );
@@ -273,23 +310,93 @@ export class ApiService {
     );
   }
 
+  // Message Type CRUD operations
+  getMessageTypes(specId: string): Observable<ApiResponse<MessageType[]>> {
+    return this.http.get<ApiResponse<MessageType[]>>(
+      `${this.baseUrl}/specs/${specId}/messagetypes`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  createMessageType(specId: string, data: Partial<MessageType>): Observable<ApiResponse<MessageType>> {
+    return this.http.post<ApiResponse<MessageType>>(
+      `${this.baseUrl}/specs/${specId}/messagetypes`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  updateMessageType(id: string, data: Partial<MessageType>): Observable<ApiResponse<MessageType>> {
+    return this.http.put<ApiResponse<MessageType>>(
+      `${this.baseUrl}/messagetypes/${id}`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  deleteMessageType(id: string): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(
+      `${this.baseUrl}/messagetypes/${id}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getMessageEnvelopes(): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(
+      `${this.baseUrl}/message-envelopes`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  createMessageEnvelope(data: any): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.baseUrl}/message-envelopes`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  updateMessageEnvelope(id: string, data: any): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(
+      `${this.baseUrl}/message-envelopes/${id}`,
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  deleteMessageEnvelope(id: string): Observable<ApiResponse<any>> {
+    return this.http.delete<ApiResponse<any>>(
+      `${this.baseUrl}/message-envelopes/${id}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
   // Auth endpoints
   login(email: string, password: string): Observable<ApiResponse<{user: any, token: string}>> {
     return this.http.post<ApiResponse<{user: any, token: string}>>(
       `${this.baseUrl}/auth/login`,
-      { email, password }
+      { email, password },
+      { headers: this.getHeaders() }
     );
   }
 
   register(email: string, name: string, password: string): Observable<ApiResponse<{user: any, token: string}>> {
     return this.http.post<ApiResponse<{user: any, token: string}>>(
       `${this.baseUrl}/auth/register`,
-      { email, name, password }
+      { email, name, password },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  disconnectGitHub(): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(
+      `${this.baseUrl}/auth/github`,
+      { headers: this.getHeaders() }
     );
   }
 
   // Health check
   healthCheck(): Observable<ApiResponse> {
-    return this.http.get<ApiResponse>(`http://localhost:3000/health`);
+    return this.http.get<ApiResponse>(`${this.baseUrl}/health`, { headers: this.getHeaders() });
   }
 }

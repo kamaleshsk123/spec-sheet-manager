@@ -11,6 +11,7 @@ router.post('/login', (0, validation_1.validate)(validation_1.loginSchema), auth
 // GitHub OAuth
 router.get('/github', authController_1.AuthController.githubAuth);
 router.get('/github/callback', authController_1.AuthController.githubCallback);
+router.delete('/github', auth_1.authenticateToken, authController_1.AuthController.githubDisconnect);
 // Protected routes
 router.get('/profile', auth_1.authenticateToken, authController_1.AuthController.getProfile);
 exports.default = router;

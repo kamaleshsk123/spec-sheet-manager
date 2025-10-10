@@ -3,61 +3,27 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NuMonacoEditorModule } from '@ng-util/monaco-editor';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiService, ProtobufSpec, Team } from '../services/api.service';
+import { ApiService, ProtobufSpec, Team, MessageType, ProtoFileData } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { parse } from 'proto-parser';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
 import { PushToBranchModalComponent } from '../components/push-to-branch-modal/push-to-branch-modal.component';
-// import * as monaco from 'monaco-editor'; // Temporarily comment out
-
-interface Field {
-  type: string;
-  name: string;
-  number: number;
-  repeated?: boolean;
-  optional?: boolean;
-}
-
-interface EnumValue {
-  name: string;
-  number: number;
-}
-
-interface Enum {
-  name: string;
-  values: EnumValue[];
-}
-
-interface Service {
-  name: string;
-  methods: ServiceMethod[];
-}
-
-interface ServiceMethod {
-  name: string;
-  inputType: string;
-  outputType: string;
-  streaming?: {
-    input: boolean;
-    output: boolean;
-  };
-}
-
-interface Message {
-  name: string;
-  fields: Field[];
-  nestedMessages?: Message[];
-  nestedEnums?: Enum[];
-}
-
-interface ProtoFile {
-  syntax: string;
-  package?: string;
-  imports: string[];
-  messages: Message[];
-  enums: Enum[];
-  services: Service[];
-}
+import { SpecificationDetailsComponent } from '../components/specification-details/specification-details.component';
+import {
+  DefinitionDetailsComponent,
+  Message,
+  ProtoFile,
+  JsonSchema,
+  JsonField,
+  Field,
+  Enum,
+  Service,
+  JsonSchemaProperty,
+} from '../components/definition-details/definition-details';
+import { MessageEnvelope } from '../components/message-envelope/message-envelope';
+import { MessageTypesComponent } from '../components/message-types/message-types';
+import { EditMessageType } from '../components/edit-message-type/edit-message-type';
+import { TabListOverlayComponent } from '../components/tab-list-overlay/tab-list-overlay.component';
 
 @Component({
   selector: 'app-editor',
@@ -67,19 +33,46 @@ interface ProtoFile {
     NuMonacoEditorModule,
     PublishModalComponent,
     PushToBranchModalComponent,
+    SpecificationDetailsComponent,
+    MessageEnvelope,
+    MessageTypesComponent,
+    EditMessageType,
+    TabListOverlayComponent,
   ],
   templateUrl: './editor.html',
   styleUrl: './editor.css',
+  standalone: true,
 })
 export class EditorComponent implements OnInit {
+  @ViewChild(SpecificationDetailsComponent) specDetailsComponent!: SpecificationDetailsComponent;
+  tabs = [
+    { name: 'Specification Details', content: 'spec' },
+    { name: 'Message Envelope', content: 'messageEnvelope' },
+    { name: 'Message Types', content: 'messageTypes' },
+  ];
+  activeTabIndex = 0;
+  showNewTabOverlay = false;
+  newTabName = '';
+  showTabListOverlay = false;
+
+  // Save All and Version Increment properties
+  showVersionIncrementModal = false;
+  selectedVersionIncrement: 'patch' | 'minor' | 'major' | 'custom' | null = null;
+  customVersion = '';
+
+  // Change tracking
+  originalSpecData: any = null;
+  originalMessageEnvelopes: any[] = [];
+  originalMessageTypes: any[] = [];
+  messageEnvelopeHasChanges: boolean = false;
+
   @ViewChild('fileInput') fileInput!: ElementRef;
   @ViewChild('downloadButton') downloadButton!: ElementRef;
   @ViewChild('downloadMenu') downloadMenu!: ElementRef;
 
   editorOptions = {
-    // Removed explicit type
     theme: 'vs-dark',
-    language: 'plaintext', // Reverted to plaintext
+    language: 'plaintext',
     automaticLayout: true,
     scrollBeyondLastLine: false,
     minimap: { enabled: false },
@@ -89,32 +82,37 @@ export class EditorComponent implements OnInit {
   };
   code: string = 'syntax = "proto3";';
 
-  // Spec details
   specTitle: string = '';
   specVersion: string = '';
   specDescription: string = '';
   specTags: string = '';
+  deviceName: string = '';
+  protocols: string[] = [];
+  documentStatus: string = '';
+  forField: string = '';
 
-  // Current spec ID (for updates)
+  isSavingDetails = false;
+
+  toggleChecked = false;
+  toggleValue: 'protobuf' | 'json' = 'protobuf';
+  specType: 'protobuf' | 'json' = 'protobuf';
+
   currentSpecId: string | null = null;
   currentSpec: ProtobufSpec | null = null;
 
-  // Original spec data for comparison
-  originalSpecData: ProtoFile | null = null;
   originalVersion: string | null = null;
 
-  // GitHub repository information (preserved during updates)
   githubRepoUrl: string | null = null;
   githubRepoName: string | null = null;
 
-  // UI state
   isSaving: boolean = false;
   isLoading: boolean = false;
   isPublished: boolean = false;
   showPublishModal: boolean = false;
   showPushToBranchModal: boolean = false;
+  editingMessage: MessageType | null = null;
+  lastSelectedMessageId: string | null = null;
 
-  // Team properties
   myTeams: Team[] = [];
   selectedTeamId: string | 'personal' = 'personal';
 
@@ -127,7 +125,22 @@ export class EditorComponent implements OnInit {
     services: [],
   };
   showDownloadMenu: boolean = false;
-  activeTab: 'messages' | 'enums' | 'services' | 'settings';
+  activeTab: 'messages' | 'enums' | 'services' | 'settings' = 'messages';
+
+  jsonSchema: JsonSchema = {
+    title: 'StatusUpdate',
+    type: 'object',
+    properties: {},
+    required: [],
+  };
+  jsonFields: JsonField[] = [];
+  messageTypes: MessageType[] = [];
+  messageEnvelopes: any[] = [];
+  selectedEnvelopeId: string | null = null;
+  combinedPayloadText: string = '';
+
+  showJsonDemoOverlay: boolean = false;
+  demoJsonText: string = '';
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
@@ -146,20 +159,60 @@ export class EditorComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private notificationService: NotificationService
-  ) {
-    this.activeTab = 'messages';
-  }
+  ) { }
 
   ngOnInit() {
-    this.updateProtoPreview();
+    this.updateEditorContent();
     this.loadMyTeams();
 
-    // Check if we need to load a specific spec
     this.route.queryParams.subscribe((params) => {
       if (params['id']) {
         this.loadSpec(params['id'], params['version']);
+      } else {
+        // Initialize for new spec creation
+        this.initializeForNewSpec();
       }
     });
+  }
+
+  loadMessageEnvelopes(callback?: () => void) {
+    // Only load message envelopes if we have a current spec ID
+    // For new specs, start with empty envelopes
+    if (this.currentSpecId) {
+      this.apiService.getMessageEnvelopes().subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.messageEnvelopes = response.data;
+          }
+          if (callback) callback();
+        },
+        error: (err) => {
+          console.error('Failed to load message envelopes', err);
+          if (callback) callback();
+        },
+      });
+    } else {
+      // For new specs, start with empty message envelopes
+      this.messageEnvelopes = [];
+      if (callback) callback();
+    }
+  }
+
+  openNewTabDialog() {
+    this.showNewTabOverlay = true;
+  }
+
+  closeNewTabDialog() {
+    this.showNewTabOverlay = false;
+    this.newTabName = '';
+  }
+
+  addNewTab() {
+    if (this.newTabName.trim()) {
+      this.tabs.push({ name: this.newTabName, content: 'new' });
+      this.activeTabIndex = this.tabs.length - 1;
+      this.closeNewTabDialog();
+    }
   }
 
   loadMyTeams() {
@@ -171,13 +224,13 @@ export class EditorComponent implements OnInit {
       },
       error: (err) => {
         console.error('Failed to load teams', err);
-        // Do not show a notification for this, as it's not critical for the editor to function
       },
     });
   }
 
   loadSpec(specId: string, version?: string) {
     this.isLoading = true;
+    this.currentSpecId = specId;
 
     this.apiService.getSpec(specId, version).subscribe({
       next: (response) => {
@@ -186,36 +239,34 @@ export class EditorComponent implements OnInit {
           const spec = response.data;
           this.currentSpec = spec;
 
-          // Load spec details
           this.specTitle = spec.title;
           this.specVersion = spec.version;
           this.specDescription = spec.description || '';
           this.specTags = spec.tags?.join(', ') || '';
-          this.currentSpecId = spec.id!;
+          this.deviceName = spec.device_name || '';
+          this.protocols = spec.protocols || [];
+          this.documentStatus = spec.document_status || '';
+          this.forField = spec.for_field || '';
           this.isPublished = !!spec.github_repo_url;
 
-          // Load GitHub repository information
           this.githubRepoUrl = spec.github_repo_url || null;
           this.githubRepoName = spec.github_repo_name || null;
-          console.log('Loaded GitHub info:', {
-            url: this.githubRepoUrl,
-            name: this.githubRepoName,
-          }); // <--- ADDED THIS LINE
 
-          // Load proto data
-          this.protoFile = spec.spec_data;
-
-          // Store original data for comparison
-          this.originalSpecData = JSON.parse(JSON.stringify(spec.spec_data));
-          this.originalVersion = spec.version;
-
-          // Update preview
-          this.updateProtoPreview();
+          this.specType = spec.spec_type;
+          this.updateEditorContent();
 
           this.notificationService.success(
             'Specification Loaded',
             `Successfully loaded "${spec.title}" v${spec.version}`
           );
+
+          // Chain all data loading and initialize at the very end.
+          this.loadMessageEnvelopes(() => {
+            this.loadMessageTypes(() => {
+              this.initializeOriginalData();
+            });
+          });
+
         } else {
           this.notificationService.error(
             'Load Failed',
@@ -234,44 +285,488 @@ export class EditorComponent implements OnInit {
     });
   }
 
+  loadMessageTypes(callback?: () => void) {
+    if (this.currentSpecId) {
+      this.apiService.getMessageTypes(this.currentSpecId).subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.messageTypes = response.data;
+            // Build proto preview fields from JSON Schema (supports both legacy fields[] and properties/required)
+            this.protoFile.messages = response.data.map((mt) => {
+              const schema: any = mt.json_schema || {};
+              let fields: any[] = [];
+              if (Array.isArray(schema?.fields)) {
+                fields = schema.fields;
+              } else if (schema && schema.properties) {
+                const props = schema.properties || {};
+                const required: string[] = schema.required || [];
+                const toProtoType = (t: string) => {
+                  switch (t) {
+                    case 'integer':
+                      return 'int32';
+                    case 'number':
+                      return 'double';
+                    case 'boolean':
+                      return 'bool';
+                    case 'string':
+                    default:
+                      return 'string';
+                  }
+                };
+                let counter = 1;
+                fields = Object.keys(props).map((key) => {
+                  const prop = props[key] || {};
+                  const isArray = prop.type === 'array';
+                  const itemType = isArray ? prop.items?.type || 'string' : prop.type || 'string';
+                  return {
+                    name: key,
+                    type: toProtoType(itemType),
+                    number: counter++,
+                    repeated: !!isArray,
+                    optional: required.indexOf(key) === -1,
+                  };
+                });
+              }
+              return { name: mt.name, fields };
+            });
+            this.updateProtoPreview();
+            if (callback) {
+              callback();
+            }
+          }
+        },
+        error: (err) => {
+          this.notificationService.error('Error', 'Failed to load message types.');
+        },
+      });
+    } else {
+      if (callback) {
+        callback();
+      }
+    }
+  }
+
   goToDashboard() {
-    this.router.navigate(['/']);
-  }
-
-  // Message methods
-  addMessage() {
-    this.protoFile.messages.push({
-      name: 'NewMessage',
-      fields: [],
-      nestedMessages: [],
-      nestedEnums: [],
+    // Force dashboard to reload by navigating with a timestamp query param
+    this.router.navigate(['/'], {
+      queryParams: { refresh: Date.now() },
+      queryParamsHandling: 'replace' // Use replace instead of merge to ensure clean navigation
     });
-    this.updateProtoPreview();
   }
 
-  removeMessage(index: number) {
-    this.protoFile.messages.splice(index, 1);
-    this.updateProtoPreview();
+  setActiveTab(tab: 'messages' | 'enums' | 'services' | 'settings') {
+    this.activeTab = tab;
   }
 
-  addField(message: Message) {
-    message.fields.push({
-      type: 'string',
-      name: 'new_field',
-      number: message.fields.length + 1,
-      repeated: false,
-      optional: false,
+  onTabChange(index: number) {
+    this.activeTabIndex = index;
+    if (this.tabs[index].content === 'messageTypes') {
+      this.loadMessageTypes();
+    }
+  }
+
+  updateEditorContent() {
+    if (this.toggleValue === 'protobuf') {
+      this.editorOptions = { ...this.editorOptions, language: 'plaintext' };
+      this.updateProtoPreview();
+    } else {
+      this.editorOptions = { ...this.editorOptions, language: 'json' };
+      if (this.activeTab !== 'messages') {
+        this.setActiveTab('messages');
+      }
+    }
+  }
+
+  updateProtoPreview() {
+    let protoContent = `syntax = "${this.protoFile.syntax}";\n\n`;
+
+    if (this.protoFile.package) {
+      protoContent += `package ${this.protoFile.package};\n\n`;
+    }
+
+    for (const importPath of this.protoFile.imports) {
+      protoContent += `import "${importPath}";\n`;
+    }
+    if (this.protoFile.imports.length > 0) {
+      protoContent += '\n';
+    }
+
+    for (const enumItem of this.protoFile.enums) {
+      protoContent += `enum ${enumItem.name} {\n`;
+      for (const value of enumItem.values) {
+        protoContent += `  ${value.name} = ${value.number};\n`;
+      }
+      protoContent += '}\n\n';
+    }
+
+    for (const message of this.protoFile.messages) {
+      protoContent += this.generateMessageContent(message, 0);
+    }
+
+    for (const service of this.protoFile.services) {
+      protoContent += `service ${service.name} {\n`;
+      for (const method of service.methods) {
+        const inputStream = method.streaming?.input ? 'stream ' : '';
+        const outputStream = method.streaming?.output ? 'stream ' : '';
+        protoContent += `  rpc ${method.name}(${inputStream}${method.inputType}) returns (${outputStream}${method.outputType});\n`;
+      }
+      protoContent += '}\n\n';
+    }
+
+    this.code = protoContent;
+  }
+
+  private generateMessageContent(message: Message, indent: number): string {
+    const spaces = '  '.repeat(indent);
+    let content = `${spaces}message ${message.name} {\n`;
+
+    if (message.nestedEnums) {
+      for (const nestedEnum of message.nestedEnums) {
+        content += `${spaces}  enum ${nestedEnum.name} {\n`;
+        for (const value of nestedEnum.values) {
+          content += `${spaces}    ${value.name} = ${value.number};\n`;
+        }
+        content += `${spaces}  }\n\n`;
+      }
+    }
+
+    if (message.nestedMessages) {
+      for (const nestedMessage of message.nestedMessages) {
+        content += this.generateMessageContent(nestedMessage, indent + 1);
+      }
+    }
+
+    for (const field of message.fields) {
+      const repeated = field.repeated ? 'repeated ' : '';
+      const optional = field.optional ? 'optional ' : '';
+      content += `${spaces}  ${repeated}${optional}${field.type} ${field.name} = ${field.number};\n`;
+    }
+
+    content += `${spaces}}\n\n`;
+    return content;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
+  toggleDownloadMenu() {
+    this.showDownloadMenu = !this.showDownloadMenu;
+  }
+
+  downloadProto() {
+    const baseFilename = this.getFilename();
+    const filename = `${baseFilename}.proto`;
+    const content = this.code;
+    this.downloadFile(content, filename, 'text/plain');
+    this.showDownloadMenu = false;
+  }
+
+  downloadJson() {
+    const jsonData = {
+      ...this.protoFile,
+      title: this.specTitle,
+      version: this.specVersion || '1.0.0',
+      description: this.specDescription,
+      generatedAt: new Date().toISOString(),
+    };
+
+    const content = JSON.stringify(jsonData, null, 2);
+    const baseFilename = this.getFilename();
+    const filename = `${baseFilename}.json`;
+    this.downloadFile(content, filename, 'application/json');
+    this.showDownloadMenu = false;
+  }
+
+  private getFilename(): string {
+    if (this.specTitle && this.specTitle.trim()) {
+      return this.specTitle
+        .trim()
+        .replace(/[<>:"/\\|?*]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/[^\w\-_.]/g, '')
+        .substring(0, 100);
+    }
+    return 'Spec_Sheet';
+  }
+
+  private downloadFile(content: string, filename: string, contentType: string) {
+    const blob = new Blob([content], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
+
+  saveSpec() {
+    if (!this.specTitle.trim()) {
+      this.notificationService.warning(
+        'Title Required',
+        'Please enter a specification title before saving'
+      );
+      return;
+    }
+
+    this.isSaving = true;
+
+    let finalVersion = this.specVersion || '1.0.0';
+    if (this.shouldAutoIncrementVersion()) {
+      finalVersion = this.incrementVersion(finalVersion);
+      this.specVersion = finalVersion;
+    }
+
+    const teamIdToSend =
+      !this.currentSpecId && this.selectedTeamId !== 'personal'
+        ? this.selectedTeamId
+        : this.currentSpec?.team_id ?? undefined;
+
+    const specData: any = {
+      title: this.specTitle.trim(),
+      version: finalVersion,
+      description: this.specDescription || '',
+      spec_type: this.toggleValue,
+      spec_data: this.toggleValue === 'protobuf' ? this.protoFile : this.jsonSchema,
+      tags: this.specTags
+        ? this.specTags
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter((tag) => tag)
+        : [],
+      device_name: this.deviceName || '',
+      protocols: this.protocols || [],
+      document_status: this.documentStatus || 'Draft',
+      for_field: this.forField || '',
+      team_id: teamIdToSend,
+      github_repo_url: this.githubRepoUrl,
+      github_repo_name: this.githubRepoName,
+    };
+
+    const versionChanged =
+      this.currentSpecId && this.originalVersion && this.originalVersion !== finalVersion;
+
+    const saveOperation =
+      this.currentSpecId && !versionChanged
+        ? this.apiService.updateSpec(this.currentSpecId, specData)
+        : this.apiService.createSpec(specData);
+
+    const wasUpdate = this.currentSpecId !== null && !versionChanged;
+    const isNewVersion = this.currentSpecId !== null && versionChanged;
+    const versionWasIncremented = this.shouldAutoIncrementVersion();
+
+    saveOperation.subscribe({
+      next: (response) => {
+        this.isSaving = false;
+        if (response.success && response.data) {
+          const wasNewSpec = !this.currentSpecId;
+          this.currentSpecId = response.data.id!;
+          this.currentSpec = response.data;
+
+          // Update original data to reflect the saved state
+          this.initializeOriginalData();
+          this.originalVersion = finalVersion;
+
+          // If this was a new spec, update the URL to include the spec ID
+          if (wasNewSpec) {
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: { id: this.currentSpecId },
+              queryParamsHandling: 'merge'
+            });
+          }
+
+          let title: string = '';
+          let message: string = '';
+
+          if (isNewVersion) {
+            title = 'New Version Created';
+            message = `"${this.specTitle}" v${finalVersion} has been created as a new version`;
+          } else if (wasUpdate) {
+            title = 'Specification Updated';
+            message = `"${this.specTitle}" has been updated successfully`;
+            if (versionWasIncremented) {
+              message += ` with version automatically incremented to ${finalVersion}`;
+            }
+          } else {
+            title = 'Specification Saved';
+            message = `"${this.specTitle}" has been saved successfully`;
+          }
+
+          this.notificationService.success(title, message);
+        } else {
+          this.notificationService.error(
+            'Save Failed',
+            response.error || 'Failed to save specification'
+          );
+        }
+      },
+      error: (error) => {
+        this.isSaving = false;
+        console.error('Save error:', error);
+        this.notificationService.error(
+          'Save Error',
+          'Failed to save specification. Please check your connection and try again.'
+        );
+      },
     });
-    this.updateProtoPreview();
   }
 
-  removeField(message: Message, index: number) {
-    message.fields.splice(index, 1);
-    this.updateProtoPreview();
+  hasSpecDataChanged(): boolean {
+    if (!this.originalSpecData) {
+      return false;
+    }
+
+    if (this.toggleValue === 'json') {
+      return JSON.stringify(this.originalSpecData) !== JSON.stringify(this.jsonSchema);
+    }
+
+    // Message types are now handled separately
+    return false;
   }
 
-  uploadSpec() {
-    this.fileInput.nativeElement.click();
+  private incrementVersion(version: string): string {
+    const parts = version.split('.').map((part) => parseInt(part) || 0);
+
+    while (parts.length < 3) {
+      parts.push(0);
+    }
+
+    parts[parts.length - 1]++;
+
+    return parts.join('.');
+  }
+
+  shouldAutoIncrementVersion(): boolean {
+    return this.currentSpecId !== null && this.hasSpecDataChanged() && this.hasVersionNotChanged();
+  }
+
+  private hasVersionNotChanged(): boolean {
+    const currentVersion = this.specVersion || '1.0.0';
+    const originalVersion = this.originalVersion || '1.0.0';
+    return currentVersion === originalVersion;
+  }
+
+  getNextVersion(): string {
+    if (this.shouldAutoIncrementVersion()) {
+      return this.incrementVersion(this.specVersion || '1.0.0');
+    }
+    return this.specVersion || '1.0.0';
+  }
+
+  handlePublishOrCommit() {
+    if (this.isPublished) {
+      this.openPushToBranchModal();
+    } else {
+      this.openPublishModal();
+    }
+  }
+
+  openPublishModal() {
+    this.showPublishModal = true;
+  }
+
+  closePublishModal() {
+    this.showPublishModal = false;
+  }
+
+  handlePublish(event: any) {
+    if (!this.currentSpecId) return;
+
+    this.apiService.publishToGithub(this.currentSpecId, event).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success(
+            'Published to GitHub!',
+            `Successfully created repository: ${response.data.url}`
+          );
+          this.closePublishModal();
+          this.loadSpec(this.currentSpecId!);
+        } else {
+          this.notificationService.error(
+            'Publish Failed',
+            response.error || 'Could not publish to GitHub.'
+          );
+        }
+      },
+      error: (error) => {
+        this.notificationService.error(
+          'Publish Error',
+          error.error.error || 'An unknown error occurred.'
+        );
+      },
+    });
+  }
+
+  openPushToBranchModal() {
+    this.showPushToBranchModal = true;
+  }
+
+  closePushToBranchModal() {
+    this.showPushToBranchModal = false;
+  }
+
+  handlePushToBranch(event: any) {
+    if (!this.currentSpecId) return;
+
+    this.apiService.pushToBranch(this.currentSpecId, event.commitMessage).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success(
+            'Pushed to GitHub!',
+            `Successfully pushed updates to ${this.currentSpec?.github_repo_name}.`
+          );
+          this.closePushToBranchModal();
+        } else {
+          this.notificationService.error(
+            'Push Failed',
+            response.error || 'Could not push to GitHub.'
+          );
+        }
+      },
+      error: (error) => {
+        this.notificationService.error(
+          'Push Error',
+          error.error.error || 'An unknown error occurred.'
+        );
+      },
+    });
+  }
+
+  handleEditMessage(message: MessageType) {
+    // Remember which message was edited so we can restore selection on return
+    this.lastSelectedMessageId = message.id || null;
+
+    // Open edit view immediately with current data
+    const fallback = this.messageTypes.find((m) => m.id === message.id) || message;
+    this.editingMessage = JSON.parse(JSON.stringify(fallback));
+
+    // Then refresh from API in background to ensure it's up-to-date
+    if (this.currentSpecId) {
+      this.apiService.getMessageTypes(this.currentSpecId).subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.messageTypes = response.data;
+            const fresh = this.messageTypes.find((m) => m.id === message.id) || fallback;
+            this.editingMessage = JSON.parse(JSON.stringify(fresh));
+          }
+        },
+        error: () => {
+          // Keep the fallback if refresh fails
+        },
+      });
+    }
+  }
+
+  handleDoneEditing() {
+    this.editingMessage = null;
+    this.loadMessageTypes();
+  }
+
+  handleAddMessage() {
+    this.loadMessageTypes();
   }
 
   handleFileSelect(event: any) {
@@ -287,7 +782,7 @@ export class EditorComponent implements OnInit {
         const ast = parse(content) as any;
         this.fromAst(ast);
         this.notificationService.success('Spec Uploaded', 'Successfully parsed .proto file.');
-        this.updateProtoPreview();
+        this.updateEditorContent();
       } catch (error: any) {
         this.notificationService.error(
           'Parse Error',
@@ -314,13 +809,13 @@ export class EditorComponent implements OnInit {
 
     if (ast.root && ast.root.nested) {
       for (const key in ast.root.nested) {
-        const nested = ast.root.nested[key];
-        if (nested.fields) {
-          this.protoFile.messages.push(this.messageFromAst(nested));
-        } else if (nested.values) {
-          this.protoFile.enums.push(this.enumFromAst(nested));
-        } else if (nested.methods) {
-          this.protoFile.services.push(this.serviceFromAst(nested));
+        const nestedItem = ast.root.nested[key];
+        if (nestedItem.fields) {
+          this.protoFile.messages.push(this.messageFromAst(nestedItem));
+        } else if (nestedItem.values) {
+          this.protoFile.enums.push(this.enumFromAst(nestedItem));
+        } else if (nestedItem.methods) {
+          this.protoFile.services.push(this.serviceFromAst(nestedItem));
         }
       }
     }
@@ -391,550 +886,823 @@ export class EditorComponent implements OnInit {
     return service;
   }
 
-  // Enum methods
-  addEnum() {
-    this.protoFile.enums.push({
-      name: 'NewEnum',
-      values: [{ name: 'UNKNOWN', number: 0 }],
+  showPdf() {
+    this.loadMessageTypes(() => {
+      this.showTabListOverlay = true;
     });
-    this.updateProtoPreview();
+    console.log("Kamalesh")
   }
 
-  removeEnum(index: number) {
-    this.protoFile.enums.splice(index, 1);
-    this.updateProtoPreview();
+  closeTabListOverlay() {
+    this.showTabListOverlay = false;
   }
 
-  addEnumValue(enumItem: Enum) {
-    const nextNumber = Math.max(...enumItem.values.map((v) => v.number), -1) + 1;
-    enumItem.values.push({
-      name: 'NEW_VALUE',
-      number: nextNumber,
-    });
-    this.updateProtoPreview();
-  }
-
-  removeEnumValue(enumItem: Enum, index: number) {
-    enumItem.values.splice(index, 1);
-    this.updateProtoPreview();
-  }
-
-  // Service methods
-  addService() {
-    this.protoFile.services.push({
-      name: 'NewService',
-      methods: [],
-    });
-    this.updateProtoPreview();
-  }
-
-  removeService(index: number) {
-    this.protoFile.services.splice(index, 1);
-    this.updateProtoPreview();
-  }
-
-  addServiceMethod(service: Service) {
-    service.methods.push({
-      name: 'NewMethod',
-      inputType: 'google.protobuf.Empty',
-      outputType: 'google.protobuf.Empty',
-      streaming: { input: false, output: false },
-    });
-    this.updateProtoPreview();
-  }
-
-  removeServiceMethod(service: Service, index: number) {
-    service.methods.splice(index, 1);
-    this.updateProtoPreview();
-  }
-
-  // Import methods
-  addImport() {
-    this.protoFile.imports.push('google/protobuf/empty.proto');
-    this.updateProtoPreview();
-  }
-
-  removeImport(index: number) {
-    this.protoFile.imports.splice(index, 1);
-    this.updateProtoPreview();
-  }
-
-  // Tab switching
-  setActiveTab(tab: 'messages' | 'enums' | 'services' | 'settings') {
-    this.activeTab = tab;
-  }
-
-  updateProtoPreview() {
-    let protoContent = `syntax = "${this.protoFile.syntax}";\n\n`;
-
-    // Add package
-    if (this.protoFile.package) {
-      protoContent += `package ${this.protoFile.package};\n\n`;
+  onEnvelopeSelected(envelopeId: string) {
+    this.selectedEnvelopeId = envelopeId;
+    const selectedEnvelope = this.messageEnvelopes.find(e => e.id === envelopeId);
+    if (selectedEnvelope) {
+      this.demoJsonText = JSON.stringify(this.generateDemoFromFields(selectedEnvelope.json_fields), null, 2);
+    } else {
+      this.demoJsonText = '';
     }
-
-    // Add imports
-    for (const importPath of this.protoFile.imports) {
-      protoContent += `import "${importPath}";\n`;
-    }
-    if (this.protoFile.imports.length > 0) {
-      protoContent += '\n';
-    }
-
-    // Add enums
-    for (const enumItem of this.protoFile.enums) {
-      protoContent += `enum ${enumItem.name} {\n`;
-      for (const value of enumItem.values) {
-        protoContent += `  ${value.name} = ${value.number};\n`;
-      }
-      protoContent += '}\n\n';
-    }
-
-    // Add messages
-    for (const message of this.protoFile.messages) {
-      protoContent += this.generateMessageContent(message, 0);
-    }
-
-    // Add services
-    for (const service of this.protoFile.services) {
-      protoContent += `service ${service.name} {\n`;
-      for (const method of service.methods) {
-        const inputStream = method.streaming?.input ? 'stream ' : '';
-        const outputStream = method.streaming?.output ? 'stream ' : '';
-        protoContent += `  rpc ${method.name}(${inputStream}${method.inputType}) returns (${outputStream}${method.outputType});\n`;
-      }
-      protoContent += '}\n\n';
-    }
-
-    this.code = protoContent;
-    this.validateProto();
   }
 
-  validateProto() {
-    const diagnostics: any[] = []; // Changed type to any[]
-
-    // Basic validation: Check for duplicate message names
-    const messageNames = new Set<string>();
-    this.protoFile.messages.forEach((message, index) => {
-      if (messageNames.has(message.name)) {
-        diagnostics.push({
-          severity: 8, // monaco.MarkerSeverity.Error
-          message: `Duplicate message name: '${message.name}'`,
-          startLineNumber: 1, // Placeholder, actual line number would require AST traversal with line info
-          endLineNumber: 1,
-          startColumn: 1,
-          endColumn: 1,
-        });
-      }
-      messageNames.add(message.name);
-
-      // Check for duplicate field numbers within a message
-      const fieldNumbers = new Set<number>();
-      message.fields.forEach((field) => {
-        if (fieldNumbers.has(field.number)) {
-          diagnostics.push({
-            severity: 8, // monaco.MarkerSeverity.Error
-            message: `Duplicate field number '${field.number}' in message '${message.name}'`,
-            startLineNumber: 1, // Placeholder
-            endLineNumber: 1,
-            startColumn: 1,
-            endColumn: 1,
-          });
-        }
-        fieldNumbers.add(field.number);
-      });
-    });
-
-    // Basic validation: Check for duplicate enum names
-    const enumNames = new Set<string>();
-    this.protoFile.enums.forEach((enumItem) => {
-      if (enumNames.has(enumItem.name)) {
-        diagnostics.push({
-          severity: 8, // monaco.MarkerSeverity.Error
-          message: `Duplicate enum name: '${enumItem.name}'`,
-          startLineNumber: 1, // Placeholder
-          endLineNumber: 1,
-          startColumn: 1,
-          endColumn: 1,
-        });
-      }
-      enumNames.add(enumItem.name);
-
-      // Check for duplicate enum value numbers within an enum
-      const enumValueNumbers = new Set<number>();
-      enumItem.values.forEach((value) => {
-        if (enumValueNumbers.has(value.number)) {
-          diagnostics.push({
-            severity: 8, // monaco.MarkerSeverity.Error
-            message: `Duplicate enum value number '${value.number}' in enum '${enumItem.name}'`,
-            startLineNumber: 1, // Placeholder
-            endLineNumber: 1,
-            startColumn: 1,
-            endColumn: 1,
-          });
-        }
-        enumValueNumbers.add(value.number);
-      });
-    });
-
-    // Basic validation: Check for duplicate service names
-    const serviceNames = new Set<string>();
-    this.protoFile.services.forEach((service) => {
-      if (serviceNames.has(service.name)) {
-        diagnostics.push({
-          severity: 8, // monaco.MarkerSeverity.Error
-          message: `Duplicate service name: '${service.name}'`,
-          startLineNumber: 1, // Placeholder
-          endLineNumber: 1,
-          startColumn: 1,
-          endColumn: 1,
-        });
-      }
-      serviceNames.add(service.name);
-
-      // Check for duplicate method names within a service
-      const methodNames = new Set<string>();
-      service.methods.forEach((method) => {
-        if (methodNames.has(method.name)) {
-          diagnostics.push({
-            severity: 8, // monaco.MarkerSeverity.Error
-            message: `Duplicate method name '${method.name}' in service '${service.name}'`,
-            startLineNumber: 1, // Placeholder
-            endLineNumber: 1,
-            startColumn: 1,
-            endColumn: 1,
-          });
-        }
-        methodNames.add(method.name);
-      });
-    });
-
-    // Set markers in Monaco Editor (Temporarily commented out)
-    // const model = monaco.editor.getModels()[0]; // Assuming only one model is open
-    // if (model) {
-    //   monaco.editor.setModelMarkers(model, 'owner', diagnostics);
-    // }
-  }
-
-  private generateMessageContent(message: Message, indent: number): string {
-    const spaces = '  '.repeat(indent);
-    let content = `${spaces}message ${message.name} {\n`;
-
-    // Add nested enums
-    if (message.nestedEnums) {
-      for (const nestedEnum of message.nestedEnums) {
-        content += `${spaces}  enum ${nestedEnum.name} {\n`;
-        for (const value of nestedEnum.values) {
-          content += `${spaces}    ${value.name} = ${value.number};\n`;
-        }
-        content += `${spaces}  }\n\n`;
-      }
+  onMessageTypeSelected(messageType: MessageType) {
+    if (!this.selectedEnvelopeId) {
+      this.combinedPayloadText = '';
+      return;
     }
-
-    // Add nested messages
-    if (message.nestedMessages) {
-      for (const nestedMessage of message.nestedMessages) {
-        content += this.generateMessageContent(nestedMessage, indent + 1);
-      }
-    }
-
-    // Add fields
-    for (const field of message.fields) {
-      const repeated = field.repeated ? 'repeated ' : '';
-      const optional = field.optional ? 'optional ' : '';
-      content += `${spaces}  ${repeated}${optional}${field.type} ${field.name} = ${field.number};\n`;
-    }
-
-    content += `${spaces}}\n\n`;
-    return content;
-  }
-
-  trackByIndex(index: number, item: any): number {
-    return index;
-  }
-
-  toggleDownloadMenu() {
-    this.showDownloadMenu = !this.showDownloadMenu;
-  }
-
-  downloadProto() {
-    const baseFilename = this.getFilename();
-    const filename = `${baseFilename}.proto`;
-    const content = this.code;
-    this.downloadFile(content, filename, 'text/plain');
-    this.showDownloadMenu = false;
-  }
-
-  downloadJson() {
-    const jsonData = {
-      ...this.protoFile,
-      title: this.specTitle,
-      version: this.specVersion || '1.0.0',
-      description: this.specDescription,
-      generatedAt: new Date().toISOString(),
-    };
-
-    const content = JSON.stringify(jsonData, null, 2);
-    const baseFilename = this.getFilename();
-    const filename = `${baseFilename}.json`;
-    this.downloadFile(content, filename, 'application/json');
-    this.showDownloadMenu = false;
-  }
-
-  private getFilename(): string {
-    if (this.specTitle && this.specTitle.trim()) {
-      // Replace spaces and special characters with underscores, remove invalid filename characters
-      return this.specTitle
-        .trim()
-        .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename characters
-        .replace(/\s+/g, '_') // Replace spaces with underscores
-        .replace(/[^\w\-_.]/g, '') // Keep only word characters, hyphens, underscores, and dots
-        .substring(0, 100);
-    }
-    return 'Spec_Sheet';
-  }
-
-  private downloadFile(content: string, filename: string, contentType: string) {
-    const blob = new Blob([content], { type: contentType });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-  }
-
-  // Save functionality
-  saveSpec() {
-    if (!this.specTitle.trim()) {
-      this.notificationService.warning(
-        'Title Required',
-        'Please enter a specification title before saving'
-      );
+    const selectedEnvelope = this.messageEnvelopes.find(e => e.id === this.selectedEnvelopeId);
+    if (!selectedEnvelope) {
+      this.combinedPayloadText = '';
       return;
     }
 
-    this.isSaving = true;
+    const envelopePayload = this.generateDemoFromFields(selectedEnvelope.json_fields);
+    const messagePayload = this.generateDemoJson(messageType.json_schema);
+    const messageKey = this.toCamelCase(messageType.name);
 
-    // Auto-increment version if spec data has changed
-    let finalVersion = this.specVersion || '1.0.0';
-    if (this.shouldAutoIncrementVersion()) {
-      finalVersion = this.incrementVersion(finalVersion);
-      this.specVersion = finalVersion; // Update the UI
-    }
-
-    // Determine team_id to send
-    const teamIdToSend =
-      !this.currentSpecId && this.selectedTeamId !== 'personal'
-        ? this.selectedTeamId
-        : this.currentSpec?.team_id ?? undefined;
-
-    const specData: any = {
-      title: this.specTitle.trim(),
-      version: finalVersion,
-      description: this.specDescription || '',
-      spec_data: this.protoFile,
-      tags: this.specTags
-        ? this.specTags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter((tag) => tag)
-        : [],
-      // Preserve team_id for new versions or when creating under a team
-      team_id: teamIdToSend,
-      // Always include GitHub fields to preserve them during updates
-      github_repo_url: this.githubRepoUrl,
-      github_repo_name: this.githubRepoName,
+    const combinedJson = {
+      ...envelopePayload,
+      [messageKey]: messagePayload
     };
 
-    console.log('Saving spec data:', JSON.stringify(specData, null, 2));
-
-    // Check if version has changed - if so, create new version instead of updating
-    const versionChanged =
-      this.currentSpecId && this.originalVersion && this.originalVersion !== finalVersion;
-
-    console.log('SpecData being sent to backend:', specData); // <--- ADDED THIS LINE
-
-    const saveOperation =
-      this.currentSpecId && !versionChanged
-        ? this.apiService.updateSpec(this.currentSpecId, specData)
-        : this.apiService.createSpec(specData);
-
-    const wasUpdate = this.currentSpecId !== null && !versionChanged;
-    const isNewVersion = this.currentSpecId !== null && versionChanged;
-    const versionWasIncremented = this.shouldAutoIncrementVersion();
-
-    saveOperation.subscribe({
-      next: (response) => {
-        this.isSaving = false;
-        if (response.success && response.data) {
-          this.currentSpecId = response.data.id!;
-
-          // Update original data for future comparisons
-          this.originalSpecData = JSON.parse(JSON.stringify(this.protoFile));
-          this.originalVersion = finalVersion;
-
-          let title: string = '';
-          let message: string = '';
-
-          if (isNewVersion) {
-            title = 'New Version Created';
-            message = `"${this.specTitle}" v${finalVersion} has been created as a new version`;
-          } else if (wasUpdate) {
-            title = 'Specification Updated';
-            message = `"${this.specTitle}" has been updated successfully`;
-            if (versionWasIncremented) {
-              message += ` with version automatically incremented to ${finalVersion}`;
-            }
-          } else {
-            title = 'Specification Saved';
-            message = `"${this.specTitle}" has been saved successfully`;
-          }
-
-          this.notificationService.success(title, message);
-        } else {
-          this.notificationService.error(
-            'Save Failed',
-            response.error || 'Failed to save specification'
-          );
-        }
-      },
-      error: (error) => {
-        this.isSaving = false;
-        console.error('Save error:', error);
-        this.notificationService.error(
-          'Save Error',
-          'Failed to save specification. Please check your connection and try again.'
-        );
-      },
-    });
+    this.combinedPayloadText = JSON.stringify(combinedJson, null, 2);
   }
 
-  // Version management methods
-  hasSpecDataChanged(): boolean {
-    if (!this.originalSpecData) {
-      return false; // New spec, no comparison needed
+  private toCamelCase(str: string): string {
+    if (!str) return '';
+    return str.replace(/[^a-zA-Z0-9]+(.)?/g, (match, chr) => chr ? chr.toUpperCase() : '').replace(/^./, (match) => match.toLowerCase());
+  }
+
+  private generateDemoJson(schema: any): any {
+    if (!schema || !schema.properties) {
+      return {};
+    }
+    const demo: any = {};
+    const props = (schema.properties || {}) as { [key: string]: JsonSchemaProperty };
+    Object.keys(props).forEach((key) => {
+      demo[key] = this.generateMockForProperty(props[key], key);
+    });
+    return demo;
+  }
+
+  private generateDemoFromFields(fields: JsonField[]): any {
+    const demo: any = {};
+    for (const field of fields) {
+      if (!field.name) continue;
+
+      if (field.value !== null && field.value !== undefined && field.value !== '') {
+        demo[field.name] = field.value;
+      } else if (field.type === 'object') {
+        demo[field.name] = this.generateDemoFromFields(field.children);
+      } else if (field.type === 'array') {
+        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const items = [];
+        for (let i = 0; i < itemCount; i++) {
+          if (field.items.type === 'object') {
+            items.push(this.generateDemoFromFields(field.items.children));
+          } else {
+            // Create a temporary JsonSchemaProperty for mock generation
+            const tempSchemaProp: JsonSchemaProperty = { type: field.items.type };
+            items.push(this.generateMockForProperty(tempSchemaProp, field.name));
+          }
+        }
+        demo[field.name] = items;
+      } else {
+        // Create a temporary JsonSchemaProperty for mock generation from the JsonField
+        const tempSchemaProp: JsonSchemaProperty = {
+          type: field.type,
+          format: field.type === 'time' ? 'date-time' : undefined,
+          pattern: field.pattern,
+          minimum: field.minimum,
+          maximum: field.maximum,
+          enum: field.enum,
+          'x-digits': field.digits
+        };
+        demo[field.name] = this.generateMockForProperty(tempSchemaProp, field.name);
+      }
+    }
+    return demo;
+  }
+
+  private generateMockForProperty(prop: JsonSchemaProperty, key: string): any {
+    switch (prop.type) {
+      case 'string': {
+        if (prop.format === 'date-time') {
+          // Generate a valid ISO 8601 timestamp
+          const now = new Date();
+          const randomOffset = Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000); // Random offset up to 1 year
+          const randomDate = new Date(now.getTime() - randomOffset);
+          return randomDate.toISOString();
+        }
+        if (prop.enum && prop.enum.length > 0) {
+          return prop.enum[Math.floor(Math.random() * prop.enum.length)];
+        }
+        if (prop.pattern && /^\[A-Z0-9\]{6}$/.test(prop.pattern)) {
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+          let result = '';
+          for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          return result;
+        }
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        const length = Math.floor(Math.random() * 8) + 5; // Random length between 5 and 12
+        for (let i = 0; i < length; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+      }
+      case 'integer': {
+        if (prop['x-digits']) {
+          const min = Math.pow(10, prop['x-digits'] - 1);
+          const max = Math.pow(10, prop['x-digits']) - 1;
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        const min = prop.minimum ?? 0;
+        const max = prop.maximum ?? min + 100;
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+      case 'number': {
+        if (prop['x-digits']) {
+          const min = Math.pow(10, prop['x-digits'] - 1);
+          const max = Math.pow(10, prop['x-digits']) - 1;
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        const min = prop.minimum ?? 0;
+        const max = prop.maximum ?? min + 100;
+        const randomNum = Math.random() * (max - min) + min;
+        return Math.round(randomNum * 100) / 100;
+      }
+      case 'boolean':
+        return Math.random() < 0.5;
+      case 'object': {
+        const child: any = {};
+        const nestedProps = prop.properties || {};
+        Object.keys(nestedProps).forEach((k) => {
+          child[k] = this.generateMockForProperty(nestedProps[k], k);
+        });
+        return child;
+      }
+      case 'array': {
+        const itemSchema = prop.items || ({ type: 'string' } as JsonSchemaProperty);
+        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const items = [];
+        for (let i = 0; i < itemCount; i++) {
+          items.push(this.generateMockForProperty(itemSchema, key));
+        }
+        return items;
+      }
+      default:
+        return null;
+    }
+  }
+
+  saveSpecDetailsOnly() {
+    if (!this.currentSpecId) {
+      this.notificationService.warning('No Spec Loaded', 'Please load a specification before saving.');
+      return;
     }
 
-    return JSON.stringify(this.originalSpecData) !== JSON.stringify(this.protoFile);
+    this.isSavingDetails = true;
+
+    // Use the same logic as saveSpecificationDetails for consistency
+    this.saveSpecificationDetails()
+      .then(() => {
+        this.isSavingDetails = false;
+        const versionChanged = this.hasVersionChanged();
+        this.notificationService.success(
+          'Success',
+          versionChanged
+            ? `Created new version "${this.specTitle}" v${this.specVersion} with your changes!`
+            : 'Specification details saved successfully!'
+        );
+
+        // Update original data to reflect current state
+        this.updateOriginalData();
+
+        // Refresh the current spec to ensure we have the latest data
+        if (this.currentSpecId) {
+          this.refreshCurrentSpec();
+        }
+      })
+      .catch((error) => {
+        this.isSavingDetails = false;
+        this.notificationService.error('Error', 'Error saving specification details.');
+        console.error('Error saving spec details:', error);
+      });
   }
 
-  private incrementVersion(version: string): string {
-    // Parse version (supports formats like "1.0.0", "1.0", "1")
-    const parts = version.split('.').map((part) => parseInt(part) || 0);
+  // ===== SAVE ALL & VERSION INCREMENT METHODS =====
 
-    // Ensure we have at least 3 parts (major.minor.patch)
+  saveAll() {
+    if (!this.hasAnyChanges()) {
+      this.notificationService.info('No Changes', 'No changes detected to save.');
+      return;
+    }
+
+    // For new specs (no currentSpecId), save directly without version increment modal
+    if (!this.currentSpecId) {
+      this.performSaveAll();
+      return;
+    }
+
+    // For existing specs, check if version was manually changed
+    if (this.hasVersionChanged()) {
+      // Version was manually changed, proceed with save
+      this.performSaveAll();
+    } else {
+      // Version not changed, show increment modal
+      this.showVersionIncrementModal = true;
+      this.selectedVersionIncrement = 'patch'; // Default to patch
+    }
+  }
+
+  hasAnyChanges(): boolean {
+    return this.hasSpecificationDetailsChanges() ||
+      this.hasMessageEnvelopeChanges() ||
+      this.hasMessageTypesChanges();
+  }
+
+  hasSpecificationDetailsChanges(): boolean {
+    if (!this.originalSpecData) {
+      // For new specs, consider any non-empty title as a change
+      return this.specTitle.trim() !== '';
+    }
+
+    const hasChanges = this.specTitle !== this.originalSpecData.title ||
+      this.specVersion !== this.originalSpecData.version ||
+      this.specDescription !== this.originalSpecData.description ||
+      this.specTags !== (this.originalSpecData.tags || []).join(', ') ||
+      this.deviceName !== this.originalSpecData.device_name ||
+      JSON.stringify(this.protocols) !== JSON.stringify(this.originalSpecData.protocols || []) ||
+      this.documentStatus !== this.originalSpecData.document_status ||
+      this.forField !== this.originalSpecData.for_field;
+
+    return hasChanges;
+  }
+
+  hasMessageEnvelopeChanges(): boolean {
+    // Use the flag to track changes from the message envelope component
+    return this.messageEnvelopeHasChanges;
+  }
+
+  hasMessageTypesChanges(): boolean {
+    // Compare current message types with original
+    return JSON.stringify(this.messageTypes) !== JSON.stringify(this.originalMessageTypes);
+  }
+
+  onMessageEnvelopeChanged(): void {
+    // This method is called when the message envelope component emits dataChanged
+    // It triggers change detection for the message envelope tab
+    console.log('Message envelope data changed');
+    this.messageEnvelopeHasChanges = true;
+  }
+
+  onMessageTypesChanged(): void {
+    // This method is called when the message types component emits dataChanged
+    // It triggers change detection for the message types tab
+    console.log('Message types data changed');
+  }
+
+  hasVersionChanged(): boolean {
+    if (!this.originalSpecData) return false;
+    const changed = this.specVersion !== this.originalSpecData.version;
+    console.log('hasVersionChanged:', changed, 'current:', this.specVersion, 'original:', this.originalSpecData.version);
+    return changed;
+  }
+
+  getChangedTabsCount(): number {
+    let count = 0;
+    if (this.hasSpecificationDetailsChanges()) count++;
+    if (this.hasMessageEnvelopeChanges()) count++;
+    if (this.hasMessageTypesChanges()) count++;
+    return count;
+  }
+
+  // Version increment modal methods
+  selectVersionIncrement(type: 'patch' | 'minor' | 'major' | 'custom') {
+    this.selectedVersionIncrement = type;
+    if (type !== 'custom') {
+      this.customVersion = '';
+    }
+  }
+
+  getIncrementedVersion(type: 'patch' | 'minor' | 'major'): string {
+    const currentVersion = this.specVersion || '1.0.0';
+    const parts = currentVersion.split('.').map(Number);
+
+    // Ensure we have at least 3 parts
     while (parts.length < 3) {
       parts.push(0);
     }
 
-    // Increment patch version (last part)
-    parts[parts.length - 1]++;
+    switch (type) {
+      case 'patch':
+        parts[2]++;
+        break;
+      case 'minor':
+        parts[1]++;
+        parts[2] = 0;
+        break;
+      case 'major':
+        parts[0]++;
+        parts[1] = 0;
+        parts[2] = 0;
+        break;
+    }
 
     return parts.join('.');
   }
 
-  shouldAutoIncrementVersion(): boolean {
-    // Only auto-increment if:
-    // 1. This is an existing spec (not new)
-    // 2. The spec data has changed
-    // 3. The user hasn't manually changed the version
-    return this.currentSpecId !== null && this.hasSpecDataChanged() && this.hasVersionNotChanged();
+  closeVersionIncrementModal() {
+    this.showVersionIncrementModal = false;
+    this.selectedVersionIncrement = null;
+    this.customVersion = '';
   }
 
-  private hasVersionNotChanged(): boolean {
-    // Check if user kept the same version as original
-    const currentVersion = this.specVersion || '1.0.0';
-    const originalVersion = this.originalVersion || '1.0.0';
-    return currentVersion === originalVersion;
-  }
+  proceedWithVersionIncrement() {
+    if (!this.selectedVersionIncrement) return;
 
-  getNextVersion(): string {
-    if (this.shouldAutoIncrementVersion()) {
-      return this.incrementVersion(this.specVersion || '1.0.0');
-    }
-    return this.specVersion || '1.0.0';
-  }
-
-  // Publish and Commit methods
-  handlePublishOrCommit() {
-    if (this.isPublished) {
-      this.openPushToBranchModal();
+    let newVersion: string;
+    if (this.selectedVersionIncrement === 'custom') {
+      newVersion = this.customVersion;
     } else {
-      this.openPublishModal();
+      newVersion = this.getIncrementedVersion(this.selectedVersionIncrement);
+    }
+
+    // Update the version
+    this.specVersion = newVersion;
+
+    // Close modal
+    this.closeVersionIncrementModal();
+
+    // Perform the save
+    this.performSaveAll();
+  }
+
+  performSaveAll() {
+    this.isSaving = true;
+
+    // For new specs (no currentSpecId), use the regular saveSpec method first
+    if (!this.currentSpecId) {
+      this.saveSpecForNewSpec()
+        .then(() => {
+          // After saving the spec and getting an ID, save other components
+          return this.saveRemainingComponents();
+        })
+        .then(() => {
+          this.completeSaveAll(true); // true indicates it was a new spec
+        })
+        .catch((error) => {
+          this.isSaving = false;
+          this.notificationService.error('Error', 'Failed to save specification. Please try again.');
+          console.error('Save all error:', error);
+        });
+    } else {
+      // For existing specs, save components individually
+      this.saveSpecificationDetails()
+        .then(() => {
+          return this.saveRemainingComponents();
+        })
+        .then(() => {
+          this.completeSaveAll(false); // false indicates it was an update
+        })
+        .catch((error) => {
+          this.isSaving = false;
+          this.notificationService.error('Error', 'Failed to save some changes. Please try again.');
+          console.error('Save all error:', error);
+        });
     }
   }
 
-  openPublishModal() {
-    this.showPublishModal = true;
-  }
+  private saveSpecForNewSpec(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.specTitle.trim()) {
+        reject('Title Required');
+        return;
+      }
 
-  closePublishModal() {
-    this.showPublishModal = false;
-  }
+      let finalVersion = this.specVersion || '1.0.0';
 
-  handlePublish(event: any) {
-    if (!this.currentSpecId) return;
+      const teamIdToSend = this.selectedTeamId !== 'personal' ? this.selectedTeamId : undefined;
 
-    this.apiService.publishToGithub(this.currentSpecId, event).subscribe({
-      next: (response) => {
-        if (response.success) {
-          this.notificationService.success(
-            'Published to GitHub!',
-            `Successfully created repository: ${response.data.url}`
-          );
-          this.closePublishModal();
-          // Reload the spec to get the updated published status and repo URL
-          this.loadSpec(this.currentSpecId!);
-        } else {
-          this.notificationService.error(
-            'Publish Failed',
-            response.error || 'Could not publish to GitHub.'
-          );
-        }
-      },
-      error: (error) => {
-        this.notificationService.error(
-          'Publish Error',
-          error.error.error || 'An unknown error occurred.'
-        );
-      },
+      const specData: any = {
+        title: this.specTitle.trim(),
+        version: finalVersion,
+        description: this.specDescription || '',
+        spec_type: this.toggleValue,
+        spec_data: this.toggleValue === 'protobuf' ? this.protoFile : this.jsonSchema,
+        tags: this.specTags
+          ? this.specTags
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter((tag) => tag)
+          : [],
+        device_name: this.deviceName || '',
+        protocols: this.protocols || [],
+        document_status: this.documentStatus || 'Draft',
+        for_field: this.forField || '',
+        team_id: teamIdToSend,
+        github_repo_url: this.githubRepoUrl,
+        github_repo_name: this.githubRepoName,
+      };
+
+      this.apiService.createSpec(specData).subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.currentSpecId = response.data.id!;
+            this.currentSpec = response.data;
+            this.originalVersion = finalVersion;
+
+            // Update the URL to include the spec ID
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: { id: this.currentSpecId },
+              queryParamsHandling: 'merge'
+            });
+
+            resolve();
+          } else {
+            reject(response.error || 'Failed to save specification');
+          }
+        },
+        error: (error) => {
+          reject(error);
+        },
+      });
     });
   }
 
-  openPushToBranchModal() {
-    this.showPushToBranchModal = true;
+  private saveRemainingComponents(): Promise<void> {
+    const promises: Promise<void>[] = [];
+
+    // Save message envelopes if changed
+    if (this.hasMessageEnvelopeChanges()) {
+      promises.push(this.saveMessageEnvelopes());
+    }
+
+    // Save message types if changed
+    if (this.hasMessageTypesChanges()) {
+      promises.push(this.saveMessageTypes());
+    }
+
+    return Promise.all(promises).then(() => { });
   }
 
-  closePushToBranchModal() {
-    this.showPushToBranchModal = false;
+  private completeSaveAll(wasNewSpec: boolean) {
+    this.isSaving = false;
+    const versionChanged = this.hasVersionChanged();
+
+    let title = 'All Changes Saved';
+    let message = '';
+
+    if (wasNewSpec) {
+      title = 'Specification Created';
+      message = `Created "${this.specTitle}" v${this.specVersion}. Dashboard will show the new specification.`;
+    } else if (versionChanged) {
+      title = 'New Version Created';
+      message = `Created new version "${this.specTitle}" v${this.specVersion}. Dashboard will show the new version.`;
+    } else {
+      message = `Updated "${this.specTitle}" v${this.specVersion}. Dashboard will show updated data when you return.`;
+    }
+
+    this.notificationService.success(title, message);
+
+    // Update original data to reflect current state
+    this.updateOriginalData();
+
+    // Refresh the current spec to ensure we have the latest data
+    if (this.currentSpecId) {
+      this.refreshCurrentSpec();
+    }
   }
 
-  handlePushToBranch(event: any) {
+  private saveSpecificationDetails(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.currentSpecId) {
+        reject('No spec ID');
+        return;
+      }
+
+      const specDetails: Partial<ProtobufSpec> = {
+        title: this.specTitle,
+        version: this.specVersion,
+        description: this.specDescription,
+        tags: this.specTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+        device_name: this.deviceName,
+        protocols: this.protocols,
+        document_status: this.documentStatus,
+        for_field: this.forField,
+      };
+
+      console.log('Current form values:', {
+        deviceName: this.deviceName,
+        protocols: this.protocols,
+        documentStatus: this.documentStatus,
+        forField: this.forField,
+        specTitle: this.specTitle,
+        specVersion: this.specVersion
+      });
+
+      // Check if version has changed - if so, create new version, otherwise update existing
+      const versionChanged = this.hasVersionChanged();
+      console.log('Version changed:', versionChanged, 'Current:', this.specVersion, 'Original:', this.originalSpecData?.version);
+
+      if (versionChanged) {
+        // Version changed - create new spec version
+        // Copy ALL data from current spec to preserve everything
+        const freshData = this.specDetailsComponent;
+        const newSpecData: Omit<ProtobufSpec, 'id'> = {
+          title: freshData.specTitle,
+          version: this.specVersion, // Version is handled by the parent component's modal flow
+          description: freshData.specDescription,
+          tags: freshData.specTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+          device_name: freshData.deviceName,
+          protocols: freshData.protocols,
+          document_status: freshData.documentStatus,
+          for_field: freshData.forField,
+          spec_data: this.currentSpec?.spec_data || this.getDefaultProtoFileData(),
+          spec_type: this.currentSpec?.spec_type || 'protobuf',
+          team_id: this.currentSpec?.team_id || null,
+          github_repo_url: this.currentSpec?.github_repo_url || undefined,
+          github_repo_name: this.currentSpec?.github_repo_name || undefined,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+
+        console.log('New spec data being created:', {
+          device_name: newSpecData.device_name,
+          protocols: newSpecData.protocols,
+          document_status: newSpecData.document_status,
+          for_field: newSpecData.for_field,
+          title: newSpecData.title,
+          version: newSpecData.version
+        });
+
+        this.apiService.createSpec(newSpecData).subscribe({
+          next: (response) => {
+            if (response.success && response.data) {
+              const newSpecId = response.data.id!;
+              const oldSpecId = this.currentSpecId;
+
+              // Update current spec reference to the new version
+              this.currentSpecId = newSpecId;
+              this.currentSpec = response.data;
+              console.log('Created new spec version:', response.data.version);
+              console.log('New spec data received:', {
+                device_name: response.data.device_name,
+                protocols: response.data.protocols,
+                document_status: response.data.document_status,
+                for_field: response.data.for_field,
+                title: response.data.title,
+                version: response.data.version
+              });
+
+              // Copy message types from old version to new version
+              console.log('About to copy message types. Current message types:', this.messageTypes?.length || 0);
+              console.log('Current message types data:', this.messageTypes);
+              console.log('Old spec ID:', oldSpecId, 'New spec ID:', newSpecId);
+              if (oldSpecId) {
+                // Ensure message types are loaded before copying
+                if (!this.messageTypes || this.messageTypes.length === 0) {
+                  console.log('Message types not loaded, loading them first...');
+                  this.apiService.getMessageTypes(oldSpecId).subscribe({
+                    next: (response) => {
+                      if (response.success && response.data) {
+                        console.log('Loaded message types for copying:', response.data.length);
+                        this.messageTypes = response.data;
+                        this.copyMessageTypesToNewVersion(oldSpecId, newSpecId);
+                      } else {
+                        console.log('No message types found to copy');
+                      }
+                    },
+                    error: (error) => {
+                      console.error('Error loading message types for copying:', error);
+                    }
+                  });
+                } else {
+                  this.copyMessageTypesToNewVersion(oldSpecId, newSpecId);
+                }
+              } else {
+                console.log('No old spec ID available, skipping message type copying');
+              }
+
+              // Update the URL to reflect the new spec ID
+              this.router.navigate([], {
+                relativeTo: this.route,
+                queryParams: { id: this.currentSpecId },
+                queryParamsHandling: 'merge',
+                replaceUrl: true
+              });
+
+              // Reload the spec to ensure all form fields are properly populated
+              // Wait longer to ensure message types are fully copied
+              setTimeout(() => {
+                console.log('Reloading spec after message type copying...');
+                this.loadSpec(newSpecId);
+              }, 2000); // Give more time for message types to be copied
+            }
+            resolve();
+          },
+          error: (error) => {
+            console.error('Error creating new spec version:', error);
+            reject(error);
+          }
+        });
+      } else {
+        // Version unchanged - update existing spec
+        this.apiService.updateSpecDetails(this.currentSpecId, specDetails).subscribe({
+          next: (updatedSpec) => {
+            if (updatedSpec.data) {
+              this.currentSpec = updatedSpec.data;
+              console.log('Updated existing spec:', updatedSpec.data.version);
+            }
+            resolve();
+          },
+          error: (error) => {
+            console.error('Error updating spec details:', error);
+            reject(error);
+          }
+        });
+      }
+    });
+  }
+
+  private saveMessageEnvelopes(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.currentSpecId) {
+        reject('No spec ID for message envelopes');
+        return;
+      }
+
+      // For now, we'll just reset the change flag since message envelopes
+      // are typically saved individually when edited
+      this.messageEnvelopeHasChanges = false;
+      resolve();
+    });
+  }
+
+  private saveMessageTypes(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.currentSpecId) {
+        reject('No spec ID for message types');
+        return;
+      }
+
+      // Message types are typically saved individually when edited
+      // For now, just update the original data to match current state
+      this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
+      resolve();
+    });
+  }
+
+  markAsChanged() {
+    // This method is called when form inputs change
+    // The change detection is handled by the hasSpecificationDetailsChanges() method
+    // which compares current values with original data
+  }
+
+  private updateOriginalData() {
+    // Update original data to current state
+    this.originalSpecData = {
+      title: this.specTitle,
+      version: this.specVersion,
+      description: this.specDescription,
+      tags: this.specTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+      device_name: this.deviceName,
+      protocols: [...this.protocols],
+      document_status: this.documentStatus,
+      for_field: this.forField,
+    };
+
+    this.originalMessageEnvelopes = JSON.parse(JSON.stringify(this.messageEnvelopes));
+    this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
+  }
+
+  private initializeForNewSpec() {
+    // Set default values for new spec
+    this.specTitle = '';
+    this.specVersion = '1.0.0';
+    this.specDescription = '';
+    this.specTags = '';
+    this.deviceName = '';
+    this.protocols = [];
+    this.documentStatus = 'Draft';
+    this.forField = '';
+
+    // Initialize empty arrays for new spec
+    this.messageEnvelopes = [];
+    this.messageTypes = [];
+
+    // Initialize original data to enable change detection
+    this.initializeOriginalData();
+
+    this.notificationService.info(
+      'New Specification',
+      'Creating a new specification. Fill in the details and save when ready.'
+    );
+  }
+
+  private initializeOriginalData() {
+    this.originalSpecData = {
+      title: this.specTitle,
+      version: this.specVersion,
+      description: this.specDescription,
+      tags: this.specTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+      device_name: this.deviceName,
+      protocols: [...this.protocols],
+      document_status: this.documentStatus,
+      for_field: this.forField,
+    };
+
+    // Initialize message envelopes and types (will be updated when they're loaded)
+    this.originalMessageEnvelopes = JSON.parse(JSON.stringify(this.messageEnvelopes));
+    this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
+
+    // Reset change flags
+    this.messageEnvelopeHasChanges = false;
+  }
+
+  private refreshCurrentSpec(): void {
     if (!this.currentSpecId) return;
 
-    this.apiService.pushToBranch(this.currentSpecId, event.commitMessage).subscribe({
+    // Silently refresh the current spec data to ensure we have the latest version
+    this.apiService.getSpec(this.currentSpecId).subscribe({
       next: (response) => {
-        if (response.success) {
-          this.notificationService.success(
-            'Pushed to GitHub!',
-            `Successfully pushed updates to ${this.currentSpec?.github_repo_name}.`
-          );
-          this.closePushToBranchModal();
-        } else {
-          this.notificationService.error(
-            'Push Failed',
-            response.error || 'Could not push to GitHub.'
-          );
+        if (response.success && response.data) {
+          this.currentSpec = response.data;
+          // Update the original version to match what's now in the database
+          this.originalVersion = response.data.version;
         }
       },
       error: (error) => {
-        this.notificationService.error(
-          'Push Error',
-          error.error.error || 'An unknown error occurred.'
-        );
-      },
+        console.error('Error refreshing spec data:', error);
+      }
     });
+  }
+
+  private getDefaultProtoFileData(): ProtoFileData {
+    return {
+      syntax: 'proto3',
+      package: '',
+      imports: [],
+      messages: [],
+      enums: [],
+      services: []
+    };
+  }
+
+  private updateOriginalMessageEnvelopes(): void {
+    this.originalMessageEnvelopes = JSON.parse(JSON.stringify(this.messageEnvelopes));
+  }
+
+  private updateOriginalMessageTypes(): void {
+    this.originalMessageTypes = JSON.parse(JSON.stringify(this.messageTypes));
+  }
+
+  private copyMessageTypesToNewVersion(oldSpecId: string, newSpecId: string): void {
+    // Copy all message types from the old version to the new version
+    if (this.messageTypes && this.messageTypes.length > 0) {
+      console.log(`Copying ${this.messageTypes.length} message types to new version`);
+
+      // Copy each message type one by one
+      let copiedCount = 0;
+      const totalCount = this.messageTypes.length;
+
+      this.messageTypes.forEach((messageType, index) => {
+        const newMessageType = {
+          name: messageType.name,
+          json_schema: messageType.json_schema
+        };
+
+        console.log(`Copying message type ${index + 1}/${totalCount}:`, messageType.name);
+
+        this.apiService.createMessageType(newSpecId, newMessageType).subscribe({
+          next: (response) => {
+            if (response.success) {
+              copiedCount++;
+              console.log(`Successfully copied message type: ${messageType.name} (${copiedCount}/${totalCount})`);
+
+              // If this is the last one, just log completion
+              if (copiedCount === totalCount) {
+                console.log('All message types copied successfully!');
+                // Don't reload here - let the main spec reload handle it
+              }
+            } else {
+              console.error(`Failed to copy message type ${messageType.name}:`, response);
+            }
+          },
+          error: (error) => {
+            console.error(`Error copying message type ${messageType.name}:`, error);
+            this.notificationService.error('Error', `Failed to copy message type: ${messageType.name}`);
+          }
+        });
+      });
+    } else {
+      console.log('No message types to copy to new version');
+    }
   }
 }

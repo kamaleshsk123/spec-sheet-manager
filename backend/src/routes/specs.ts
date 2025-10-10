@@ -14,6 +14,7 @@ router.post('/:id/download', SpecController.incrementDownloadCount);
 // Protected routes
 router.post('/', authenticateToken, validate(createSpecSchema), SpecController.createSpec);
 router.put('/:id', authenticateToken, validate(updateSpecSchema), SpecController.updateSpec);
+router.put('/:id/details', authenticateToken, SpecController.updateSpecDetails);
 router.delete('/:id', authenticateToken, SpecController.deleteSpec);
 router.delete('/by-title/:title', authenticateToken, SpecController.deleteSpecAndAllVersions);
 router.get('/dashboard/stats', authenticateToken, SpecController.getDashboardStats);

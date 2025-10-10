@@ -55,7 +55,7 @@ export class CompareCommand {
     try {
       const [response1, response2] = await Promise.all([
         this.api.getSpec(spec1Id),
-        this.api.getSpec(spec2Id)
+        this.api.getSpec(spec2Id),
       ]);
 
       if (!response1.success || !response1.data) {
@@ -71,11 +71,15 @@ export class CompareCommand {
       const spec1 = response1.data;
       const spec2 = response2.data;
 
-      spinner.succeed(chalk.green(`Comparing: ${spec1.title} v${spec1.version} vs ${spec2.title} v${spec2.version}`));
+      spinner.succeed(
+        chalk.green(
+          `Comparing: ${spec1.title} v${spec1.version} vs ${spec2.title} v${spec2.version}`
+        )
+      );
 
       const content1 = this.generateProtoContent(spec1);
       const content2 = this.generateProtoContent(spec2);
-      
+
       const diff = this.calculateDiff(content1, content2);
 
       switch (options.format) {
@@ -88,24 +92,26 @@ export class CompareCommand {
         default:
           this.printColoredDiff(diff, spec1, spec2, !options.noColor);
       }
-
     } catch (error: any) {
       spinner.fail(chalk.red('Error: ' + error.message));
     }
   }
 
-  private calculateDiff(leftContent: string, rightContent: string): { leftLines: DiffLine[], rightLines: DiffLine[], stats: any } {
+  private calculateDiff(
+    leftContent: string,
+    rightContent: string
+  ): { leftLines: DiffLine[]; rightLines: DiffLine[]; stats: any } {
     const leftLines = leftContent.split('\n');
     const rightLines = rightContent.split('\n');
-    
+
     const result = {
       leftLines: [] as DiffLine[],
       rightLines: [] as DiffLine[],
-      stats: { added: 0, removed: 0, modified: 0, unchanged: 0 }
+      stats: { added: 0, removed: 0, modified: 0, unchanged: 0 },
     };
 
     const lcs = this.longestCommonSubsequence(leftLines, rightLines);
-    
+
     let leftIndex = 0;
     let rightIndex = 0;
     let leftLineNum = 1;
@@ -114,15 +120,15 @@ export class CompareCommand {
     for (const commonLine of lcs) {
       // Add removed lines
       while (leftIndex < leftLines.length && leftLines[leftIndex] !== commonLine) {
-        result.leftLines.push({ 
-          content: leftLines[leftIndex], 
-          type: 'removed', 
-          lineNumber: leftLineNum 
+        result.leftLines.push({
+          content: leftLines[leftIndex],
+          type: 'removed',
+          lineNumber: leftLineNum,
         });
-        result.rightLines.push({ 
-          content: '', 
-          type: 'empty', 
-          lineNumber: rightLineNum 
+        result.rightLines.push({
+          content: '',
+          type: 'empty',
+          lineNumber: rightLineNum,
         });
         result.stats.removed++;
         leftIndex++;
@@ -131,15 +137,15 @@ export class CompareCommand {
 
       // Add added lines
       while (rightIndex < rightLines.length && rightLines[rightIndex] !== commonLine) {
-        result.leftLines.push({ 
-          content: '', 
-          type: 'empty', 
-          lineNumber: leftLineNum 
+        result.leftLines.push({
+          content: '',
+          type: 'empty',
+          lineNumber: leftLineNum,
         });
-        result.rightLines.push({ 
-          content: rightLines[rightIndex], 
-          type: 'added', 
-          lineNumber: rightLineNum 
+        result.rightLines.push({
+          content: rightLines[rightIndex],
+          type: 'added',
+          lineNumber: rightLineNum,
         });
         result.stats.added++;
         rightIndex++;
@@ -148,15 +154,15 @@ export class CompareCommand {
 
       // Add common line
       if (leftIndex < leftLines.length && rightIndex < rightLines.length) {
-        result.leftLines.push({ 
-          content: leftLines[leftIndex], 
-          type: 'unchanged', 
-          lineNumber: leftLineNum 
+        result.leftLines.push({
+          content: leftLines[leftIndex],
+          type: 'unchanged',
+          lineNumber: leftLineNum,
         });
-        result.rightLines.push({ 
-          content: rightLines[rightIndex], 
-          type: 'unchanged', 
-          lineNumber: rightLineNum 
+        result.rightLines.push({
+          content: rightLines[rightIndex],
+          type: 'unchanged',
+          lineNumber: rightLineNum,
         });
         result.stats.unchanged++;
         leftIndex++;
@@ -168,15 +174,15 @@ export class CompareCommand {
 
     // Add remaining lines
     while (leftIndex < leftLines.length) {
-      result.leftLines.push({ 
-        content: leftLines[leftIndex], 
-        type: 'removed', 
-        lineNumber: leftLineNum 
+      result.leftLines.push({
+        content: leftLines[leftIndex],
+        type: 'removed',
+        lineNumber: leftLineNum,
       });
-      result.rightLines.push({ 
-        content: '', 
-        type: 'empty', 
-        lineNumber: rightLineNum 
+      result.rightLines.push({
+        content: '',
+        type: 'empty',
+        lineNumber: rightLineNum,
       });
       result.stats.removed++;
       leftIndex++;
@@ -184,15 +190,15 @@ export class CompareCommand {
     }
 
     while (rightIndex < rightLines.length) {
-      result.leftLines.push({ 
-        content: '', 
-        type: 'empty', 
-        lineNumber: leftLineNum 
+      result.leftLines.push({
+        content: '',
+        type: 'empty',
+        lineNumber: leftLineNum,
       });
-      result.rightLines.push({ 
-        content: rightLines[rightIndex], 
-        type: 'added', 
-        lineNumber: rightLineNum 
+      result.rightLines.push({
+        content: rightLines[rightIndex],
+        type: 'added',
+        lineNumber: rightLineNum,
       });
       result.stats.added++;
       rightIndex++;
@@ -205,7 +211,9 @@ export class CompareCommand {
   private longestCommonSubsequence(left: string[], right: string[]): string[] {
     const m = left.length;
     const n = right.length;
-    const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+    const dp: number[][] = Array(m + 1)
+      .fill(null)
+      .map(() => Array(n + 1).fill(0));
 
     for (let i = 1; i <= m; i++) {
       for (let j = 1; j <= n; j++) {
@@ -218,7 +226,8 @@ export class CompareCommand {
     }
 
     const lcs: string[] = [];
-    let i = m, j = n;
+    let i = m,
+      j = n;
     while (i > 0 && j > 0) {
       if (left[i - 1] === right[j - 1]) {
         lcs.unshift(left[i - 1]);
@@ -234,13 +243,18 @@ export class CompareCommand {
     return lcs;
   }
 
-  private printColoredDiff(diff: any, spec1: ProtobufSpec, spec2: ProtobufSpec, useColor: boolean): void {
+  private printColoredDiff(
+    diff: any,
+    spec1: ProtobufSpec,
+    spec2: ProtobufSpec,
+    useColor: boolean
+  ): void {
     console.log(chalk.bold(`\n--- ${spec1.title} v${spec1.version}`));
     console.log(chalk.bold(`+++ ${spec2.title} v${spec2.version}`));
     console.log(chalk.gray(`@@ Changes: +${diff.stats.added} -${diff.stats.removed} @@\n`));
 
     const maxLines = Math.max(diff.leftLines.length, diff.rightLines.length);
-    
+
     for (let i = 0; i < maxLines; i++) {
       const leftLine = diff.leftLines[i];
       const rightLine = diff.rightLines[i];
@@ -288,17 +302,23 @@ export class CompareCommand {
 `;
 
     const maxLines = Math.max(diff.leftLines.length, diff.rightLines.length);
-    
+
     for (let i = 0; i < maxLines; i++) {
       const leftLine = diff.leftLines[i];
       const rightLine = diff.rightLines[i];
 
       if (leftLine?.type === 'removed') {
-        html += `<div class="diff-line removed"><span class="line-number">${leftLine.lineNumber}</span>- ${this.escapeHtml(leftLine.content)}</div>\n`;
+        html += `<div class="diff-line removed"><span class="line-number">${
+          leftLine.lineNumber
+        }</span>- ${this.escapeHtml(leftLine.content)}</div>\n`;
       } else if (rightLine?.type === 'added') {
-        html += `<div class="diff-line added"><span class="line-number">${rightLine.lineNumber}</span>+ ${this.escapeHtml(rightLine.content)}</div>\n`;
+        html += `<div class="diff-line added"><span class="line-number">${
+          rightLine.lineNumber
+        }</span>+ ${this.escapeHtml(rightLine.content)}</div>\n`;
       } else if (leftLine?.type === 'unchanged') {
-        html += `<div class="diff-line unchanged"><span class="line-number">${leftLine.lineNumber}</span>  ${this.escapeHtml(leftLine.content)}</div>\n`;
+        html += `<div class="diff-line unchanged"><span class="line-number">${
+          leftLine.lineNumber
+        }</span>  ${this.escapeHtml(leftLine.content)}</div>\n`;
       }
     }
 
@@ -325,17 +345,21 @@ export class CompareCommand {
 
     const data = spec.spec_data;
     let protoContent = `syntax = "${data.syntax || 'proto3'}";\n\n`;
-    
+
     if (data.package) {
       protoContent += `package ${data.package};\n\n`;
     }
-    
+
     // Add other proto content generation logic...
-    
+
     return protoContent;
   }
 
-  private async detectBreakingChanges(spec1Id: string, spec2Id: string, options: any): Promise<void> {
+  private async detectBreakingChanges(
+    spec1Id: string,
+    spec2Id: string,
+    options: any
+  ): Promise<void> {
     console.log(chalk.yellow('Breaking change detection coming soon...'));
     // Implementation for detecting breaking changes
     // - Field removals

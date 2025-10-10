@@ -1,0 +1,135 @@
+<!-- PDF Template Preview Page -->
+<div class="preview-container">
+  
+  <!-- Header -->
+  <header class="preview-header">
+    <h1>PDF Template Preview & Editor</h1>
+    <p>Test and customize your PDF template in real-time</p>
+  </header>
+
+  <!-- Controls -->
+  <div class="controls-section">
+    <div class="control-buttons">
+      <button (click)="generatePdf()" class="btn btn-primary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        Generate PDF
+      </button>
+      
+      <button (click)="printPreview()" class="btn btn-secondary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+        </svg>
+        Print Preview
+      </button>
+      
+      <button (click)="resetToSample()" class="btn btn-outline">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Reset to Sample
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    
+    <!-- Editor Panel -->
+    <div class="editor-panel">
+      <h2>Edit Data</h2>
+      
+      <!-- Basic Information -->
+      <div class="form-section">
+        <h3>Basic Information</h3>
+        
+        <div class="form-group">
+          <label>Specification Title:</label>
+          <input type="text" [(ngModel)]="editableData.specTitle" class="form-input">
+        </div>
+        
+        <div class="form-group">
+          <label>Version:</label>
+          <input type="text" [(ngModel)]="editableData.specVersion" class="form-input">
+        </div>
+        
+        <div class="form-group">
+          <label>Description:</label>
+          <textarea [(ngModel)]="editableData.specDescription" class="form-textarea" rows="3"></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label>Device Name:</label>
+          <input type="text" [(ngModel)]="editableData.deviceName" class="form-input">
+        </div>
+        
+        <div class="form-group">
+          <label>Document Status:</label>
+          <select [(ngModel)]="editableData.documentStatus" class="form-select">
+            <option value="Draft">Draft</option>
+            <option value="Review">Review</option>
+            <option value="Approved">Approved</option>
+            <option value="Published">Published</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Applicable To:</label>
+          <input type="text" [(ngModel)]="editableData.applicableTo" class="form-input">
+        </div>
+      </div>
+
+      <!-- Protocols -->
+      <div class="form-section">
+        <h3>Protocols</h3>
+        <div class="protocol-list">
+          <div *ngFor="let protocol of editableData.protocols; let i = index" class="protocol-item">
+            <input type="text" [(ngModel)]="editableData.protocols[i]" class="form-input-small">
+            <button (click)="removeProtocol(i)" class="btn-remove">×</button>
+          </div>
+          <button (click)="addProtocol()" class="btn btn-small">+ Add Protocol</button>
+        </div>
+      </div>
+
+      <!-- Message Envelope -->
+      <div class="form-section">
+        <h3>Message Envelope</h3>
+        
+        <div class="form-group">
+          <label>Envelope Title:</label>
+          <input type="text" [(ngModel)]="editableData.selectedEnvelope!.title" class="form-input">
+        </div>
+        
+        <div class="form-group">
+          <label>Demo JSON:</label>
+          <textarea [(ngModel)]="editableData.demoJsonText" class="form-textarea" rows="8"></textarea>
+        </div>
+      </div>
+
+      <!-- Message Types -->
+      <div class="form-section">
+        <h3>Message Types</h3>
+        <div class="message-types-list">
+          <div *ngFor="let messageType of editableData.messageTypes; let i = index" class="message-type-item">
+            <div class="message-type-header">
+              <input type="text" [(ngModel)]="messageType.name" class="form-input-small" placeholder="Message Type Name">
+              <button (click)="removeMessageType(i)" class="btn-remove">×</button>
+            </div>
+          </div>
+          <button (click)="addMessageType()" class="btn btn-small">+ Add Message Type</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Panel -->
+    <div class="preview-panel">
+      <h2>Live Preview</h2>
+      <div class="pdf-preview-container">
+        <!-- This is where the PDF template component will render -->
+        <app-pdf-template [data]="editableData"></app-pdf-template>
+      </div>
+    </div>
+    
+  </div>
+</div>

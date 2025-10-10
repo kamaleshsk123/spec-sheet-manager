@@ -66,6 +66,7 @@ export interface ProtobufSpec {
     version: string;
     description?: string;
     spec_data: ProtoFileData;
+    spec_type: 'protobuf' | 'json';
     created_at: Date;
     updated_at: Date;
     created_by: string;
@@ -75,27 +76,41 @@ export interface ProtobufSpec {
     github_repo_url?: string | null;
     github_repo_name?: string | null;
     team_id?: string | null;
+    device_name?: string | null;
+    protocols?: string[];
+    document_status?: string | null;
+    for_field?: string | null;
 }
 export interface CreateSpecRequest {
     title: string;
     version?: string;
     description?: string;
     spec_data: ProtoFileData;
+    spec_type?: 'protobuf' | 'json';
     tags?: string[];
     github_repo_url?: string | null;
     github_repo_name?: string | null;
     team_id?: string | null;
+    device_name?: string | null;
+    protocols?: string[];
+    document_status?: string | null;
+    for_field?: string | null;
 }
 export interface UpdateSpecRequest {
     title?: string;
     version?: string;
     description?: string;
     spec_data?: ProtoFileData;
+    spec_type?: 'protobuf' | 'json';
     tags?: string[];
     is_published?: boolean;
     github_repo_url?: string | null;
     github_repo_name?: string | null;
     team_id?: string | null;
+    device_name?: string | null;
+    protocols?: string[];
+    document_status?: string | null;
+    for_field?: string | null;
 }
 export interface SpecVersion {
     id: string;

@@ -13,6 +13,7 @@ router.post('/:id/download', specController_1.SpecController.incrementDownloadCo
 // Protected routes
 router.post('/', auth_1.authenticateToken, (0, validation_1.validate)(validation_1.createSpecSchema), specController_1.SpecController.createSpec);
 router.put('/:id', auth_1.authenticateToken, (0, validation_1.validate)(validation_1.updateSpecSchema), specController_1.SpecController.updateSpec);
+router.put('/:id/details', auth_1.authenticateToken, specController_1.SpecController.updateSpecDetails);
 router.delete('/:id', auth_1.authenticateToken, specController_1.SpecController.deleteSpec);
 router.delete('/by-title/:title', auth_1.authenticateToken, specController_1.SpecController.deleteSpecAndAllVersions);
 router.get('/dashboard/stats', auth_1.authenticateToken, specController_1.SpecController.getDashboardStats);

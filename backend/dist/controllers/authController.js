@@ -144,7 +144,7 @@ class AuthController {
     }
     static async githubAuth(req, res) {
         const githubClientId = process.env.GITHUB_CLIENT_ID;
-        const redirectUri = `http://localhost:3000/api/auth/github/callback`;
+        const redirectUri = `${process.env.BACKEND_URL}/api/auth/github/callback`;
         const scope = 'read:user user:email repo';
         const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${redirectUri}&scope=${scope}`;
         res.redirect(githubAuthUrl);
@@ -196,6 +196,23 @@ class AuthController {
         catch (error) {
             console.error('GitHub auth error:', error);
             res.status(500).json({ success: false, error: 'Internal server error' });
+        }
+    }
+    static async githubDisconnect(req, res) {
+        try {
+            const userId = req.user.id;
+            await database_1.default.query('UPDATE users SET github_id = NULL, github_username = NULL, github_access_token = NULL WHERE id = $1', [userId]);
+            res.json({
+                success: true,
+                message: 'GitHub account disconnected successfully'
+            });
+        }
+        catch (error) {
+            console.error('GitHub disconnect error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error'
+            });
         }
     }
 }

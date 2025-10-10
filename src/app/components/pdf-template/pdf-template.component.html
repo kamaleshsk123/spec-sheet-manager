@@ -1,0 +1,124 @@
+<!-- PDF Template - Easy to customize HTML structure -->
+<div class="pdf-container" *ngIf="data">
+
+    <!-- Header Section -->
+    <header class="pdf-header">
+        <h1 class="main-title">{{ data.specTitle || 'Specification Document' }}</h1>
+        <div class="header-metadata">
+            <span class="version">Version: {{ data.specVersion || 'N/A' }}</span>
+            <span class="separator">|</span>
+            <span class="date">Generated: {{ data.generatedDate }}</span>
+        </div>
+        <div class="header-divider"></div>
+    </header>
+
+    <!-- Specification Details Section -->
+    <section class="specification-section">
+        <h2 class="section-title">Specification Details</h2>
+
+        <table class="details-table">
+            <tbody>
+                <tr class="table-row">
+                    <td class="label-cell">Title:</td>
+                    <td class="value-cell">{{ data.specTitle || 'Not specified' }}</td>
+                </tr>
+                <tr class="table-row">
+                    <td class="label-cell">Version:</td>
+                    <td class="value-cell">{{ data.specVersion || 'Not specified' }}</td>
+                </tr>
+                <tr class="table-row">
+                    <td class="label-cell">Description:</td>
+                    <td class="value-cell">{{ data.specDescription || 'No description provided' }}</td>
+                </tr>
+                <tr class="table-row">
+                    <td class="label-cell">Device Name:</td>
+                    <td class="value-cell">{{ data.deviceName || 'Not specified' }}</td>
+                </tr>
+                <tr class="table-row">
+                    <td class="label-cell">Protocols:</td>
+                    <td class="value-cell">
+                        <span *ngIf="data.protocols && data.protocols.length > 0">
+                            {{ data.protocols.join(', ') }}
+                        </span>
+                        <span *ngIf="!data.protocols || data.protocols.length === 0" class="empty-value">
+                            None specified
+                        </span>
+                    </td>
+                </tr>
+                <tr class="table-row">
+                    <td class="label-cell">Document Status:</td>
+                    <td class="value-cell">{{ data.documentStatus || 'Not specified' }}</td>
+                </tr>
+                <tr class="table-row">
+                    <td class="label-cell">Applicable To:</td>
+                    <td class="value-cell">{{ data.applicableTo || 'Not specified' }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Message Envelope Section -->
+    <section class="envelope-section" *ngIf="data.selectedEnvelope">
+        <h2 class="section-title">Message Envelope</h2>
+
+        <table class="details-table">
+            <tbody>
+                <tr class="table-row">
+                    <td class="label-cell">Title:</td>
+                    <td class="value-cell">{{ data.selectedEnvelope.title || 'Untitled envelope' }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Demo JSON for Envelope -->
+        <div class="demo-json-section" *ngIf="data.demoJsonText">
+            <h3 class="demo-json-title">Demo JSON:</h3>
+            <pre class="json-code"><code>{{ data.demoJsonText }}</code></pre>
+        </div>
+
+        <div class="no-demo-json" *ngIf="!data.demoJsonText">
+            <p class="empty-message">No demo JSON available for this envelope.</p>
+        </div>
+    </section>
+
+    <!-- No Envelope Section -->
+    <section class="envelope-section" *ngIf="!data.selectedEnvelope">
+        <h2 class="section-title">Message Envelope</h2>
+        <p class="empty-message">No message envelope selected.</p>
+    </section>
+
+    <!-- Message Types Section -->
+    <section class="message-types-section">
+        <h2 class="section-title">Message Types</h2>
+
+        <div *ngIf="data.messageTypes && data.messageTypes.length > 0">
+            <p class="intro-text">Total message types: {{ data.messageTypes.length }}</p>
+
+            <!-- Each Message Type -->
+            <div *ngFor="let messageType of data.messageTypes; let i = index" class="message-type-item">
+                <h3 class="message-type-title">
+                    <span class="message-number">3.{{ i + 1 }}</span>
+                    <span class="message-name">{{ messageType.name || 'Message Type ' + (i + 1) }}</span>
+                </h3>
+
+                <!-- JSON Schema for each message type -->
+                <div class="json-schema-section" *ngIf="messageType.json_schema">
+                    <h4 class="json-schema-title">JSON Schema:</h4>
+                    <pre class="json-code"><code>{{ formatJsonSchema(messageType.json_schema) }}</code></pre>
+                </div>
+
+                <!-- Demo JSON for each message type -->
+                <div class="demo-json-section">
+                    <h4 class="demo-json-title">Demo JSON:</h4>
+                    <pre class="json-code"><code>{{ generateDemoJson(messageType) }}</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- No Message Types -->
+        <div *ngIf="!data.messageTypes || data.messageTypes.length === 0">
+            <p class="empty-message">No message types available.</p>
+        </div>
+    </section>
+
+</div>

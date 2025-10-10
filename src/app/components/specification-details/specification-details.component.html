@@ -1,0 +1,263 @@
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+  <div class="p-6 border-b border-gray-100">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-gray-900">Specification Details</h2>
+      <button
+        type="button"
+        class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg shadow-sm hover:from-blue-600 hover:to-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+      >
+        <svg
+          class="w-4 h-4 mr-2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+        </svg>
+        Add Field
+      </button>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-2 gap-6">
+      <div>
+        <label for="specTitle" class="block text-sm font-medium text-gray-700 mb-2"
+          >Spec Sheet Title</label
+        >
+        <input
+          type="text"
+          id="specTitle"
+          [(ngModel)]="specTitle"
+          (ngModelChange)="specTitleChange.emit($event)"
+          name="specTitle"
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+          placeholder="Enter specification title..."
+        />
+      </div>
+      <div>
+        <label for="specVersion" class="block text-sm font-medium text-gray-700 mb-2"
+          >Version</label
+        >
+        <input
+          type="text"
+          id="specVersion"
+          [(ngModel)]="specVersion"
+          (ngModelChange)="specVersionChange.emit($event)"
+          name="specVersion"
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+          placeholder="1.0.0"
+        />
+      </div>
+      <div>
+        <label for="deviceName" class="block text-sm font-medium text-gray-700 mb-2"
+          >Device Name</label
+        >
+        <input
+          type="text"
+          id="deviceName"
+          [(ngModel)]="deviceName"
+          (ngModelChange)="deviceNameChange.emit($event)"
+          name="deviceName"
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+          placeholder="Enter device name..."
+        />
+      </div>
+      <!-- Protocol Dropdown -->
+      <div class="w-full">
+        <div class="flex space-x-2">
+          <label for="protocols" class="block text-sm font-medium text-gray-700 mb-2"
+            >Protocol</label
+          >
+
+          <p class="text-sm text-gray-500">( You can select multiple protocols )</p>
+        </div>
+
+        <div class="relative" #protocolDropdown>
+          <button
+            type="button"
+            class="w-full flex justify-between items-center px-4 py-3 border border-gray-300 rounded-lg bg-white text-left text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            (click)="isProtocolOpen = !isProtocolOpen"
+          >
+            <span *ngIf="protocols?.length; else placeholder">
+              {{ protocols.join(', ') }}
+            </span>
+            <ng-template #placeholder>
+              <span class="text-gray-400">Select protocol(s)...</span>
+            </ng-template>
+            <svg
+              class="w-5 h-5 text-gray-500 ml-2"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          <!-- Dropdown list -->
+          <div
+            *ngIf="isProtocolOpen"
+            class="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+          >
+            <ul class="py-2 text-sm text-gray-700">
+              <li
+                *ngFor="
+                  let option of ['MQTT over TLS', 'MQTT (non - TLS)', 'HTTP', 'HTTPS', 'CoAP']
+                "
+                class="px-4 py-2 cursor-pointer hover:bg-blue-50 flex items-center gap-2"
+                (click)="toggleProtocol(option)"
+              >
+                <input
+                  type="checkbox"
+                  [checked]="protocols.includes(option)"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span>{{ option }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="w-full">
+        <label for="documentStatus" class="block text-sm font-medium text-gray-700 mb-2"
+          >Document Status</label
+        >
+
+        <!-- Button -->
+        <div class="relative" #statusDropdown>
+          <button
+            type="button"
+            class="w-full flex justify-between items-center px-4 py-3 border border-gray-300 rounded-lg bg-white text-left text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            (click)="isStatusOpen = !isStatusOpen"
+          >
+            <div class="flex items-center gap-2">
+              <span
+                class="w-2.5 h-2.5 rounded-full bg-sky-400"
+                [ngClass]="statusColors[documentStatus]"
+              ></span>
+              <span>{{ documentStatus || 'Select status...' }}</span>
+            </div>
+
+            <svg
+              class="w-5 h-5 text-gray-500 ml-2"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          <!-- Dropdown list -->
+          <div
+            *ngIf="isStatusOpen"
+            class="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-lg"
+          >
+            <ul class="py-2 text-sm text-gray-700">
+              <li
+                *ngFor="let option of statusOptions"
+                class="px-4 py-2 cursor-pointer hover:bg-blue-50 flex items-center gap-2"
+                (click)="selectStatus(option)"
+              >
+                <span class="w-2.5 h-2.5 rounded-full" [ngClass]="statusColors[option]"></span>
+                <span>{{ option }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label for="forField" class="block text-sm font-medium text-gray-700 mb-2"
+          >Applicable To</label
+        >
+        <input
+          type="text"
+          id="forField"
+          [(ngModel)]="forField"
+          (ngModelChange)="forFieldChange.emit($event)"
+          name="forField"
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+          placeholder="Enter target audience or context..."
+        />
+      </div>
+    </div>
+    <div class="mt-6">
+      <label for="specDescription" class="block text-sm font-medium text-gray-700 mb-2"
+        >Description</label
+      >
+      <textarea
+        id="specDescription"
+        [(ngModel)]="specDescription"
+        (ngModelChange)="specDescriptionChange.emit($event)"
+        name="specDescription"
+        rows="3"
+        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 resize-none"
+        placeholder="Describe your protocol buffer specification..."
+      ></textarea>
+    </div>
+    <div class="mt-6">
+      <label for="specTags" class="block text-sm font-medium text-gray-700 mb-2"
+        >Tags (comma-separated)</label
+      >
+      <input
+        type="text"
+        id="specTags"
+        [(ngModel)]="specTags"
+        (ngModelChange)="specTagsChange.emit($event)"
+        name="specTags"
+        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+        placeholder="api, user, service, v1"
+      />
+    </div>
+
+    <!-- Team Selection for New Specs -->
+    <div *ngIf="!currentSpecId && myTeams.length > 0" class="mt-6">
+      <label for="teamSelect" class="block text-sm font-medium text-gray-700 mb-2">Save to</label>
+      <select
+        id="teamSelect"
+        [(ngModel)]="selectedTeamId"
+        (ngModelChange)="selectedTeamIdChange.emit($event)"
+        name="teamSelect"
+        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+      >
+        <option value="personal">Personal Workspace</option>
+        <option *ngFor="let team of myTeams" [value]="team.id">{{ team.name }}</option>
+      </select>
+    </div>
+
+    <div class="flex justify-end mt-6">
+      <!-- <button
+        type="button"
+        (click)="saveSpecDetails.emit()"
+        class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg shadow-sm hover:from-green-600 hover:to-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200"
+      >
+        <svg
+          class="w-4 h-4 mr-2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save
+      </button> -->
+    </div>
+  </div>
+</div>

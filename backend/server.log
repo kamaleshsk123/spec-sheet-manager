@@ -1,0 +1,24 @@
+nohup: ignoring input
+
+> protobuf-spec-backend@1.0.0 start
+> node dist/server.js
+
+--- Database Environment Variables ---
+DB_HOST: localhost
+DB_PORT: 5432
+DB_NAME: protobuf_specs
+DB_USER: protobuf
+DB_PASSWORD: ********
+------------------------------------
+🚀 Server running on port 3000
+📊 Health check: http://localhost:3000/health
+🌍 Environment: development
+[0mGET /api/health [32m200[0m 1.854 ms - 113[0m
+[0mGET /api/health [32m200[0m 0.425 ms - 113[0m
+[0mGET /api/health [32m200[0m 0.541 ms - 113[0m
+Connected to PostgreSQL database
+[0mPOST /api/auth/login [32m200[0m 324.195 ms - 501[0m
+[0mPOST /api/auth/login [32m200[0m 279.366 ms - 501[0m
+[0mGET / [33m404[0m 1.177 ms - 43[0m
+[0mGET /favicon.ico [33m404[0m 0.490 ms - 43[0m
+[0mGET / [33m404[0m 0.454 ms - 43[0m

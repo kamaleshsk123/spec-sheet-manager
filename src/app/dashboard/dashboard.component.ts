@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, NavigationEnd, RouterModule } from '@angular/router';
+import { Router, NavigationEnd, RouterModule, ActivatedRoute } from '@angular/router';
 import { ApiService, ProtobufSpec, User, SpecVersion, Team } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
 import { PublishModalComponent } from '../components/publish-modal/publish-modal.component';
@@ -8,11 +8,15 @@ import { PushToBranchModalComponent } from '../components/push-to-branch-modal/p
 import { VersionHistoryModalComponent } from '../components/version-history-modal/version-history-modal.component';
 import { forkJoin, Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 interface TeamWorkspace {
   team: Team;
   specs: ProtobufSpec[];
 }
+
+import { JsonCompareModalComponent } from '../components/json-compare-modal/json-compare-modal.component';
+import { TabListOverlayComponent } from '../components/tab-list-overlay/tab-list-overlay.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -23,6 +27,7 @@ interface TeamWorkspace {
     PublishModalComponent,
     PushToBranchModalComponent,
     VersionHistoryModalComponent,
+    TabListOverlayComponent,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
@@ -56,16 +61,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
   baseSpec: ProtobufSpec | null = null;
   leftSideSpec: ProtobufSpec | null = null;
   rightSideSpec: ProtobufSpec | null = null;
+  comparisonSpecType: 'protobuf' | 'json' = 'protobuf';
 
-  private routerSubscription: Subscription;
+  // PDF Preview Overlay properties
+  showTabListOverlay: boolean = false;
+  previewSpec: ProtobufSpec | null = null;
+  tabs: { name: string, content: string }[] = [];
+  messageEnvelopes: any[] = [];
+  selectedEnvelopeId: string | null = null;
+  demoJsonText: string = '';
+  messageTypes: any[] = [];
+  combinedPayloadText: string = '';
+
+  private routerSubscription: Subscription = new Subscription();
+  private queryParamsSubscription: Subscription = new Subscription();
+  public githubAuthUrl: string;
 
   constructor(
     private apiService: ApiService,
     private router: Router,
+    private route: ActivatedRoute,
     private notificationService: NotificationService
   ) {
+    this.githubAuthUrl = `${environment.apiUrl}/auth/github`;
     this.routerSubscription = this.router.events
-      .pipe(filter((event) => event instanceof NavigationEnd && event.url === '/'))
+      .pipe(filter((event) => event instanceof NavigationEnd && (event.url === '/' || event.url.startsWith('/?'))))
       .subscribe(() => {
         this.loadData();
       });
@@ -74,20 +94,62 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.loadData();
     this.loadUserProfile();
+    
+    // Subscribe to query params to detect refresh requests
+    this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
+      if (params['refresh']) {
+        // Show a brief notification that we're refreshing
+        this.notificationService.info('Refreshing', 'Loading latest data...');
+        
+        // Force complete refresh when refresh param is present
+        this.forceRefresh();
+        
+        // Clean up the URL by removing the refresh param
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { refresh: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true
+        });
+      }
+    });
   }
 
   ngOnDestroy() {
     if (this.routerSubscription) {
       this.routerSubscription.unsubscribe();
     }
+    if (this.queryParamsSubscription) {
+      this.queryParamsSubscription.unsubscribe();
+    }
   }
 
   // --- Data Loading and Processing ---
+  forceRefresh() {
+    // Clear all cached data and force a complete reload
+    this.allSpecs = [];
+    this.personalSpecs = [];
+    this.teamWorkspaces = [];
+    this.specs = [];
+    this.specVersions = {};
+    this.loadData();
+  }
+
   loadData() {
     this.isLoading = true;
     this.error = '';
+    
+    // Clear existing data to prevent showing stale data
+    this.allSpecs = [];
+    this.personalSpecs = [];
+    this.teamWorkspaces = [];
+    this.specs = [];
+    
+    // Add cache-busting timestamp to ensure fresh data
+    const cacheBuster = Date.now();
+    
     forkJoin({
-      specsResponse: this.apiService.getSpecs({ limit: 200 }),
+      specsResponse: this.apiService.getSpecs({ limit: 200, _t: cacheBuster }),
       teamsResponse: this.apiService.getTeams(),
     }).subscribe({
       next: ({ specsResponse, teamsResponse }) => {
@@ -155,7 +217,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const sameGroup = this.allSpecs.filter(
       (spec) =>
         spec.title === this.baseSpec!.title &&
-        (spec.team_id || null) === (this.baseSpec!.team_id || null)
+        (spec.team_id || null) === (this.baseSpec!.team_id || null) &&
+        (spec.spec_type || 'protobuf') === this.comparisonSpecType
     );
     // Sort by version descending so newest first
     return sameGroup.sort((a, b) => this.compareVersions(b.version, a.version));
@@ -205,8 +268,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     rightLines: { content: string; lineNumber: number; type: string }[];
   } {
     try {
-      const leftText = this.generateProtoContent(this.leftSideSpec?.spec_data || {});
-      const rightText = this.generateProtoContent(this.rightSideSpec?.spec_data || {});
+      let leftText: string;
+      let rightText: string;
+
+      if (this.comparisonSpecType === 'json') {
+        leftText = JSON.stringify(this.leftSideSpec?.spec_data || {}, null, 2);
+        rightText = JSON.stringify(this.rightSideSpec?.spec_data || {}, null, 2);
+      } else {
+        leftText = this.generateProtoContent(this.leftSideSpec?.spec_data || {});
+        rightText = this.generateProtoContent(this.rightSideSpec?.spec_data || {});
+      }
 
       const left = leftText.split('\n');
       const right = rightText.split('\n');
@@ -324,6 +395,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.router.navigate(['/auth']);
   }
 
+  disconnectGitHub() {
+    this.apiService.disconnectGitHub().subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notificationService.success('GitHub account disconnected successfully');
+          this.loadUserProfile();
+        } else {
+          this.notificationService.error('Failed to disconnect GitHub account', response.error);
+        }
+      },
+      error: (error) => {
+        this.notificationService.error('An error occurred while disconnecting the GitHub account.');
+        console.error('GitHub disconnect error:', error);
+      },
+    });
+  }
+
   formatDate(date: Date | string): string {
     return new Date(date).toLocaleDateString();
   }
@@ -436,6 +524,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   openCompareModal(spec: ProtobufSpec) {
     this.openSpecDropdown = null;
     this.baseSpec = spec;
+    this.comparisonSpecType = spec.spec_type || 'protobuf';
     this.leftSideSpec = null;
     this.rightSideSpec = null;
     this.canShowComparison = false;
@@ -452,6 +541,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // --- Versioning & Comparison Helpers ---
   getLatestVersionsOnly(allSpecs: ProtobufSpec[]): ProtobufSpec[] {
+    console.log('Processing specs for latest versions:', allSpecs.length);
     const specGroups = new Map<string, ProtobufSpec[]>();
     allSpecs.forEach((spec) => {
       const key = `${spec.title}_${spec.team_id || 'personal'}`;
@@ -463,6 +553,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const latestSpecs: ProtobufSpec[] = [];
     specGroups.forEach((specs, title) => {
       const sortedSpecs = specs.sort((a, b) => this.compareVersions(b.version, a.version));
+      console.log(`Spec group "${title}":`, specs.map(s => `v${s.version} (${s.id})`), '-> Latest:', `v${sortedSpecs[0].version} (${sortedSpecs[0].id})`);
       latestSpecs.push(sortedSpecs[0]);
     });
     return latestSpecs;
@@ -592,7 +683,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         for (const en of message.nestedEnums) {
           s += `${pad}  enum ${en.name} {\n`;
           for (const v of en.values || []) {
-            s += `${pad}    ${v.name} = ${v.number};\n`;
+            s += `${pad}    ${v.name} = ${v.number};
+`;
           }
           s += `${pad}  }\n\n`;
         }
@@ -638,5 +730,257 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     return content;
+  }
+
+  // Navigate to PDF Template Preview
+  openPdfTemplatePreview() {
+    this.router.navigate(['/pdf-template-preview']);
+  }
+
+  // Open Spec Preview with specific spec data
+  openSpecPreview(spec: ProtobufSpec) {
+    this.openSpecDropdown = null;
+    this.previewSpec = spec;
+    this.loadSpecDataForPreview(spec);
+  }
+
+  private loadSpecDataForPreview(spec: ProtobufSpec) {
+    // Set basic spec data
+    this.tabs = [
+      { name: 'Specification Details', content: 'spec' },
+      { name: 'Message Envelope', content: 'messageEnvelope' },
+      { name: 'Message Types', content: 'messageTypes' }
+    ];
+
+    // Load message types and envelopes for the spec
+    if (spec.id) {
+      this.apiService.getMessageTypes(spec.id).subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.messageTypes = response.data;
+          } else {
+            this.messageTypes = [];
+          }
+          this.loadMessageEnvelopes(spec.id!);
+        },
+        error: (error) => {
+          console.error('Error loading message types:', error);
+          this.messageTypes = [];
+          this.loadMessageEnvelopes(spec.id!);
+        }
+      });
+    } else {
+      this.messageTypes = [];
+      this.messageEnvelopes = [];
+      this.showTabListOverlay = true;
+    }
+  }
+
+  private loadMessageEnvelopes(specId: string) {
+    this.apiService.getMessageEnvelopes().subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.messageEnvelopes = response.data;
+          if (this.messageEnvelopes.length > 0) {
+            this.selectedEnvelopeId = this.messageEnvelopes[0].id;
+            this.generateDemoJson(this.messageEnvelopes[0]);
+          }
+        } else {
+          this.messageEnvelopes = [];
+        }
+        this.showTabListOverlay = true;
+      },
+      error: (error) => {
+        console.error('Error loading message envelopes:', error);
+        this.messageEnvelopes = [];
+        this.showTabListOverlay = true;
+      }
+    });
+  }
+
+  private generateDemoJson(envelope: any) {
+    if (envelope && envelope.json_fields) {
+      try {
+        const demoData = this.generateDemoFromFields(envelope.json_fields);
+        this.demoJsonText = JSON.stringify(demoData, null, 2);
+      } catch (error) {
+        console.error('Error generating demo JSON:', error);
+        this.demoJsonText = '{}';
+      }
+    } else {
+      this.demoJsonText = '{}';
+    }
+  }
+
+  private generateDemoFromFields(fields: any[]): any {
+    const demo: any = {};
+    if (!fields || !Array.isArray(fields)) {
+      return demo;
+    }
+
+    for (const field of fields) {
+      if (!field.name) continue;
+
+      if (field.value !== null && field.value !== undefined && field.value !== '') {
+        demo[field.name] = field.value;
+      } else if (field.type === 'object') {
+        demo[field.name] = this.generateDemoFromFields(field.children || []);
+      } else if (field.type === 'array') {
+        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const items = [];
+        for (let i = 0; i < itemCount; i++) {
+          if (field.items && field.items.type === 'object') {
+            items.push(this.generateDemoFromFields(field.items.children || []));
+          } else {
+            const tempSchemaProp = { type: field.items?.type || 'string' };
+            items.push(this.generateMockForProperty(tempSchemaProp, field.name));
+          }
+        }
+        demo[field.name] = items;
+      } else {
+        const tempSchemaProp = {
+          type: field.type,
+          format: field.type === 'time' ? 'date-time' : undefined,
+          pattern: field.pattern,
+          minimum: field.minimum,
+          maximum: field.maximum,
+          enum: field.enum
+        };
+        demo[field.name] = this.generateMockForProperty(tempSchemaProp, field.name);
+      }
+    }
+    return demo;
+  }
+
+  private generateDemoValue(type: string): any {
+    const demoValues: { [key: string]: any } = {
+      'string': 'sample_string',
+      'number': 42,
+      'integer': 100,
+      'boolean': true,
+      'array': ['item1', 'item2'],
+      'object': { key: 'value' }
+    };
+    return demoValues[type] || 'sample_value';
+  }
+
+  closeTabListOverlay() {
+    this.showTabListOverlay = false;
+    this.previewSpec = null;
+    this.messageTypes = [];
+    this.messageEnvelopes = [];
+    this.selectedEnvelopeId = null;
+    this.demoJsonText = '';
+  }
+
+  onEnvelopeSelected(envelopeId: string) {
+    this.selectedEnvelopeId = envelopeId;
+    const selectedEnvelope = this.messageEnvelopes.find(e => e.id === envelopeId);
+    if (selectedEnvelope) {
+      this.generateDemoJson(selectedEnvelope);
+    } else {
+      this.demoJsonText = '{}';
+    }
+  }
+
+  onMessageTypeSelected(messageType: any) {
+    if (!messageType) {
+      this.combinedPayloadText = '';
+      return;
+    }
+
+    if (!this.selectedEnvelopeId) {
+      this.combinedPayloadText = '';
+      return;
+    }
+
+    const selectedEnvelope = this.messageEnvelopes.find(e => e.id === this.selectedEnvelopeId);
+    if (!selectedEnvelope) {
+      this.combinedPayloadText = '';
+      return;
+    }
+
+    const envelopePayload = this.generateDemoFromFields(selectedEnvelope.json_fields || []);
+    const messagePayload = this.generateDemoJsonFromSchema(messageType.json_schema);
+    const messageKey = this.toCamelCase(messageType.name);
+
+    const combinedJson = {
+      ...envelopePayload,
+      [messageKey]: messagePayload
+    };
+
+    this.combinedPayloadText = JSON.stringify(combinedJson, null, 2);
+  }
+
+  private generateDemoJsonFromSchema(schema: any): any {
+    if (!schema || !schema.properties) {
+      return {};
+    }
+    const demo: any = {};
+    const props = schema.properties || {};
+    Object.keys(props).forEach((key) => {
+      demo[key] = this.generateMockForProperty(props[key], key);
+    });
+    return demo;
+  }
+
+  private generateMockForProperty(prop: any, key: string): any {
+    if (!prop) return null;
+
+    switch (prop.type) {
+      case 'string':
+        if (prop.format === 'date-time') {
+          return new Date().toISOString();
+        }
+        if (prop.format === 'email') {
+          return 'example@email.com';
+        }
+        if (prop.format === 'uri') {
+          return 'https://example.com';
+        }
+        if (prop.enum && prop.enum.length > 0) {
+          return prop.enum[0];
+        }
+        return `sample_${key}`;
+      
+      case 'number':
+      case 'integer':
+        if (prop.minimum !== undefined) {
+          return prop.minimum;
+        }
+        if (prop.maximum !== undefined) {
+          return Math.min(prop.maximum, 100);
+        }
+        return prop.type === 'integer' ? 42 : 3.14;
+      
+      case 'boolean':
+        return true;
+      
+      case 'array':
+        const itemCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
+        const items = [];
+        const itemSchema = prop.items || { type: 'string' };
+        for (let i = 0; i < itemCount; i++) {
+          items.push(this.generateMockForProperty(itemSchema, key));
+        }
+        return items;
+      
+      case 'object':
+        const child: any = {};
+        const nestedProps = prop.properties || {};
+        Object.keys(nestedProps).forEach((k) => {
+          child[k] = this.generateMockForProperty(nestedProps[k], k);
+        });
+        return child;
+      
+      default:
+        return `sample_${key}`;
+    }
+  }
+
+  private toCamelCase(str: string): string {
+    if (!str) return '';
+    return str.replace(/[^a-zA-Z0-9]+(.)?/g, (match, chr) => chr ? chr.toUpperCase() : '')
+             .replace(/^./, (match) => match.toLowerCase());
   }
 }

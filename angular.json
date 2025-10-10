@@ -23,6 +23,7 @@
                 "glob": "**/*",
                 "input": "public"
               },
+              "src/assets",
               {
                 "glob": "**/*",
                 "input": "node_modules/monaco-editor/min/vs",
@@ -36,6 +37,12 @@
           },
           "configurations": {
             "production": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ],
               "budgets": [
                 {
                   "type": "initial",
@@ -65,7 +72,10 @@
               "buildTarget": "spec-sheet-manager:build:production"
             },
             "development": {
-              "buildTarget": "spec-sheet-manager:build:development"
+              "buildTarget": "spec-sheet-manager:build:development",
+              "allowedHosts": [
+                ".ngrok-free.app"
+              ]
             }
           },
           "defaultConfiguration": "development"

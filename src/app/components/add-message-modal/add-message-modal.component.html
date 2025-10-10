@@ -1,0 +1,87 @@
+<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" (click)="closeModal()">
+  <div
+    class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4"
+    (click)="$event.stopPropagation()"
+  >
+    <!-- Modal Header -->
+    <div class="bg-gray-50 px-6 py-4 rounded-t-lg border-b border-gray-200">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-gray-900">Add New Message</h2>
+        <button
+          (click)="closeModal()"
+          class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-6 space-y-4">
+      <div>
+        <label for="messageName" class="block text-sm font-medium text-gray-700"
+          >Message Name</label
+        >
+        <input
+          type="text"
+          id="messageName"
+          [(ngModel)]="newMessage.name"
+          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        />
+      </div>
+      <div>
+        <!-- <label for="payloadDefinition" class="block text-sm font-medium text-gray-700"
+          >Payload Definition</label
+        > -->
+        <!-- <input
+          type="text"
+          id="payloadDetails"
+          [(ngModel)]="newMessage.payload"
+          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        /> -->
+        <!-- <textarea
+          id="payloadDefinition"
+          [(ngModel)]="newMessage.payloadDefinition"
+          rows="10"
+          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md h-16 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        ></textarea> -->
+      </div>
+      <!-- <div>
+        <label for="jsonSchema" class="block text-sm font-medium text-gray-700"
+          >JSON Schema</label
+        >
+        <textarea
+          id="jsonSchema"
+          [(ngModel)]="newMessage.json_schema"
+          rows="10"
+          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md h-32 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        ></textarea>
+      </div> -->
+    </div>
+
+    <!-- Modal Footer -->
+    <div
+      class="bg-gray-50 px-6 py-4 rounded-b-lg border-t flex justify-end space-x-2 border-gray-200"
+    >
+      <button
+        (click)="closeModal()"
+        class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50"
+      >
+        Cancel
+      </button>
+      <button
+        (click)="saveMessage()"
+        class="px-4 py-2 bg-blue-600 border border-transparent text-white text-sm font-medium rounded-md hover:bg-blue-700"
+      >
+        Save
+      </button>
+    </div>
+  </div>
+</div>

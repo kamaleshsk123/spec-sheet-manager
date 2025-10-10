@@ -1,0 +1,47 @@
+<div *ngIf="message" class="flex flex-col min-h-screen">
+  <!-- Content Box -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 ">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Message Title</h3>
+    <input
+      type="text"
+      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+             transition-all duration-200 placeholder-gray-400"
+      placeholder="Enter message..."
+      [(ngModel)]="message.name"
+    />
+  </div>
+
+  <!-- Definition Details -->
+  <div class="mt-8 flex-1">
+    <app-definition-details
+      [(protoFile)]="protoFile"
+      [(jsonSchema)]="jsonSchema"
+      [(jsonFields)]="jsonFields"
+      [(toggleValue)]="toggleValue"
+      [(code)]="code"
+      [editorOptions]="editorOptions"
+    ></app-definition-details>
+  </div>
+
+  <!-- Bottom Action Buttons Centered -->
+  <div class="flex justify-center gap-4 mt-6 mb-6">
+    <!-- Back Button -->
+    <button
+      type="button"
+      (click)="back()"
+      class="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 "
+    >
+      
+      Back
+    </button>
+
+    <!-- Update Button -->
+    <button
+      type="button"
+      (click)="save()"
+      class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-md shadow-sm hover:from-blue-600 hover:to-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+    >
+      Update JSON
+    </button>
+  </div>
+</div>

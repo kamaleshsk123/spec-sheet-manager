@@ -63,23 +63,51 @@ const protoFileDataSchema = Joi.object({
   services: Joi.array().items(serviceSchema).default([]),
 });
 
+const jsonSchemaPropertySchema: Joi.ObjectSchema = Joi.object({
+  type: Joi.string().valid('string', 'number', 'integer', 'boolean', 'object', 'array').required(),
+  pattern: Joi.string().optional(),
+  minimum: Joi.number().optional(),
+  maximum: Joi.number().optional(),
+  enum: Joi.array().items(Joi.any()).optional(),
+  properties: Joi.object().pattern(Joi.string(), Joi.link('#jsonSchemaPropertySchema')).optional(),
+  required: Joi.array().items(Joi.string()).optional(),
+  items: Joi.link('#jsonSchemaPropertySchema').optional(),
+}).id('jsonSchemaPropertySchema');
+
+const jsonSchemaDataSchema = Joi.object({
+  title: Joi.string().required(),
+  type: Joi.string().valid('object').required(),
+  properties: Joi.object().pattern(Joi.string(), jsonSchemaPropertySchema).required(),
+  required: Joi.array().items(Joi.string()).optional(),
+});
+
 export const createSpecSchema = Joi.object({
   title: Joi.string().min(1).max(255).required(),
   version: Joi.string().max(50).optional(),
-  description: Joi.string().max(1000).optional(),
-  spec_data: protoFileDataSchema.required(),
+  description: Joi.string().max(1000).allow('').optional(),
+  spec_type: Joi.string().valid('protobuf', 'json').default('protobuf'),
+  spec_data: Joi.alternatives()
+    .try(protoFileDataSchema, jsonSchemaDataSchema)
+    .required(),
   tags: Joi.array().items(Joi.string().max(50)).max(10).optional(),
   team_id: Joi.string()
     .guid({ version: ['uuidv4', 'uuidv5'] })
     .allow(null)
     .optional(),
+  device_name: Joi.string().max(255).allow(null).optional(),
+  protocols: Joi.array().items(Joi.string().max(100)).optional(),
+  document_status: Joi.string().max(50).allow(null).optional(),
+  for_field: Joi.string().max(255).allow(null).optional(),
 });
 
 export const updateSpecSchema = Joi.object({
   title: Joi.string().min(1).max(255).optional(),
   version: Joi.string().max(50).optional(),
-  description: Joi.string().max(1000).optional(),
-  spec_data: protoFileDataSchema.optional(),
+  description: Joi.string().max(1000).allow('').optional(),
+  spec_type: Joi.string().valid('protobuf', 'json').optional(),
+  spec_data: Joi.alternatives()
+    .try(protoFileDataSchema, jsonSchemaDataSchema)
+    .optional(),
   tags: Joi.array().items(Joi.string().max(50)).max(10).optional(),
   is_published: Joi.boolean().optional(),
   github_repo_url: Joi.string().uri().allow(null).optional(),
@@ -88,6 +116,18 @@ export const updateSpecSchema = Joi.object({
     .guid({ version: ['uuidv4', 'uuidv5'] })
     .allow(null)
     .optional(),
+});
+
+export const createMessageTypeSchema = Joi.object({
+  name: Joi.string().min(1).max(255).required(),
+  payload_definition: Joi.string().allow('').optional(),
+  json_schema: Joi.object().allow(null).optional(),
+});
+
+export const updateMessageTypeSchema = Joi.object({
+  name: Joi.string().min(1).max(255).optional(),
+  payload_definition: Joi.string().allow('').optional(),
+  json_schema: Joi.object().optional(),
 });
 
 // Validation middleware factory
